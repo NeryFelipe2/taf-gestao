@@ -11,7 +11,7 @@ Aba Tarefas = restrições R01-R110 da rev6. Quem edita, todos veem (salva a cad
 
 ## Publicar no Vercel (3 passos)
 1. Subir esta pasta num repositório do GitHub.
-2. Vercel > Add New > Project > escolher o repositório. Framework: Other. Output Directory: `public`. Deploy.
+2. Vercel > Add New > Project > escolher o repositório. Framework: Other. Root Directory: `public`. Deploy.
 3. Abrir o link, digitar a chave e o seu nome. Banco vazio: escolher a rev6 (.xlsx) uma vez.
 
 ## Refazer o index.html
