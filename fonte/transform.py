@@ -20,7 +20,7 @@ def sub(old,new,cnt=1):
 # dados vêm do banco
 sub('var D=/*SNAP*/;\nvar W=/*WA*/;','var D=null,W={acoes:[]};')
 sub('(function(){\n"use strict";','window.__iniciar=function(){\n"use strict";')
-sub('tkInit();\nrender();\n})();','tkInit();\nrender();\npollIni();\n};')
+sub('tkInit();\nrender();\n})();','tkInit();\nrender();\npollIni();\nverIni();\n};')
 sub("var FONTE='rev6 do projeto, lida em 19/10/2026';","var FONTE='rev6';")
 # edicoes compartilhadas
 old=t[t.index("try{var _e=JSON.parse(localStorage.getItem(EK)"):t.index("var edVazio=")]
@@ -61,7 +61,7 @@ sub("var id='N'+(ED.nid++);","var id='N'+Date.now();")
 sub("if(ED)ED.add.forEach(function(a){var t={id:a.id,n:'NOVA '+a.id.slice(1),","if(ED)ED.add.forEach(function(a,ix){var t={id:a.id,n:'NOVA '+(ix+1),")
 # restaurar = apaga edicoes de todos
 sub("'Confirmar: apagar edições',function(){ED=null;TKW='Restaurado à rev6';edSave();render();toast('Dados originais da rev6 restaurados')}",
-    "'Confirmar: apagar edições de todos',function(){ens();ED.ov={};ED.add=[];ED.del={};ED.hoje=null;ED.atr=0;TKW='Restaurado à rev6';edSave();render();toast('Dados originais da rev6 restaurados')}")
+    "'Confirmar: apagar edições de todos',function(){baixarPlanilha();ens();ED.ov={};ED.add=[];ED.del={};ED.hoje=null;ED.atr=0;TKW='Restaurado à rev6';edSave();render();toast('Dados originais da rev6 restaurados')}")
 # textos
 t=t.replace('Simulação local, não altera a rev6','Edição compartilhada, não altera a planilha rev6').replace('Tarefa nova (simulação local)','Tarefa nova (edição compartilhada)').replace("' (simulação local)'","' (com edições)'").replace('simulação local','edição compartilhada')
 t=t.replace("sim=!edVazio()","sim=!semEdicao()") if "sim=!edVazio()" in t else t
@@ -86,5 +86,10 @@ sub('/*EXTRACT*/',ex)
 # gate + loader
 loader=open('loader.html',encoding='utf-8').read()
 sub('<div id="tip" hidden></div>',loader+'\n<div id="tip" hidden></div>')
+import hashlib,os
+assert t.count('__BUILD__')==1
+h=hashlib.sha1(t.replace('__BUILD__','').encode('utf-8')).hexdigest()[:10]
+t=t.replace('__BUILD__',h)
+open(os.path.join('..','public','versao.json'),'w',encoding='utf-8').write(json.dumps({'v':h}))
 open('index.html','w',encoding='utf-8').write(t)
-print(len(t))
+print(len(t),h)

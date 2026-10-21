@@ -410,7 +410,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
 #upl{position:absolute;width:1px;height:1px;opacity:0}
 .selo .btns{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px}
 .selo .btn{letter-spacing:0;text-transform:none;font-size:12.5px}
-@media (max-width:820px){.selo .btns{justify-content:flex-start}}
+@media (max-width:820px){.selo{max-width:100%}.selo .btns{justify-content:flex-start}}
 </style>
 
 <div id="marca" aria-hidden="true"></div>
@@ -422,7 +422,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
     <p id="sub"></p>
   </div>
   <div class="selo"><span id="selo-corte"></span><br><b id="selo-master"></b>
-    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-tema" type="button" aria-pressed="false">Tema escuro</button></div>
+    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><button class="btn" id="b-tema" type="button" aria-pressed="false">Tema escuro</button></div>
   </div>
 </header>
 
@@ -487,13 +487,14 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
   <section role="tabpanel" id="p-tarefas" aria-labelledby="t-tarefas" hidden>
     <div class="tk-hero"><span class="eyebrow">Gestão de tarefas · TAF</span><h2 class="tk-h2">Lista de Tarefas</h2><p>As restrições da 05C da rev6, por obra ou por pessoa. Mude a data de hoje, o limite de atraso, o prazo, o dono ou a situação de qualquer linha e os números, os gráficos e a lista refazem na hora.</p></div>
     <p class="hint" id="tk-upd" style="margin:0 0 12px"></p>
-    <div class="card" id="ed-bar"><div class="ed-h"><h3>Editar tarefas e parâmetros</h3><span class="sim" id="ed-sim" hidden>Com edições salvas; a planilha rev6 não muda</span></div>
-      <p class="hint">Sem edição, tudo é a rev6. Cada mudança é salva no banco e todos veem; a planilha rev6 não é alterada.</p>
+    <div class="card" id="ed-bar"><div class="ed-h"><h3>Editar tarefas e parâmetros</h3><span class="sim" id="ed-sim" hidden>Mudanças do site ainda fora da planilha rev6</span></div>
+      <p class="hint">Sem edição, tudo é a rev6. Cada mudança é salva no banco e todos veem. Para levar à planilha, use “Baixar planilha (xlsx)”.</p>
       <div class="row ed-row">
         <label class="field" style="gap:8px"><span class="lbl">Hoje</span><input type="date" id="ed-hoje" aria-label="Data de hoje"></label>
         <label class="field" style="gap:8px"><span class="lbl">Atrasada após</span><input type="range" min="0" max="30" id="ed-atr-r" aria-label="Dias de atraso (deslize)"><input type="number" min="0" max="365" id="ed-atr" style="width:3.4em" aria-label="Dias de atraso"><span class="lbl">dias</span></label>
       </div>
       <div class="row ed-row" style="margin-top:10px">
+        <button type="button" class="chip" id="ed-xlsx">Baixar planilha (xlsx)</button>
         <button type="button" class="chip" id="ed-modo" aria-pressed="true">Editar lista</button>
         <button type="button" class="chip" id="ed-nova">+ Nova tarefa</button>
         <button type="button" class="chip" id="ed-exp">Exportar JSON</button>
@@ -1061,7 +1062,7 @@ function rTa(){
   $('ed-modo').setAttribute('aria-pressed',String(EM));$('ed-nova').hidden=!EM;tkSim();
   var ref=function(x){return sim?'':x};
   kpis('k-ta',[{k:TKN.ab,v:String(sn.ab),s:'ABERTA ou MONITORAR',ref:'05C coluna H',dest:true},{k:TKN.at,v:String(sn.at),s:(hoje===corte()?'prazo antes do corte':'prazo antes de '+dt(hoje))+(atr?' + '+dTxt(atr):''),ref:'05C coluna L',bad:sn.at>0},{k:TKN.wk,v:String(sn.wk),s:'até 7 dias depois de '+(hoje===corte()?'o corte':dt(hoje)),ref:'05C coluna L'},{k:TKN.sd,v:String(sn.sd),s:'falta pessoa',ref:'05C coluna G',bad:sn.sd>0},{k:TKN.re,v:String(sn.re),s:'situação RESOLVIDA',ref:'05C coluna H'},{k:TKN.pe,v:String(sn.pe),s:'com tarefa aberta'}]);
-  if(sim)document.querySelectorAll('#k-ta .kpi').forEach(function(k){k.title='Com edições salvas; a planilha rev6 não muda'});
+  if(sim)document.querySelectorAll('#k-ta .kpi').forEach(function(k){k.title='Mudanças do site ainda fora da planilha rev6'});
   $('t-res').innerHTML='<b>'+rs.length+'</b> tarefas'+(S.pes?' de <b>'+esc(S.pes)+'</b>':'');
   var gk=function(r){return S.grp==='obra'?nObra(r.obra):nm(r)},g={};rs.forEach(function(r){var k=gk(r);(g[k]=g[k]||[]).push(r)});
   gObr(tarAll().filter(function(r){return okQ([r.n,r.frente,r.txt,r.dono,r.resposta])&&(!S.pes||nm(r)===S.pes)}));
@@ -1089,6 +1090,52 @@ function dois(btn,txt,fn){if(btn.dataset.arm){clearTimeout(btn._t);delete btn.da
 function baixar(nome,txt){
   var fb=function(){try{var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download=nome;document.body.appendChild(a);a.click();a.remove();toast('Arquivo '+nome+' gerado')}catch(e){copiar(txt,'JSON copiado')}};
   if(window.claude&&window.claude.use){window.claude.use('downloads').then(function(d){if(!d){fb();return}d.save({filename:nome,data:txt}).then(function(){toast('Arquivo salvo')},function(e){if(e&&e.code==='declined')toast('Download cancelado');else fb()})},fb)}else fb()}
+/* ---------- Baixar planilha (xlsx) ---------- */
+var XLC={obra:['Obra','B'],frente:['Frente / evento','C'],txt:['Restrição','D'],dono:['Dono','G'],sit:['Situação','H'],prazo:['Nova data','U'],resposta:['Resposta','R']};
+function xSer(iso){return /^\d{4}-\d\d-\d\d/.test(iso||'')?Date.UTC(+iso.slice(0,4),+iso.slice(5,7)-1,+iso.slice(8,10))/864e5+25569:null}
+function xDia(iso){var s=xSer(iso);return s==null?null:{t:'n',v:s,z:'dd/mm/yyyy'}}
+function xQuando(s){var d=new Date(s);return isNaN(d)?null:d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).replace(',','')}
+function xFolha(rows,larg){
+  var ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=larg.map(function(w){return {wch:w}});
+  if(rows.length>1)ws['!autofilter']={ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:rows.length-1,c:larg.length-1}})};
+  return ws}
+function baixarPlanilha(){
+  if(typeof XLSX==='undefined'){toast('O leitor de planilha não carregou. Atualize a página e tente de novo');return}
+  var hoje=hojeEf(),q=(typeof REMQ!=='undefined'&&REMQ)||{},rem=(typeof REM!=='undefined'&&REM)||{},nn=0,
+    vz=function(v){return v===''||v==null?null:v},byN={};
+  D.restricoes.forEach(function(r){byN[r.n]=r});
+  var A1=[['Nº','Obra','Frente / evento','Tarefa','Dono','Situação','Precisa até','Dias até o prazo (hoje '+dt(hoje)+')','Alerta','Resposta','Mudou no site','Quem mudou','Quando','ID no site']];
+  tarAll().forEach(function(t){var m=q[t.id]||{};
+    A1.push([t.novo?'NOVA '+('0'+(++nn)).slice(-2):t.n,vz(t.obra),vz(t.frente),vz(t.txt),vz(t.dono),vz(t.sit),xDia(t.prazo),t.prazo?-t.atraso:null,vz(t.alerta),vz(t.resposta),t.novo?'Nova':t.edit?'Sim':null,vz(m.quem),m.em?xQuando(m.em):null,t.id])});
+  var A2=[['Nº','Obra','Restrição na rev6','O que mudou','Na rev6','Agora no site','Linha da 05C','Coluna da 05C','Quem','Quando']],
+    fv=function(c,v){return c==='prazo'?dt(v):v==null?'':String(v)};
+  Object.keys(rem).filter(function(id){return byN[id]}).sort(function(a,b){return byN[a].row-byN[b].row}).forEach(function(id){
+    var d=rem[id]||{},r=byN[id],m=q[id]||{},base=[id,vz(r.obra),vz(r.txt)],qm=[vz(m.quem),m.em?xQuando(m.em):null];
+    if(d.del){A2.push(base.concat(['Retirada da lista','(estava na lista)','(retirada no site)',r.row,'linha inteira'],qm));return}
+    var o0=orig(r);
+    Object.keys(d.ov||{}).forEach(function(c){if(!XLC[c])return;var de=fv(c,o0[c]),pa=fv(c,d.ov[c]);if(de===pa)return;
+      A2.push(base.concat([XLC[c][0],vz(de),vz(pa),r.row,XLC[c][1]],qm))})});
+  var A3=[['Obra (B)','Frente / evento (C)','Restrição (D)','Precisa até (F)','Dono (G)','Situação (H)','Resposta (R)','Quem criou','Quando','ID no site']];
+  (ED?ED.add:[]).forEach(function(a){var m=q[a.id]||{};A3.push([vz(a.obra),vz(a.frente),vz(a.txt),xDia(a.prazo),vz(a.dono),vz(a.sit),vz(a.resposta),vz(m.quem),m.em?xQuando(m.em):null,a.id])});
+  var wb=XLSX.utils.book_new(),nome='TAF - TAREFAS DO SITE - '+hoje+'.xlsx';
+  XLSX.utils.book_append_sheet(wb,xFolha(A1,[10,7,16,70,20,12,12,16,20,60,12,22,18,18]),'TAREFAS');
+  XLSX.utils.book_append_sheet(wb,xFolha(A2,[8,7,60,18,40,40,12,13,22,18]),'MUDANÇAS (rev6)');
+  XLSX.utils.book_append_sheet(wb,xFolha(A3,[9,16,70,14,20,12,60,22,18,18]),'NOVAS (05C)');
+  try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
+
+/* ---------- Versão nova do site ---------- */
+var BUILD='4596d4ae9e',VK='taf-recarga';
+function verConf(){
+  if(location.protocol.indexOf('http')!==0||document.hidden)return;
+  fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
+    if(!j||!j.v||j.v===BUILD)return;
+    var a=document.activeElement,digit=a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+    if(digit||(typeof syncBusy!=='undefined'&&syncBusy)){toast('Tem versão nova do site; atualiza quando você terminar de digitar');return}
+    var u=0;try{u=+sessionStorage.getItem(VK)||0}catch(e){}
+    if(Date.now()-u<3e5)return;
+    try{sessionStorage.setItem(VK,String(Date.now()))}catch(e){}
+    toast('Site atualizado. Recarregando…');setTimeout(function(){location.reload()},1500)}).catch(function(){})}
+function verIni(){setTimeout(verConf,45000);setInterval(verConf,120000);document.addEventListener('visibilitychange',function(){if(!document.hidden)verConf()})}
 function tkInit(){
   var iso=/^\d{4}-\d\d-\d\d$/;
   document.querySelectorAll('#p-tarefas [data-g]').forEach(function(b){b.addEventListener('click',function(){S.grp=b.dataset.g;try{localStorage.setItem(GK,S.grp)}catch(e){}TKPP=null;render()})});
@@ -1097,6 +1144,7 @@ function tkInit(){
   var aplAtr=function(v){v=Math.max(0,Math.min(365,Math.round(+v)||0));ens().atr=v;TKW='Atrasada após '+dTxt(v);edAplica()};
   $('ed-atr-r').addEventListener('input',function(e){$('ed-atr').value=e.target.value;aplAtr(e.target.value)});
   $('ed-atr').addEventListener('change',function(e){aplAtr(e.target.value);$('ed-atr-r').value=Math.min(30,+e.target.value||0)});
+  ['ed-xlsx','b-xlsx'].forEach(function(id){$(id).addEventListener('click',baixarPlanilha)});
   $('ed-modo').addEventListener('click',function(){EM=!EM;render()});
   $('ed-nova').addEventListener('click',function(){ens();var id='N'+Date.now();S.al='';S.atr=false;S.q='';$('f-q').value='';
     ED.add.push({id:id,obra:S.obras[0]||OB[0],frente:'',txt:'Nova tarefa',dono:S.pes==='SEM DONO'?'':S.pes,sit:'ABERTA',prazo:addD(hojeEf(),7),resposta:''});
@@ -1109,8 +1157,8 @@ function tkInit(){
       Object.keys(j.ov).forEach(function(k){var o=j.ov[k],r={};if(!o||typeof o!=='object')return;CAMPOS.forEach(function(c){if(typeof o[c]==='string')r[c]=o[c]});if(r.sit&&SITS.indexOf(r.sit)<0)delete r.sit;if(Object.keys(r).length)N.ov[k]=r});
       Object.keys(j.del).forEach(function(k){if(j.del[k])N.del[k]=1});
       j.add.forEach(function(a){if(!a||!/^N\d+$/.test(a.id))return;N.add.push({id:a.id,obra:st(a.obra)||OB[0],frente:st(a.frente),txt:st(a.txt)||'Tarefa',dono:st(a.dono),sit:SITS.indexOf(a.sit)>=0?a.sit:'ABERTA',prazo:iso.test(a.prazo||'')?a.prazo:'',resposta:st(a.resposta)});N.nid=Math.max(N.nid,+a.id.slice(1)+1)});
-      N.nid=Math.max(N.nid,+j.nid||1);ED=N;TKW='Importado de '+f.name;edAplica();toast('Simulação importada')}catch(er){toast('Arquivo inválido')}},function(){toast('Não consegui ler o arquivo')})});
-  $('ed-rest').addEventListener('click',function(e){dois(e.currentTarget,'Confirmar: apagar edições de todos',function(){ens();ED.ov={};ED.add=[];ED.del={};ED.hoje=null;ED.atr=0;TKW='Restaurado à rev6';edSave();render();toast('Dados originais da rev6 restaurados')})});
+      N.nid=Math.max(N.nid,+j.nid||1);baixarPlanilha();ED=N;TKW='Importado de '+f.name;edAplica();toast('Simulação importada')}catch(er){toast('Arquivo inválido')}},function(){toast('Não consegui ler o arquivo')})});
+  $('ed-rest').addEventListener('click',function(e){dois(e.currentTarget,'Confirmar: apagar edições de todos',function(){baixarPlanilha();ens();ED.ov={};ED.add=[];ED.del={};ED.hoje=null;ED.atr=0;TKW='Restaurado à rev6';edSave();render();toast('Dados originais da rev6 restaurados')})});
   var Ls=$('l-ta');
   Ls.addEventListener('change',function(e){var c=e.target.dataset.ef,row=e.target.closest('[data-k]');if(!c||!row)return;var id=row.dataset.k,v=e.target.value;
     if((c==='txt')&&!v.trim()){render();return}
@@ -1219,5 +1267,6 @@ $('upl').onchange=function(e){var f=e.target.files[0];if(!f)return;if(typeof XLS
 tkInit();
 render();
 pollIni();
+verIni();
 };
 </script>
