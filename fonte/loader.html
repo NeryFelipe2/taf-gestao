@@ -1,0 +1,34 @@
+<div id="gate" hidden><div class="box">
+  <h2>Gestão das obras TAF</h2>
+  <p id="g-msg">Digite a chave de acesso.</p>
+  <input type="password" id="g-chave" placeholder="Chave de acesso" autocomplete="current-password">
+  <input type="text" id="g-nome" placeholder="Seu nome (aparece em quem editou)" autocomplete="name">
+  <button class="btn pri" id="g-ok" type="button">Entrar</button>
+  <label class="btn" for="g-rev" id="g-revl" hidden>Banco sem planilha: escolher a rev6 (.xlsx)</label><input type="file" id="g-rev" accept=".xlsx,.xlsm" hidden>
+  <div class="err" id="g-err"></div>
+</div></div>
+<script>
+(function(){
+var URL_='https://vblfdikfobsirwpdnybw.supabase.co/rest/v1/rpc/',KEY='sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW';
+var ls={g:function(k){try{return localStorage.getItem(k)}catch(e){return null}},s:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},d:function(k){try{localStorage.removeItem(k)}catch(e){}}};
+var $=function(i){return document.getElementById(i)};
+window.TAF={chave:ls.g('taf-chave')||'',
+  rpc:async function(fn,b){var r=await fetch(URL_+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(b)});var t=await r.text(),j;try{j=JSON.parse(t)}catch(e){j=t}
+    if(!r.ok){var e=new Error((j&&j.message)||t||('erro '+r.status));e.status=r.status;throw e}return j},
+  quem:function(){var q=ls.g('taf-quem')||'';if(!q){q=(prompt('Seu nome (quem está editando):')||'').trim();if(q)ls.s('taf-quem',q)}return q||'sem nome'},
+  sair:function(){ls.d('taf-chave');location.reload()}};
+function gate(msg,err){$('gate').hidden=false;$('g-msg').textContent=msg||'Digite a chave de acesso.';$('g-err').textContent=err||'';$('g-nome').value=ls.g('taf-quem')||''}
+async function entrar(){
+  try{var r=await TAF.rpc('taf_ler',{p_chave:TAF.chave});
+    if(!r||!r.snap){$('gate').hidden=false;$('g-msg').textContent='Chave certa. O banco ainda não tem a planilha: escolha a rev6.';$('g-chave').hidden=true;$('g-nome').hidden=true;$('g-ok').hidden=true;$('g-revl').hidden=false;return}
+    $('gate').hidden=true;D=r.snap;W=(r.wa&&r.wa.acoes)?r.wa:{acoes:[]};FONTE=(r.fonte||'rev6')+', salva em '+new Date(r.snap_em).toLocaleDateString('pt-BR');
+    var m={};(r.edicoes||[]).forEach(function(x){m[x.id]=x.dados});window.__REM=m;window.__iniciar()}
+  catch(e){if(/CHAVE/.test(e.message)){ls.d('taf-chave');TAF.chave='';gate('Digite a chave de acesso.','Chave inválida.')}else gate('Sem conexão com o banco.','Erro: '+e.message)}}
+$('g-ok').onclick=function(){var c=$('g-chave').value.trim(),n=$('g-nome').value.trim();if(!c){$('g-err').textContent='Digite a chave.';return}
+  TAF.chave=c;ls.s('taf-chave',c);if(n)ls.s('taf-quem',n);entrar()};
+$('g-chave').addEventListener('keydown',function(e){if(e.key==='Enter')$('g-ok').click()});
+$('g-rev').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});if(!wb.Sheets['01A. GESTÃO DA SEMANA']||!wb.Sheets['05C. RESTRIÇÕES'])throw new Error('Esse arquivo não tem as abas da rev6.');
+  TAF.rpc('taf_snap_salvar',{p_chave:TAF.chave,p_snap:extractRev6(wb),p_fonte:f.name,p_quem:TAF.quem()}).then(function(){location.reload()},function(er){$('g-err').textContent='Não salvou: '+er.message})}catch(er){$('g-err').textContent=er.message}};rd.readAsArrayBuffer(f)};
+if(TAF.chave)entrar();else gate();
+})();
+</script>
