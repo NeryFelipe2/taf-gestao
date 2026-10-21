@@ -145,9 +145,9 @@ td input.qt{min-width:72px;width:80px}
 </section>
 
 <section id="p-pedido" hidden>
-  <div class="aviso"><b>Pedido único de ferro fundido, registros e parafusos: fechar até 02/12/2026</b>, e só emitir depois que a SANEAGO aprovar o traçado final e a Revisão 04 (alvo 27/11/2026). Você preenche o <b>item a pedir</b> do Sankhya e, se o projeto pedir outra quantidade, a <b>qtd a pedir</b>. Local, necessidade, prazo e meta já vêm da nossa planilha de meta de compra.<br><span class="hint">Necessidade = data que a peça tem que estar na obra. Prazo = último dia pra fechar o pedido. Meta = o máximo que a gente quer pagar no item.</span></div>
+  <div class="aviso"><b>Pedido único de ferro fundido, registros e parafusos: fechar até 02/12/2026</b>, e só emitir depois que a SANEAGO aprovar o traçado final e a Revisão 04 (alvo 27/11/2026). Você é quem define: o <b>item a pedir</b> no Sankhya, a <b>qtd</b>, a <b>necessidade</b> (quando vai precisar na obra) e o <b>prazo pro compras</b>. Local e meta de compra já vêm da nossa planilha.<br><span class="hint">Embaixo de cada data, em cinza, está o que o nosso plano previu, só de referência. Meta = o máximo que a gente quer pagar no item.</span></div>
   <div class="barra"><button class="btn pri" id="b-xpe" type="button">Baixar planilha do pedido (.xlsx)</button><label class="hint">Local: <select id="f-local"><option value="">todos</option></select></label><span class="hint" id="pe-info"></span></div>
-  <div class="scroll-x"><table><thead><tr><th>Item no orçamento</th><th>Item a pedir (Sankhya)</th><th>Und</th><th class="num">Qtd orçamento</th><th>Qtd a pedir</th><th>Local da obra</th><th>Necessidade</th><th>Prazo</th><th class="num">Meta de compra</th><th>Observação</th></tr></thead><tbody id="t-pe"></tbody></table></div>
+  <div class="scroll-x"><table><thead><tr><th>Item no orçamento</th><th>Item a pedir (Sankhya)</th><th>Und</th><th class="num">Qtd orçamento</th><th>Qtd a pedir</th><th>Local da obra</th><th>Necessidade (quando precisa na obra)</th><th>Prazo pro compras</th><th class="num">Meta de compra</th><th>Observação</th></tr></thead><tbody id="t-pe"></tbody></table></div>
 </section>
 </div>
 <div id="toast" hidden></div>
@@ -247,7 +247,7 @@ function rPedido(){var R=P.pedido||[],f=$('f-local').value,locs=[],tot=0,feitos=
     h+='<tr data-pe="'+esc(r.id)+'"><td><div class="cod">'+esc(b.cod)+' · '+esc(b.pac)+'</div><div class="desc">'+esc(b.desc)+'</div></td>'+
       '<td><input class="wide" data-k="item" value="'+esc(e.item||'')+'" placeholder="código ou nome no Sankhya"></td>'+
       '<td>'+esc(b.und)+'</td><td class="num">'+qn(b.qtd)+'</td><td><input class="qt" data-k="qtd" inputmode="decimal" value="'+esc(e.qtd||'')+'" placeholder="'+esc(qn(b.qtd))+'"></td>'+
-      '<td>'+esc(b.local)+'</td><td class="dt">'+dt(b.nec)+'</td><td class="dt">'+dt(b.prazo)+'</td>'+
+      '<td>'+esc(b.local)+'</td><td><input type="date" data-k="nec" value="'+esc(dtc(e.nec))+'"><div class="cod">nosso plano: '+dt(b.nec)+'</div></td><td><input type="date" data-k="prazo" value="'+esc(dtc(e.prazo))+'"><div class="cod">nosso plano: '+dt(b.prazo)+'</div></td>'+
       '<td class="num">'+brl(b.mt)+'<div class="cod">'+brl(b.mu)+' / '+esc(String(b.und).toLowerCase())+'</div></td>'+
       '<td><input class="wide" data-k="obs" value="'+esc(e.obs||'')+'" placeholder="'+esc(b.obs||'')+'" title="'+esc(b.obs||'')+'"></td></tr>'});
   fecha();
@@ -272,9 +272,9 @@ var dd=function(s){if(!s)return '';var p=String(s).slice(0,10).split('-');return
 var hoje=function(){return new Date().toLocaleDateString('sv-SE')};
 function baixa(wb,nome){try{XLSX.writeFile(wb,nome,{compression:true,cellDates:true});toast('Baixado: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 $('b-xpe').onclick=function(){if(typeof XLSX==='undefined'){toast('O gerador de planilha não carregou. Atualize a página.');return}
-  var A=[['Item a pedir (Sankhya)','Local da obra','Necessidade (na obra até)','Prazo (fechar pedido até)','Meta de compra (R$)','Qtd a pedir','Und','Qtd no orçamento','Meta por unidade (R$)','Item no orçamento','Descrição no orçamento','Pacote','Evento','Observação','Preenchido por','Em']];
-  P.pedido.forEach(function(r){var b=r.base,e=r.entrada||{};A.push([e.item||'',b.local,dd(b.nec),dd(b.prazo),Math.round(b.mt*100)/100,e.qtd?+String(e.qtd).replace(',','.')||e.qtd:b.qtd,b.und,b.qtd,Math.round(b.mu*100)/100,b.cod,b.desc,b.pac,b.evento,e.obs||b.obs||'',e.item||e.qtd||e.obs?String(r.quem||''):'',r.em?new Date(r.em):''])});
-  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,folha(A,[34,38,14,14,16,10,6,12,14,13,70,26,8,50,26,16]),'PEDIDO');baixa(wb,'OBRA 342 - PEDIDO FERRO FUNDIDO SANKHYA - '+hoje()+'.xlsx')};
+  var A=[['Item a pedir (Sankhya)','Local da obra','Necessidade (quando precisa na obra)','Prazo pro compras','Meta de compra (R$)','Qtd a pedir','Und','Qtd no orçamento','Meta por unidade (R$)','Item no orçamento','Descrição no orçamento','Pacote','Evento','Necessidade no nosso plano','Prazo no nosso plano','Observação','Preenchido por','Em']];
+  P.pedido.forEach(function(r){var b=r.base,e=r.entrada||{};A.push([e.item||'',b.local,dd(e.nec),dd(e.prazo),Math.round(b.mt*100)/100,e.qtd?+String(e.qtd).replace(',','.')||e.qtd:b.qtd,b.und,b.qtd,Math.round(b.mu*100)/100,b.cod,b.desc,b.pac,b.evento,dd(b.nec),dd(b.prazo),e.obs||b.obs||'',r.entrada?String(r.quem||''):'',r.em?new Date(r.em):''])});
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,folha(A,[34,38,16,14,16,10,6,12,14,13,70,26,8,14,14,50,26,16]),'PEDIDO');baixa(wb,'OBRA 342 - PEDIDO FERRO FUNDIDO SANKHYA - '+hoje()+'.xlsx')};
 $('b-xcr').onclick=function(){if(typeof XLSX==='undefined'){toast('O gerador de planilha não carregou. Atualize a página.');return}
   var A=[['Serviço','Frente','Evento','Início planejado','Fim planejado','Data limite SANEAGO','Atende o limite?','Início do Marko','Fim do Marko','Observação']];
   P.crono.forEach(function(r){var c=r.base,e=r.entrada||{};A.push([c.serv,c.frente,c.evento||'',dd(c.ini),dd(c.fim),dd(c.lim),c.atende==='ESTOURA'?'NÃO, passa do limite':c.atende==='OK'?'SIM':'',dd(e.ini),dd(e.fim),e.obs||''])});
