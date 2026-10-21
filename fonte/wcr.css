@@ -379,3 +379,5 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
 @media (max-width:640px){#p-tarefas .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#p-tarefas .kpi:nth-child(n){border-left:0;border-top:1px solid var(--line)}#p-tarefas .kpi:nth-child(2n){border-left:1px solid var(--line)}#p-tarefas .kpi:nth-child(-n+2){border-top:0}#p-tarefas .kpi{min-height:8rem}#p-tarefas .edm input[list]{width:100%}#p-tarefas .edm label:not(.lg){flex:1 1 40%}#p-tarefas .edm input[type=date]{width:100%}#p-tarefas .ti .id{padding-top:0}}
 :root[data-motion="off"] #p-tarefas *{animation:none!important;transition:none!important}
 #p-tarefas .kpi small{padding-right:3.4rem}
+.graf.g2{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+@media (max-width:1100px){.graf.g2{grid-template-columns:minmax(0,1fr)}}

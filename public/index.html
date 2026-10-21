@@ -386,6 +386,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
 @media (max-width:640px){#p-tarefas .kpis{grid-template-columns:repeat(2,minmax(0,1fr))}#p-tarefas .kpi:nth-child(n){border-left:0;border-top:1px solid var(--line)}#p-tarefas .kpi:nth-child(2n){border-left:1px solid var(--line)}#p-tarefas .kpi:nth-child(-n+2){border-top:0}#p-tarefas .kpi{min-height:8rem}#p-tarefas .edm input[list]{width:100%}#p-tarefas .edm label:not(.lg){flex:1 1 40%}#p-tarefas .edm input[type=date]{width:100%}#p-tarefas .ti .id{padding-top:0}}
 :root[data-motion="off"] #p-tarefas *{animation:none!important;transition:none!important}
 #p-tarefas .kpi small{padding-right:3.4rem}
+.graf.g2{grid-template-columns:minmax(0,1fr) minmax(0,1.15fr)}
+@media (max-width:1100px){.graf.g2{grid-template-columns:minmax(0,1fr)}}
 
 #gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
 #gate[hidden]{display:none}
@@ -483,9 +485,10 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
   </section>
 
   <section role="tabpanel" id="p-tarefas" aria-labelledby="t-tarefas" hidden>
-    <div class="tk-hero"><span class="eyebrow">Gestão de tarefas · TAF</span><h2 class="tk-h2">Lista de Tarefas</h2><p>As restrições da 05C da rev6, por pessoa. Mude a data de hoje, o limite de atraso, o prazo, o dono ou a situação de qualquer linha e os números, os gráficos e a lista refazem na hora.</p></div>
+    <div class="tk-hero"><span class="eyebrow">Gestão de tarefas · TAF</span><h2 class="tk-h2">Lista de Tarefas</h2><p>As restrições da 05C da rev6, por obra ou por pessoa. Mude a data de hoje, o limite de atraso, o prazo, o dono ou a situação de qualquer linha e os números, os gráficos e a lista refazem na hora.</p></div>
+    <p class="hint" id="tk-upd" style="margin:0 0 12px"></p>
     <div class="card" id="ed-bar"><div class="ed-h"><h3>Editar tarefas e parâmetros</h3><span class="sim" id="ed-sim" hidden>Edição compartilhada, não altera a planilha rev6</span></div>
-      <p class="hint">Sem edição, tudo é a rev6. Suas mudanças ficam só neste navegador e não vão para a planilha.</p>
+      <p class="hint">Sem edição, tudo é a rev6. Cada mudança é salva no banco e todos veem; a planilha rev6 não é alterada.</p>
       <div class="row ed-row">
         <label class="field" style="gap:8px"><span class="lbl">Hoje</span><input type="date" id="ed-hoje" aria-label="Data de hoje"></label>
         <label class="field" style="gap:8px"><span class="lbl">Atrasada após</span><input type="range" min="0" max="30" id="ed-atr-r" aria-label="Dias de atraso (deslize)"><input type="number" min="0" max="365" id="ed-atr" style="width:3.4em" aria-label="Dias de atraso"><span class="lbl">dias</span></label>
@@ -500,17 +503,23 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
     </div>
     <div id="tk-log" class="tk-log" role="status" aria-live="polite"><span class="lbl">Ao vivo</span><span id="tk-log-t">Altere qualquer coisa acima ou na lista e veja aqui o que mudou.</span></div>
     <div class="kpis" id="k-ta"></div>
+    <div class="graf g2" id="tk-graf0">
+      <div class="card"><h3>Tarefas por obra</h3><p class="hint">Cada barra é uma obra: vencidas, esta semana, demais abertas e resolvidas. Clique numa obra para ver só ela.</p><div id="g-obr"></div><div class="leg" id="l-obr"></div></div>
+      <div class="card"><h3>Prazos: vencidas e próximos 45 dias</h3><p class="hint" id="h-prz"></p><div id="g-prz"></div><div class="leg" id="l-prz"></div></div>
+    </div>
     <div class="graf" id="tk-graf">
       <div class="card"><h3>Tarefas por pessoa</h3><p class="hint">Cada barra é uma pessoa: vencidas, esta semana, demais abertas e resolvidas.</p><div id="g-pes"></div><div class="leg" id="l-pes"></div></div>
       <div class="card"><h3>Atraso das pendentes e linha de limite</h3><p class="hint">Cada coluna é um dia em relação ao prazo (à esquerda do zero ainda falta tempo, à direita já passou). A linha é o limite de atraso.</p><div id="g-ida"></div><div class="leg" id="l-ida"></div></div>
     </div>
     <div class="card">
-      <div class="row"><span class="lbl">Pessoa</span><span id="t-pes" class="row"></span></div>
-      <div class="row" style="margin-top:10px"><span class="lbl">Alerta</span><span id="t-sit" class="row"></span><button type="button" class="chip" id="t-atr" aria-pressed="false">Só vencidas</button></div>
+      <div class="row"><span class="lbl">Agrupar por</span><button type="button" class="chip" data-g="obra" aria-pressed="true">Obra</button><button type="button" class="chip" data-g="pes" aria-pressed="false">Pessoa</button></div>
+      <div class="row" style="margin-top:10px"><span class="lbl">Pessoa</span><span id="t-pes" class="row"></span></div>
+      <div class="row" style="margin-top:10px"><span class="lbl">Alerta</span><span id="t-sit" class="row"></span><button type="button" class="chip" id="t-atr" aria-pressed="false">Só vencidas</button><button type="button" class="chip" id="t-fx" hidden></button></div>
       <div class="row" style="margin-top:10px"><span class="resumo" id="t-res"></span><span style="flex:1"></span><button class="btn pri" id="t-cob" type="button" title="Texto organizado por pessoa, para colar no WhatsApp">Copiar cobrança de todos</button><button class="btn" id="t-lim" type="button">Limpar</button></div>
     </div>
     <datalist id="dl-dono"></datalist>
     <div id="l-ta" style="display:flex;flex-direction:column;gap:12px"></div>
+    <div class="card" id="c-mud"><h3>Últimas mudanças</h3><p class="hint">Quem mexeu nas tarefas e quando. Vem do banco; todos veem a mesma coisa.</p><ul class="lst" id="l-mud"></ul></div>
   </section>
 
   <section role="tabpanel" id="p-cobrancas" aria-labelledby="t-cobrancas" hidden>
@@ -577,7 +586,7 @@ async function entrar(){
   try{var r=await TAF.rpc('taf_ler',{p_chave:TAF.chave});
     if(!r||!r.snap){$('gate').hidden=false;$('g-msg').textContent='Chave certa. O banco ainda não tem a planilha: escolha a rev6.';$('g-chave').hidden=true;$('g-nome').hidden=true;$('g-ok').hidden=true;$('g-revl').hidden=false;return}
     $('gate').hidden=true;D=r.snap;W=(r.wa&&r.wa.acoes)?r.wa:{acoes:[]};FONTE=(r.fonte||'rev6')+', salva em '+new Date(r.snap_em).toLocaleDateString('pt-BR');
-    var m={};(r.edicoes||[]).forEach(function(x){m[x.id]=x.dados});window.__REM=m;window.__iniciar()}
+    var m={},q={};(r.edicoes||[]).forEach(function(x){m[x.id]=x.dados;q[x.id]={quem:x.quem,em:x.em}});window.__REM=m;window.__REMQ=q;window.__iniciar()}
   catch(e){if(/CHAVE/.test(e.message)){ls.d('taf-chave');TAF.chave='';gate('Digite a chave de acesso.','Chave inválida.')}else gate('Sem conexão com o banco.','Erro: '+e.message)}}
 $('g-ok').onclick=function(){var c=$('g-chave').value.trim(),n=$('g-nome').value.trim();if(!c){$('g-err').textContent='Digite a chave.';return}
   TAF.chave=c;ls.s('taf-chave',c);if(n)ls.s('taf-quem',n);entrar()};
@@ -703,7 +712,7 @@ window.__iniciar=function(){
 var OB=['342','343','281'];
 var NOME={'342':'342 SANEAGO','343':'343 CAESB','281':'281 SANEAGO'};
 var TABS=['painel','apontamentos','medicao','tarefas','cobrancas','whatsapp','metodo','historico'];
-var S={tab:'painel',obras:[],q:'',cs:'281',pes:'',al:'',atr:false,wp:'',wt:''};
+var S={tab:'painel',obras:[],q:'',cs:'281',pes:'',al:'',atr:false,wp:'',wt:'',grp:'obra',fx:null};
 var h0=(location.hash||'').slice(1);if(TABS.indexOf(h0)>=0)S.tab=h0;if(S.tab==='whatsapp'&&!W.acoes.length)S.tab='painel';
 var abertosMe=new Set(),todosMe=false;
 var $=function(id){return document.getElementById(id)};
@@ -776,7 +785,7 @@ var temBM=function(o){var x=D.obras[o];return (isN(x.medido.v)&&x.medido.v>0)||(
 /* ---------- Painel ---------- */
 function rPainel(){
   var obs=S.obras.length?S.obras:OB;
-  var venc=D.restricoes.filter(function(r){return aberta(r)&&r.alerta==='VENCIDA'&&okO(r.obra)});
+  var venc=tarAll().filter(function(r){return aberT(r)&&r.alerta==='VENCIDA'&&okO(r.obra)});
   var dA=D.decisoes.filter(function(d){return decAb(d)&&okO(d.obra)});
   var lim=D.caixa.limite.v;
   kpis('k-pa',[
@@ -797,14 +806,14 @@ function rPainel(){
   $('n-cs').innerHTML=bm?'Medido só até o mês do corte.':'Medido da '+S.cs+': '+SB+' (nenhum BM lançado na 06).';
   $('t-cs').innerHTML='<table class="tb"><thead><tr><th>Mês</th>'+D.curva.meses.map(function(m){return '<th>'+mes(m)+'</th>'}).join('')+'</tr></thead><tbody><tr><td>Previsto</td>'+c.vp.map(function(v){return '<td class="num">'+(isN(v)?mi(v):'')+'</td>'}).join('')+'</tr><tr><td>Medido</td>'+c.va.map(function(v,i){return '<td class="num">'+(bm&&i<=ci&&isN(v)?mi(v):'')+'</td>'}).join('')+'</tr></tbody></table>';
   // tarefas por pessoa
-  var by={};restF(true).filter(aberta).forEach(function(r){var k=r.dono||'SEM DONO';by[k]=by[k]||{v:0,w:0,o:0,t:0};by[k].t++;if(r.alerta==='VENCIDA')by[k].v++;else if(r.alerta==='ESTA SEMANA')by[k].w++;else by[k].o++});
+  var by={};tF(true).filter(aberT).forEach(function(r){var k=r.dono||'SEM DONO';by[k]=by[k]||{v:0,w:0,o:0,t:0};by[k].t++;if(r.alerta==='VENCIDA')by[k].v++;else if(r.alerta==='ESTA SEMANA')by[k].w++;else by[k].o++});
   var ks=Object.keys(by).sort(function(a,b){return by[b].t-by[a].t}),mx=ks.length?by[ks[0]].t:1;
   $('g-tp').innerHTML=ks.length?'<div style="display:flex;flex-direction:column;gap:6px">'+ks.map(function(k){var b=by[k];return '<button type="button" class="mk" data-pes="'+esc(k)+'" style="display:grid;grid-template-columns:minmax(90px,170px) minmax(0,1fr) 28px;gap:8px;align-items:center;background:none;border:0;padding:2px 0;text-align:left;cursor:pointer" data-tip="<b>'+esc(k)+'</b><br>'+b.v+' vencidas · '+b.w+' esta semana · '+b.o+' demais"><span style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(k)+'</span><span style="display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--raised);width:'+Math.max(6,b.t/mx*100)+'%"><i style="flex:'+b.v+';background:var(--s-ne)"></i><i style="flex:'+b.w+';background:var(--s-cf)"></i><i style="flex:'+b.o+';background:'+(k==='SEM DONO'?'var(--s-si)':'var(--ac)')+'"></i></span><span class="num" style="font:600 12px var(--f-mono);text-align:right">'+b.t+'</span></button>'}).join('')+'</div>':'<p class="hint">Nenhuma restrição aberta.</p>';
   $('l-tp').innerHTML='<span><i style="background:var(--s-ne)"></i>Vencida</span><span><i style="background:var(--s-cf)"></i>Vence esta semana</span><span><i style="background:var(--ac)"></i>Demais</span>';
   $('g-tp').querySelectorAll('[data-pes]').forEach(function(b){b.onclick=function(){S.pes=b.dataset.pes;S.al='';S.atr=false;ir('tarefas')}});
   // atenção
   var it=[],c0=corte();
-  D.restricoes.forEach(function(r){if(aberta(r)&&(r.alerta==='VENCIDA'||r.alerta==='SEM DONO')&&okO(r.obra))it.push('<li><b>'+esc(r.n)+' · '+esc(r.obra)+'</b> '+esc(r.txt)+'<br><span class="hint">'+esc(r.dono||'SEM DONO')+' · precisava em '+dt(r.ate)+(r.nova?' · nova data '+dt(r.nova):'')+'</span></li>')});
+  tarAll().forEach(function(r){if(aberT(r)&&(r.alerta==='VENCIDA'||r.alerta==='SEM DONO')&&okO(r.obra))it.push('<li><b>'+esc(r.n)+' · '+esc(r.obra)+'</b> '+esc(r.txt)+'<br><span class="hint">'+esc(r.dono||'SEM DONO')+' · '+(r.nova?'nova data '+dt(r.nova):r.prazo?'prazo '+dt(r.prazo):'sem prazo')+'</span></li>')});
   D.decisoes.forEach(function(d){if(decAb(d)&&okO(d.obra)&&d.prazo&&c0&&d.prazo<=addD(c0,4))it.push('<li><b>Decisão'+(d.obra?' · '+esc(d.obra):'')+'</b> '+esc(d.txt)+'<br><span class="hint">'+esc(d.dono||'SEM DONO')+' · prazo '+dt(d.prazo)+' · '+esc(d.sit||'')+'</span></li>')});
   D.checks.forEach(function(k){if(k.res==='DECIDIR')it.push('<li><b>Check '+esc(k.n)+'</b> '+esc(k.txt)+'<br><span class="hint">'+esc(k.fazer)+'</span></li>')});
   $('l-at').innerHTML=it.join('')||'<li>Nada vencido.</li>';
@@ -858,9 +867,10 @@ function rMe(){
 var EK='taf-tarefas-edit-v1',ED=null,EM=true,TKW='',TKPREV=null,TKPP=null;
 var SITS=['ABERTA','MONITORAR','RESOLVIDA'];
 ALC['SEM PRAZO']='--s-si';ORD['SEM PRAZO']=3;
-var HK='taf-tarefas-param-v1',REM=window.__REM||{};
+var HK='taf-tarefas-param-v1',REM=window.__REM||{},REMQ=window.__REMQ||{};
+var cl=function(x){return JSON.parse(JSON.stringify(x))};
 function edDeDocs(m){var e={hoje:null,atr:0,ov:{},add:[],del:{},nid:1};try{var p=JSON.parse(localStorage.getItem(HK)||'null');if(p){e.hoje=/^\d{4}-\d\d-\d\d$/.test(p.hoje||'')?p.hoje:null;e.atr=Math.max(0,Math.min(365,+p.atr||0))}}catch(x){}
-  Object.keys(m).sort().forEach(function(id){var v=m[id]||{};if(id.charAt(0)==='R'){if(v.del)e.del[id]=1;else if(v.ov)e.ov[id]=v.ov}else if(v.add)e.add.push(v.add)});
+  Object.keys(m).sort().forEach(function(id){var v=m[id]||{};if(id.charAt(0)==='R'){if(v.del)e.del[id]=1;else if(v.ov)e.ov[id]=cl(v.ov)}else if(v.add)e.add.push(cl(v.add))});
   e.add.sort(function(a,b){return +a.id.slice(1)-+b.id.slice(1)});return e}
 ED=edDeDocs(REM);
 function docsDeED(){var m={};if(!ED)return m;Object.keys(ED.ov).forEach(function(k){m[k]={ov:ED.ov[k]}});Object.keys(ED.del).forEach(function(k){m[k]={del:1}});ED.add.forEach(function(a){m[a.id]={add:a}});return m}
@@ -875,14 +885,14 @@ async function sync(){
   var dif=Object.keys(ids).filter(function(k){return JSON.stringify(cur[k]||null)!==JSON.stringify(REM[k]||null)});
   if(!dif.length)return;syncBusy=true;var ok=0,falha=false;
   for(var i=0;i<dif.length;i++){var k=dif[i];
-    try{await TAF.rpc('taf_tarefa_salvar',{p_chave:TAF.chave,p_id:k,p_dados:cur[k]||null,p_quem:TAF.quem()});if(cur[k])REM[k]=cur[k];else delete REM[k];ok++}catch(e){falha=true;if(e.status===401||/CHAVE/.test(e.message)){TAF.sair();return}}}
+    try{await TAF.rpc('taf_tarefa_salvar',{p_chave:TAF.chave,p_id:k,p_dados:cur[k]||null,p_quem:TAF.quem()});if(cur[k]){REM[k]=cl(cur[k]);REMQ[k]={quem:TAF.quem(),em:new Date().toISOString()}}else{delete REM[k];delete REMQ[k]}ok++}catch(e){falha=true;if(e.status===401||/CHAVE/.test(e.message)){TAF.sair();return}}}
   syncBusy=false;
   if(falha){toast('Sem conexão com o banco. A edição ficou só neste navegador; tento de novo em instantes.');setTimeout(syncAg,15000)}else if(ok)toast('Salvo para todos');
 }
 async function puxar(){
   if(syncBusy||syncT)return;var a=document.activeElement;if(a&&/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName)&&a.closest('#p-tarefas'))return;
-  try{var rows=await TAF.rpc('taf_edicoes',{p_chave:TAF.chave}),m={};rows.forEach(function(r){m[r.id]=r.dados});
-    if(JSON.stringify(m)!==JSON.stringify(REM)&&JSON.stringify(docsDeED())===JSON.stringify(REM)){REM=m;window.__REM=m;ED=edDeDocs(m);TKW='Atualizado com edições de outra pessoa';render()}}catch(e){}
+  try{var rows=await TAF.rpc('taf_edicoes',{p_chave:TAF.chave}),m={},q={};rows.forEach(function(r){m[r.id]=r.dados;q[r.id]={quem:r.quem,em:r.em}});
+    if(JSON.stringify(m)!==JSON.stringify(REM)&&JSON.stringify(docsDeED())===JSON.stringify(REM)){REM=m;window.__REM=m;REMQ=q;window.__REMQ=q;ED=edDeDocs(m);TKW='Atualizado com edições de outra pessoa';render()}}catch(e){}
 }
 function pollIni(){setInterval(puxar,30000);document.addEventListener('visibilitychange',function(){if(!document.hidden)puxar()})}
 function ens(){if(!ED)ED={hoje:null,atr:0,ov:{},add:[],del:{},nid:1};return ED}
@@ -974,6 +984,62 @@ function tkPos(rs,L){
   TKPP=pp;
   if(TKW){if(df.length){['g-pes','g-ida'].forEach(function(id){var e=$(id);e.classList.remove('tkpop');void e.offsetWidth;e.classList.add('tkpop')});tkLog(TKW+' → '+df.join(' · '),true)}else tkLog(TKW+' → nenhum número mudou',true)}
   TKW='';TKPREV=s}
+/* ---------- por obra, prazos e mudanças ---------- */
+var OBC={'342':'--s-am','343':'--s-re','281':'--s-pe'};
+var GK='taf-agrupar';
+try{var _g=localStorage.getItem(GK);if(_g==='pes'||_g==='obra')S.grp=_g}catch(e){}
+var nObra=function(o){return NOME[o]||(o?String(o):'Sem obra')};
+var nSD=function(r){return !String(r.dono||'').trim()};
+function bk(r){if(!aberT(r)||!r.prazo)return null;if(r.alerta==='VENCIDA')return 'v';var d=Math.max(-r.atraso,0);return d>45?null:Math.floor(d/7)}
+function fxRot(f){return f==='v'?'vencidas':'de '+ddmm(addD(hojeEf(),7*f))+' a '+ddmm(addD(hojeEf(),Math.min(7*f+6,45)))}
+function gObr(rs){
+  var by={};OB.forEach(function(o){by[o]={v:0,w:0,o:0,r:0,sd:0,sp:0}});
+  rs.forEach(function(r){var k=by[r.obra]?r.obra:'';if(!by[k])by[k]={v:0,w:0,o:0,r:0,sd:0,sp:0};var b=by[k];
+    if(r.sit==='RESOLVIDA'){b.r++;return}
+    if(r.alerta==='VENCIDA')b.v++;else if(r.alerta==='ESTA SEMANA')b.w++;else b.o++;
+    if(nSD(r))b.sd++;if(!r.prazo)b.sp++});
+  var ks=OB.concat(Object.keys(by).filter(function(k){var b=by[k];return OB.indexOf(k)<0&&b.v+b.w+b.o+b.r>0})),el=$('g-obr');
+  var mx=Math.max.apply(null,ks.map(function(k){var b=by[k];return b.v+b.w+b.o+b.r}).concat([1])),W=420,bx=112,rh=48,H=ks.length*rh+6,sc=(W-bx-76)/mx,g='';
+  ks.forEach(function(k,i){var b=by[k],y=i*rh+4,xx=bx,ab=b.v+b.w+b.o,sel=S.obras.indexOf(k)>=0,dim=S.obras.length&&!sel;
+    g+='<g class="mk" data-ob="'+esc(k)+'" style="cursor:pointer" opacity="'+(dim?.45:1)+'" data-tip="<b>'+esc(nObra(k))+'</b><br>'+b.v+' vencidas · '+b.w+' esta semana · '+b.o+' demais · '+b.r+' resolvidas"><rect x="0" y="'+(y-3)+'" width="'+W+'" height="'+(rh-4)+'" fill="transparent"/>';
+    g+='<text x="'+(bx-8)+'" y="'+(y+15)+'" text-anchor="end" font-size="13" font-weight="'+(sel?700:500)+'" fill="var(--hd)">'+esc(nObra(k))+'</text>';
+    [['v','--s-ne',1],['w','--s-cf',1],['o','--ac',1],['r','--s-ex',.55]].forEach(function(s){var w=b[s[0]]*sc;if(!w)return;g+='<rect x="'+xx+'" y="'+y+'" width="'+w+'" height="20" rx="2" fill="var('+s[1]+')" opacity="'+s[2]+'"/>';xx+=w});
+    g+='<text x="'+(xx+6)+'" y="'+(y+15)+'" font-size="13" font-weight="600" fill="var(--hd)">'+ab+' abertas</text>';
+    var nt=[];if(b.sd)nt.push(b.sd+' sem dono');if(b.sp)nt.push(b.sp+' sem prazo');
+    if(nt.length)g+='<text x="'+bx+'" y="'+(y+36)+'" font-size="11" fill="var(--mu)">'+nt.join(' · ')+'</text>';
+    g+='</g>'});
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Tarefas por obra">'+g+'</svg>';
+  $('l-obr').innerHTML='<span><i style="background:var(--s-ne)"></i>Vencidas</span><span><i style="background:var(--s-cf)"></i>Esta semana</span><span><i style="background:var(--ac)"></i>Demais abertas</span><span><i style="background:var(--s-ex);opacity:.55"></i>Resolvidas</span>';
+  el.querySelectorAll('[data-ob]').forEach(function(b){b.onclick=function(){var o=b.dataset.ob;if(!o)return;S.obras=(S.obras.length===1&&S.obras[0]===o)?[]:[o];render()}})}
+function gPrz(rs){
+  var el=$('g-prz'),n=8,cols=[],depois=0,semP=0;
+  for(var i=0;i<n;i++)cols.push({f:i?i-1:'v',t:0,o:{}});
+  rs.forEach(function(r){if(!aberT(r))return;if(!r.prazo){semP++;return}var b=bk(r);if(b===null){depois++;return}var c=cols[b==='v'?0:b+1];c.t++;c.o[r.obra]=(c.o[r.obra]||0)+1});
+  var mx=Math.max.apply(null,cols.map(function(c){return c.t}).concat([1])),W=520,H=230,bx=26,bw=(W-bx-8)/n,sc=(H-62)/mx,g='',tk=Math.min(4,mx);
+  for(var q=0;q<=tk;q++){var v=Math.round(mx*q/tk),yy=H-30-v*sc;g+='<line x1="'+bx+'" x2="'+(W-4)+'" y1="'+yy+'" y2="'+yy+'" stroke="var(--line2)"/><text x="'+(bx-5)+'" y="'+(yy+4)+'" text-anchor="end" font-size="10" fill="var(--mu)">'+v+'</text>'}
+  cols.forEach(function(c,i){var x=bx+i*bw+5,w=bw-10,yb=H-30,sel=S.fx===c.f,
+    tp='<b>'+(c.f==='v'?'Vencidas':esc(fxRot(c.f)))+'</b>'+OB.map(function(o){return c.o[o]?'<br>'+esc(nObra(o))+': '+c.o[o]:''}).join('')+(c.t?'':'<br>nenhuma');
+    g+='<g class="mk" data-fx="'+c.f+'" style="cursor:pointer" data-tip="'+tp+'"><rect x="'+(bx+i*bw)+'" y="8" width="'+bw+'" height="'+(H-26)+'" fill="'+(sel?'var(--acbg)':'transparent')+'"/>';
+    OB.forEach(function(o){var h=(c.o[o]||0)*sc;if(!h)return;yb-=h;g+='<rect x="'+x+'" y="'+yb+'" width="'+w+'" height="'+h+'" fill="var('+OBC[o]+')"/>'});
+    if(c.t)g+='<text x="'+(x+w/2)+'" y="'+(yb-4)+'" text-anchor="middle" font-size="11" font-weight="600" fill="var(--hd)">'+c.t+'</text>';
+    g+='<text x="'+(x+w/2)+'" y="'+(H-10)+'" text-anchor="middle" font-size="10" font-weight="'+(sel?700:400)+'" fill="'+(c.f==='v'?'var(--s-ne)':'var(--mu)')+'">'+(c.f==='v'?'Vencidas':ddmm(addD(hojeEf(),7*c.f)))+'</text></g>'});
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" width="100%" role="img" aria-label="Tarefas abertas por semana de prazo">'+g+'</svg>';
+  $('l-prz').innerHTML=OB.map(function(o){return '<span><i style="background:var('+OBC[o]+')"></i>'+esc(nObra(o))+'</span>'}).join('')+(depois?'<span>Depois de 45 dias: <b>'+depois+'</b></span>':'')+(semP?'<span>Sem prazo: <b>'+semP+'</b></span>':'');
+  $('h-prz').textContent='Contado a partir de '+dt(hojeEf())+' (campo "Hoje" acima). Cada coluna é uma semana; a primeira são as vencidas. Clique numa coluna para listar.';
+  el.querySelectorAll('[data-fx]').forEach(function(b){b.onclick=function(){var v=b.dataset.fx;v=v==='v'?'v':+v;S.fx=S.fx===v?null:v;render()}})}
+var CPN={sit:'situação',dono:'pessoa',prazo:'prazo',resposta:'retorno',txt:'texto',obra:'obra',frente:'frente'};
+function qdt(s){var d=new Date(s);return isNaN(d)?'':d.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).replace(',','')}
+function mudancas(){
+  var q=(typeof REMQ!=='undefined'&&REMQ)||{},rem=(typeof REM!=='undefined'&&REM)||{},by={},nome={};
+  tarAll().forEach(function(t){nome[t.id]=t});D.restricoes.forEach(function(r){if(!nome[r.n])nome[r.n]=r});
+  Object.keys(rem).forEach(function(id){var m=q[id];if(!m||!m.em)return;var cut=function(x){x=String(x||'');return x.length>38?x.slice(0,37)+'…':x},d=rem[id]||{},t=nome[id],tx=t?cut(t.txt):'',
+    ph=d.del?'retirou '+id+(tx?' “'+tx+'”':''):d.add?'criou “'+cut(d.add.txt)+'” ('+(d.add.obra||'sem obra')+')':id+(tx?' “'+tx+'”':'')+': '+Object.keys(d.ov||{}).map(function(c){return CPN[c]||c}).join(', '),
+    k=(m.quem||'sem nome')+'|'+String(m.em).slice(0,16);(by[k]=by[k]||{quem:m.quem||'sem nome',em:m.em,it:[]}).it.push(ph)});
+  return Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return Date.parse(b.em)-Date.parse(a.em)})}
+function rMud(){
+  var L=mudancas(),u=L[0];
+  $('l-mud').innerHTML=L.slice(0,8).map(function(x){var n=x.it.length;return '<li><b>'+esc(x.quem)+'</b> · '+qdt(x.em)+' · '+n+(n===1?' mudança':' mudanças')+'<br><span class="hint">'+x.it.slice(0,4).map(esc).join('; ')+(n>4?'; e mais '+(n-4):'')+'</span></li>'}).join('')||'<li>Nenhuma edição ainda: tudo é a rev6.</li>';
+  $('tk-upd').textContent='Lista da '+FONTE+' (corte '+dt(corte())+') · última edição: '+(u?u.quem+', '+qdt(u.em):'nenhuma')+'.'}
 function rTa(){
   var all=tF(true),pes={},tot={},nm=function(r){return r.dono||'SEM DONO'};
   all.forEach(function(r){var k=nm(r);tot[k]=(tot[k]||0)+1;if(aberT(r))pes[k]=(pes[k]||0)+1});
@@ -983,9 +1049,11 @@ function rTa(){
   var als={};all.forEach(function(r){als[r.alerta]=1});if(S.al&&!als[S.al])S.al='';
   $('t-sit').innerHTML=Object.keys(als).sort(function(a,b){return (ORD[a]!=null?ORD[a]:6)-(ORD[b]!=null?ORD[b]:6)}).map(function(a){return '<button type="button" class="chip" data-al="'+esc(a)+'" aria-pressed="'+(S.al===a)+'"><span class="dot" style="background:'+cv(ALC[a]||'--s-si')+'"></span>'+esc(a)+'</button>'}).join('');
   $('t-atr').setAttribute('aria-pressed',String(S.atr));
+  document.querySelectorAll('#p-tarefas [data-g]').forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.g===S.grp))});
+  var fb=$('t-fx');fb.hidden=S.fx==null;if(S.fx!=null)fb.textContent='Prazo: '+fxRot(S.fx)+' ✕';
   $('t-pes').querySelectorAll('[data-p]').forEach(function(b){b.onclick=function(){S.pes=b.dataset.p;rTa();$('resumo').innerHTML=esc(tkRes())}});
   $('t-sit').querySelectorAll('[data-al]').forEach(function(b){b.onclick=function(){S.al=S.al===b.dataset.al?'':b.dataset.al;rTa();$('resumo').innerHTML=esc(tkRes())}});
-  var rs=sortT(all.filter(function(r){return (!S.pes||nm(r)===S.pes)&&(!S.al||r.alerta===S.al)&&(!S.atr||r.alerta==='VENCIDA')})),sn=tkSnap(rs),sim=!semEdicao(),hoje=hojeEf(),atr=atrEf();
+  var rs=sortT(all.filter(function(r){return (!S.pes||nm(r)===S.pes)&&(!S.al||r.alerta===S.al)&&(!S.atr||r.alerta==='VENCIDA')&&(S.fx==null||bk(r)===S.fx)})),sn=tkSnap(rs),sim=!semEdicao(),hoje=hojeEf(),atr=atrEf();
   var dl=Object.keys(tarAll().reduce(function(a,r){if(r.dono)a[r.dono]=1;return a},{})).sort();$('dl-dono').innerHTML=dl.map(function(d){return '<option value="'+esc(d)+'">'}).join('');
   var a0=document.activeElement;
   if($('ed-hoje')!==a0)$('ed-hoje').value=hoje;if($('ed-atr')!==a0)$('ed-atr').value=atr;if($('ed-atr-r')!==a0)$('ed-atr-r').value=Math.min(30,atr);
@@ -994,19 +1062,22 @@ function rTa(){
   kpis('k-ta',[{k:TKN.ab,v:String(sn.ab),s:'ABERTA ou MONITORAR',ref:'05C coluna H',dest:true},{k:TKN.at,v:String(sn.at),s:(hoje===corte()?'prazo antes do corte':'prazo antes de '+dt(hoje))+(atr?' + '+dTxt(atr):''),ref:'05C coluna L',bad:sn.at>0},{k:TKN.wk,v:String(sn.wk),s:'até 7 dias depois de '+(hoje===corte()?'o corte':dt(hoje)),ref:'05C coluna L'},{k:TKN.sd,v:String(sn.sd),s:'falta pessoa',ref:'05C coluna G',bad:sn.sd>0},{k:TKN.re,v:String(sn.re),s:'situação RESOLVIDA',ref:'05C coluna H'},{k:TKN.pe,v:String(sn.pe),s:'com tarefa aberta'}]);
   if(sim)document.querySelectorAll('#k-ta .kpi').forEach(function(k){k.title='Edição compartilhada, não altera a planilha rev6'});
   $('t-res').innerHTML='<b>'+rs.length+'</b> tarefas'+(S.pes?' de <b>'+esc(S.pes)+'</b>':'');
-  var g={};rs.forEach(function(r){var k=nm(r);(g[k]=g[k]||[]).push(r)});
+  var gk=function(r){return S.grp==='obra'?nObra(r.obra):nm(r)},g={};rs.forEach(function(r){var k=gk(r);(g[k]=g[k]||[]).push(r)});
+  gObr(tarAll().filter(function(r){return okQ([r.n,r.frente,r.txt,r.dono,r.resposta])&&(!S.pes||nm(r)===S.pes)}));
+  gPrz(all.filter(function(r){return !S.pes||nm(r)===S.pes}));
   gPes(rs);gIda(rs);
-  var ordP=Object.keys(g).sort(function(a,b){return g[b].filter(aberT).length-g[a].filter(aberT).length});
+  var oN=OB.map(nObra),ordP=Object.keys(g).sort(S.grp==='obra'?function(a,b){var x=oN.indexOf(a),y=oN.indexOf(b);return (x<0?9:x)-(y<0?9:y)}:function(a,b){return g[b].filter(aberT).length-g[a].filter(aberT).length});
   $('l-ta').innerHTML=ordP.map(function(p){var L=g[p],ab=L.filter(aberT),v=ab.filter(function(r){return r.alerta==='VENCIDA'}).length,w=ab.filter(function(r){return r.alerta==='ESTA SEMANA'}).length,o=ab.length-v-w,rz=L.length-ab.length;
-    return '<div class="card pessoa"><div class="ph2"><div class="av" style="border-color:'+(v?'var(--s-ne)':'var(--s-ex)')+'">'+esc(p.charAt(0))+'</div><div class="phn"><h3>'+esc(p)+'</h3><div class="pbar"><i style="flex:'+v+';background:var(--s-ne)"></i><i style="flex:'+w+';background:var(--s-cf)"></i><i style="flex:'+o+';background:var(--ac)"></i></div><div class="pst"><span><b style="color:var(--s-ne)">'+v+'</b> vencidas</span><span><b style="color:var(--s-cf)">'+w+'</b> esta semana</span><span><b>'+o+'</b> demais</span>'+(rz?'<span><b style="color:var(--s-ex)">'+rz+'</b> resolvidas</span>':'')+'<span class="pct">'+ab.length+' abertas</span></div></div><button class="btn" type="button" data-cp="'+esc(p)+'">Copiar cobrança</button></div>'+
+    return '<div class="card pessoa"><div class="ph2"><div class="av" style="border-color:'+(v?'var(--s-ne)':'var(--s-ex)')+(S.grp==='obra'?';font-size:13px':'')+'">'+esc(S.grp==='obra'?p.split(' ')[0]:p.charAt(0))+'</div><div class="phn"><h3>'+esc(p)+'</h3><div class="pbar"><i style="flex:'+v+';background:var(--s-ne)"></i><i style="flex:'+w+';background:var(--s-cf)"></i><i style="flex:'+o+';background:var(--ac)"></i></div><div class="pst"><span><b style="color:var(--s-ne)">'+v+'</b> vencidas</span><span><b style="color:var(--s-cf)">'+w+'</b> esta semana</span><span><b>'+o+'</b> demais</span>'+(rz?'<span><b style="color:var(--s-ex)">'+rz+'</b> resolvidas</span>':'')+'<span class="pct">'+ab.length+' abertas</span></div></div><button class="btn" type="button" data-cp="'+esc(p)+'">Copiar cobrança</button></div>'+
     '<div class="tl">'+L.map(EM?trEdit:trNormal).join('')+'</div></div>'}).join('')||'<div class="vazio">Nenhuma tarefa com estes filtros.</div>';
   $('l-ta').querySelectorAll('[data-cp]').forEach(function(b){b.onclick=function(){copiar(msgPes(b.dataset.cp,g[b.dataset.cp]),'Cobrança copiada')}});
   $('t-cob').onclick=function(){copiar(Object.keys(g).map(function(p){return msgPes(p,g[p])}).filter(Boolean).join('\n\n'),'Cobrança de todos copiada')};
+  rMud();
   tkPos(rs,g);
   return tkRes(rs.length);
 }
 function tkRes(n){if(n==null)n=sortT(tF(false)).filter(function(r){return (!S.al||r.alerta===S.al)&&(!S.atr||r.alerta==='VENCIDA')}).length;return n+' tarefas'+(edVazio()?' (rev6)':' (com edições)')}
-function msgPes(p,L){var A=L.filter(aberT);if(!A.length)return '';return '*'+p+'* · tarefas abertas ('+(ED&&ED.hoje?'data '+dt(ED.hoje):'corte '+dt(corte()))+')'+(edVazio()?'':' · edição compartilhada, não altera a rev6')+'\n'+A.map(function(r){return '- '+r.n+' ('+r.obra+'): '+r.txt+' · '+(r.nova?'nova data '+dt(r.nova):r.prazo?'até '+dt(r.prazo):'sem prazo')+(r.alerta==='VENCIDA'?' · VENCIDA':'')}).join('\n')}
+function msgPes(p,L){var A=L.filter(aberT);if(!A.length)return '';return '*'+p+'* · tarefas abertas ('+(ED&&ED.hoje?'data '+dt(ED.hoje):'corte '+dt(corte()))+')'+(edVazio()?'':' · edição compartilhada, não altera a rev6')+'\n'+A.map(function(r){return '- '+r.n+' ('+(S.grp==='obra'?(r.dono||'SEM DONO'):r.obra)+'): '+r.txt+' · '+(r.nova?'nova data '+dt(r.nova):r.prazo?'até '+dt(r.prazo):'sem prazo')+(r.alerta==='VENCIDA'?' · VENCIDA':'')}).join('\n')}
 /* edição: tudo vira edição compartilhada por cima da rev6 (localStorage) */
 function setCampo(id,c,v){
   ens();var a=null;ED.add.forEach(function(x){if(x.id===id)a=x});
@@ -1019,6 +1090,8 @@ function baixar(nome,txt){
   if(window.claude&&window.claude.use){window.claude.use('downloads').then(function(d){if(!d){fb();return}d.save({filename:nome,data:txt}).then(function(){toast('Arquivo salvo')},function(e){if(e&&e.code==='declined')toast('Download cancelado');else fb()})},fb)}else fb()}
 function tkInit(){
   var iso=/^\d{4}-\d\d-\d\d$/;
+  document.querySelectorAll('#p-tarefas [data-g]').forEach(function(b){b.addEventListener('click',function(){S.grp=b.dataset.g;try{localStorage.setItem(GK,S.grp)}catch(e){}TKPP=null;render()})});
+  $('t-fx').addEventListener('click',function(){S.fx=null;render()});
   $('ed-hoje').addEventListener('change',function(e){var v=e.target.value;if(!iso.test(v))return;ens().hoje=v===corte()?null:v;TKW='Hoje = '+ddmm(v);edAplica()});
   var aplAtr=function(v){v=Math.max(0,Math.min(365,Math.round(+v)||0));ens().atr=v;TKW='Atrasada após '+dTxt(v);edAplica()};
   $('ed-atr-r').addEventListener('input',function(e){$('ed-atr').value=e.target.value;aplAtr(e.target.value)});
@@ -1117,7 +1190,7 @@ function cab(){
   $('selo-master').textContent='MASTER CHECK: '+(D.master.v||'SEM BASE');
   $('f-obras').innerHTML=OB.map(function(o){var x=D.obras[o],w=['PRODUCAO','DINHEIRO','PLANO'].map(function(k){return x.luz[k].v}),c=w.indexOf('VERMELHO')>=0?'--s-ne':w.indexOf('AMARELO')>=0?'--s-cf':w.indexOf('VERDE')>=0?'--s-ex':'--s-si';return '<button type="button" class="chip" data-o="'+o+'" aria-pressed="'+(S.obras.indexOf(o)>=0)+'"><span class="dot" style="background:'+cv(c)+'"></span>'+esc(NOME[o])+'</button>'}).join('');
   $('f-obras').querySelectorAll('[data-o]').forEach(function(b){b.onclick=function(){var o=b.dataset.o,i=S.obras.indexOf(o);if(i>=0)S.obras.splice(i,1);else S.obras.push(o);render()}});
-  $('n-ap').textContent=D.apont.length;$('n-me').textContent=D.bms.length;$('n-ta').textContent=D.restricoes.filter(aberta).length;$('n-co').textContent=D.decisoes.filter(decAb).length;$('n-hi').textContent=D.changelog.length;$('n-wa').textContent=W.acoes.length;$('t-whatsapp').hidden=!W.acoes.length;
+  $('n-ap').textContent=D.apont.length;$('n-me').textContent=D.bms.length;$('n-ta').textContent=tarAll().filter(aberT).length;$('n-co').textContent=D.decisoes.filter(decAb).length;$('n-hi').textContent=D.changelog.length;$('n-wa').textContent=W.acoes.length;$('t-whatsapp').hidden=!W.acoes.length;
   $('nota').innerHTML='<b>Como ler.</b> Tudo vem da '+esc(FONTE)+'; nada é digitado no painel. Para atualizar, clique em "Atualizar com a rev6" e escolha o arquivo: o painel relê as mesmas células. Luzes (01A): Produção = P2 a P4, Dinheiro = P1, P5, P7 e P9, Plano = P6, P8 e P10; a pior cor manda. Carteira da TAF (08B B9): 342 e 343 a 100%, 281 a 50% (03 F22, a confirmar com Thadeu). Pior caixa (10 C15): 342 + 343 com juro; a 281 entra quando tiver plano de custo. Restrição vencida = prazo antes do corte e ainda aberta (05C); nova data só quando o dono replanejou (coluna U). Curva S (12. EVM): medido = BM aprovado (06). SEM BASE = falta dado, não é zero.';
 }
 function render(){
@@ -1128,8 +1201,8 @@ function render(){
 function ir(t){S.tab=t;try{history.replaceState(null,'','#'+t)}catch(e){}render();window.scrollTo(0,0)}
 TABS.forEach(function(t){$('t-'+t).onclick=function(){ir(t)}});
 $('f-q').addEventListener('input',function(e){S.q=e.target.value;render()});
-$('b-limpar').onclick=function(){S.obras=[];S.q='';S.pes='';S.al='';S.atr=false;S.wp='';S.wt='';$('f-q').value='';render()};
-$('t-lim').onclick=function(){S.pes='';S.al='';S.atr=false;render()};
+$('b-limpar').onclick=function(){S.obras=[];S.q='';S.pes='';S.al='';S.atr=false;S.fx=null;S.wp='';S.wt='';$('f-q').value='';render()};
+$('t-lim').onclick=function(){S.pes='';S.al='';S.atr=false;S.fx=null;render()};
 $('t-atr').onclick=function(){S.atr=!S.atr;render()};
 $('b-abrir-me').onclick=function(){todosMe=!todosMe;abertosMe.clear();$('b-abrir-me').textContent=todosMe?'Fechar todos':'Abrir todos';render()};
 $('b-copiar').onclick=function(){var L=[];

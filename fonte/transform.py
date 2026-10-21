@@ -24,9 +24,10 @@ sub('tkInit();\nrender();\n})();','tkInit();\nrender();\npollIni();\n};')
 sub("var FONTE='rev6 do projeto, lida em 19/10/2026';","var FONTE='rev6';")
 # edicoes compartilhadas
 old=t[t.index("try{var _e=JSON.parse(localStorage.getItem(EK)"):t.index("var edVazio=")]
-new="""var HK='taf-tarefas-param-v1',REM=window.__REM||{};
+new="""var HK='taf-tarefas-param-v1',REM=window.__REM||{},REMQ=window.__REMQ||{};
+var cl=function(x){return JSON.parse(JSON.stringify(x))};
 function edDeDocs(m){var e={hoje:null,atr:0,ov:{},add:[],del:{},nid:1};try{var p=JSON.parse(localStorage.getItem(HK)||'null');if(p){e.hoje=/^\\d{4}-\\d\\d-\\d\\d$/.test(p.hoje||'')?p.hoje:null;e.atr=Math.max(0,Math.min(365,+p.atr||0))}}catch(x){}
-  Object.keys(m).sort().forEach(function(id){var v=m[id]||{};if(id.charAt(0)==='R'){if(v.del)e.del[id]=1;else if(v.ov)e.ov[id]=v.ov}else if(v.add)e.add.push(v.add)});
+  Object.keys(m).sort().forEach(function(id){var v=m[id]||{};if(id.charAt(0)==='R'){if(v.del)e.del[id]=1;else if(v.ov)e.ov[id]=cl(v.ov)}else if(v.add)e.add.push(cl(v.add))});
   e.add.sort(function(a,b){return +a.id.slice(1)-+b.id.slice(1)});return e}
 ED=edDeDocs(REM);
 function docsDeED(){var m={};if(!ED)return m;Object.keys(ED.ov).forEach(function(k){m[k]={ov:ED.ov[k]}});Object.keys(ED.del).forEach(function(k){m[k]={del:1}});ED.add.forEach(function(a){m[a.id]={add:a}});return m}
@@ -44,14 +45,14 @@ async function sync(){
   var dif=Object.keys(ids).filter(function(k){return JSON.stringify(cur[k]||null)!==JSON.stringify(REM[k]||null)});
   if(!dif.length)return;syncBusy=true;var ok=0,falha=false;
   for(var i=0;i<dif.length;i++){var k=dif[i];
-    try{await TAF.rpc('taf_tarefa_salvar',{p_chave:TAF.chave,p_id:k,p_dados:cur[k]||null,p_quem:TAF.quem()});if(cur[k])REM[k]=cur[k];else delete REM[k];ok++}catch(e){falha=true;if(e.status===401||/CHAVE/.test(e.message)){TAF.sair();return}}}
+    try{await TAF.rpc('taf_tarefa_salvar',{p_chave:TAF.chave,p_id:k,p_dados:cur[k]||null,p_quem:TAF.quem()});if(cur[k]){REM[k]=cl(cur[k]);REMQ[k]={quem:TAF.quem(),em:new Date().toISOString()}}else{delete REM[k];delete REMQ[k]}ok++}catch(e){falha=true;if(e.status===401||/CHAVE/.test(e.message)){TAF.sair();return}}}
   syncBusy=false;
   if(falha){toast('Sem conexão com o banco. A edição ficou só neste navegador; tento de novo em instantes.');setTimeout(syncAg,15000)}else if(ok)toast('Salvo para todos');
 }
 async function puxar(){
   if(syncBusy||syncT)return;var a=document.activeElement;if(a&&/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName)&&a.closest('#p-tarefas'))return;
-  try{var rows=await TAF.rpc('taf_edicoes',{p_chave:TAF.chave}),m={};rows.forEach(function(r){m[r.id]=r.dados});
-    if(JSON.stringify(m)!==JSON.stringify(REM)&&JSON.stringify(docsDeED())===JSON.stringify(REM)){REM=m;window.__REM=m;ED=edDeDocs(m);TKW='Atualizado com edições de outra pessoa';render()}}catch(e){}
+  try{var rows=await TAF.rpc('taf_edicoes',{p_chave:TAF.chave}),m={},q={};rows.forEach(function(r){m[r.id]=r.dados;q[r.id]={quem:r.quem,em:r.em}});
+    if(JSON.stringify(m)!==JSON.stringify(REM)&&JSON.stringify(docsDeED())===JSON.stringify(REM)){REM=m;window.__REM=m;REMQ=q;window.__REMQ=q;ED=edDeDocs(m);TKW='Atualizado com edições de outra pessoa';render()}}catch(e){}
 }
 function pollIni(){setInterval(puxar,30000);document.addEventListener('visibilitychange',function(){if(!document.hidden)puxar()})}""")
 sub("var o=ED.ov[id]=ED.ov[id]||{}","var o=ED.ov[id]=ED.ov[id]||{}")  # sanity
