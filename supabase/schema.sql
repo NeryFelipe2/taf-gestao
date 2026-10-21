@@ -67,3 +67,10 @@ grant execute on function public.taf_edicoes(text), public.taf_ler(text), public
 
 -- Nova chave (rode no SQL Editor, troque o texto): 
 -- insert into public.taf_chave(hash,nome) values (encode(extensions.digest('NOVA-CHAVE','sha256'),'hex'),'quem');
+
+-- Página de uma pessoa (21/10/2026): /marko. Chave própria (só abre a página dela; a chave geral do site também abre).
+-- Tabelas taf_pessoa_chave, taf_pessoa_item (pergunta, crono, pedido: base vem do Claude, entrada vem da pessoa), taf_pessoa_hist.
+-- Funções: taf_pessoa_ler(p_chave, p_pessoa) e taf_pessoa_salvar(p_chave, p_tipo, p_id, p_entrada, p_quem, p_pessoa).
+-- A resposta de tarefa grava em taf_tarefa_edicao (o site principal vê), só se a tarefa é da pessoa.
+-- Migrations aplicadas: taf_pagina_pessoa e taf_pessoa_salvar_quem (texto completo no histórico do Supabase).
+-- Nova chave de pessoa: insert into public.taf_pessoa_chave(hash,pessoa) values (encode(extensions.digest('CHAVE','sha256'),'hex'),'Nome igual ao dono das tarefas');
