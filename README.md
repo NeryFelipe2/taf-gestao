@@ -16,3 +16,9 @@ Aba Tarefas = restrições R01-R110 da rev6. Quem edita, todos veem (salva a cad
 
 ## Refazer o index.html
 `fonte/transform.py` monta `public/index.html` a partir de `template2.html`, `wcr.css`, `extract.js` e `loader.html` (rodar dentro de `fonte/` com Python + Pillow).
+
+## Atualizar os números (quem faz: o Claude)
+1. `npm i xlsx@0.18.5` (fora do repositório) e `node fonte/gerar-seed.js "<caminho da rev6.xlsx>"` (gera `public/api/seed.js`).
+2. Commit + push; esperar o deploy ficar READY.
+3. Abrir `https://taf-gestao.vercel.app/api/seed?k=<chave>`: grava a nova leitura no banco. Quem já está com o site aberto vê na próxima abertura.
+Tarefas editadas no site (taf_tarefa_edicao) ficam por cima e não são apagadas por uma nova leitura.
