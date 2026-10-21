@@ -26,7 +26,7 @@ sub("var FONTE='rev6 do projeto, lida em 19/10/2026';","var FONTE='rev6';")
 old=t[t.index("try{var _e=JSON.parse(localStorage.getItem(EK)"):t.index("var edVazio=")]
 new="""var HK='taf-tarefas-param-v1',REM=window.__REM||{},REMQ=window.__REMQ||{};
 var cl=function(x){return JSON.parse(JSON.stringify(x))};
-function edDeDocs(m){var e={hoje:null,atr:0,ov:{},add:[],del:{},nid:1};try{var p=JSON.parse(localStorage.getItem(HK)||'null');if(p){e.hoje=/^\\d{4}-\\d\\d-\\d\\d$/.test(p.hoje||'')?p.hoje:null;e.atr=Math.max(0,Math.min(365,+p.atr||0))}}catch(x){}
+function edDeDocs(m){var e={hoje:null,atr:0,ov:{},add:[],del:{},nid:1};try{var p=JSON.parse(localStorage.getItem(HK)||'null');if(p){e.hoje=/^\\d{4}-\\d\\d-\\d\\d$/.test(p.hoje||'')&&p.em===hojeReal()?p.hoje:null;e.atr=Math.max(0,Math.min(365,+p.atr||0))}}catch(x){}
   Object.keys(m).sort().forEach(function(id){var v=m[id]||{};if(id.charAt(0)==='R'){if(v.del)e.del[id]=1;else if(v.ov)e.ov[id]=cl(v.ov)}else if(v.add)e.add.push(cl(v.add))});
   e.add.sort(function(a,b){return +a.id.slice(1)-+b.id.slice(1)});return e}
 ED=edDeDocs(REM);
@@ -36,7 +36,7 @@ t=t.replace(old,new)
 sub("var edVazio=function(){return !ED||(!ED.hoje&&!ED.atr&&!Object.keys(ED.ov).length&&!ED.add.length&&!Object.keys(ED.del).length)};",
     "var edVazio=function(){return !ED||(!ED.hoje&&!ED.atr&&!Object.keys(ED.ov).length&&!ED.add.length&&!Object.keys(ED.del).length)};\nvar semEdicao=function(){return !ED||(!Object.keys(ED.ov).length&&!ED.add.length&&!Object.keys(ED.del).length)};")
 sub("function edSave(){try{if(edVazio())localStorage.removeItem(EK);else localStorage.setItem(EK,JSON.stringify(ED))}catch(e){}}",
-"""function edSave(){try{localStorage.setItem(HK,JSON.stringify({hoje:ED&&ED.hoje,atr:ED&&ED.atr}))}catch(e){}syncAg()}
+"""function edSave(){try{localStorage.setItem(HK,JSON.stringify({hoje:ED&&ED.hoje,atr:ED&&ED.atr,em:hojeReal()}))}catch(e){}syncAg()}
 var syncT=null,syncBusy=false;
 function syncAg(){clearTimeout(syncT);syncT=setTimeout(sync,500)}
 async function sync(){

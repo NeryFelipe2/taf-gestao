@@ -95,7 +95,7 @@
   <section role="tabpanel" id="p-tarefas" aria-labelledby="t-tarefas" hidden>
     <div class="tk-hero"><span class="eyebrow">Gestão de tarefas · TAF</span><h2 class="tk-h2">Lista de Tarefas</h2><p>As restrições da 05C da rev6, por obra ou por pessoa. Mude a data de hoje, o limite de atraso, o prazo, o dono ou a situação de qualquer linha e os números, os gráficos e a lista refazem na hora.</p></div>
     <p class="hint" id="tk-upd" style="margin:0 0 12px"></p>
-    <div class="card" id="ed-bar"><div class="ed-h"><h3>Editar tarefas e parâmetros</h3><span class="sim" id="ed-sim" hidden>Simulação local, não altera a rev6</span></div>
+    <div class="card" id="ed-bar"><div class="ed-h"><h3>Editar tarefas e parâmetros</h3><span class="sim" id="ed-sim" hidden>Com edições salvas; a planilha rev6 não muda</span></div>
       <p class="hint">Sem edição, tudo é a rev6. Cada mudança é salva no banco e todos veem; a planilha rev6 não é alterada.</p>
       <div class="row ed-row">
         <label class="field" style="gap:8px"><span class="lbl">Hoje</span><input type="date" id="ed-hoje" aria-label="Data de hoje"></label>
@@ -343,7 +343,8 @@ try{var _e=JSON.parse(localStorage.getItem(EK)||'null');if(_e&&typeof _e==='obje
 var edVazio=function(){return !ED||(!ED.hoje&&!ED.atr&&!Object.keys(ED.ov).length&&!ED.add.length&&!Object.keys(ED.del).length)};
 function edSave(){try{if(edVazio())localStorage.removeItem(EK);else localStorage.setItem(EK,JSON.stringify(ED))}catch(e){}}
 function ens(){if(!ED)ED={hoje:null,atr:0,ov:{},add:[],del:{},nid:1};return ED}
-var hojeEf=function(){return (ED&&ED.hoje)||corte()||new Date().toISOString().slice(0,10)};
+function hojeReal(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)}
+var hojeEf=function(){return (ED&&ED.hoje)||hojeReal()};
 var atrEf=function(){return ED?ED.atr:0};
 var dif=function(a,b){return Math.round((Date.parse(a+'T00:00:00Z')-Date.parse(b+'T00:00:00Z'))/864e5)};
 var CAMPOS=['obra','frente','txt','dono','sit','prazo','resposta'];
@@ -486,7 +487,7 @@ function mudancas(){
 function rMud(){
   var L=mudancas(),u=L[0];
   $('l-mud').innerHTML=L.slice(0,8).map(function(x){var n=x.it.length;return '<li><b>'+esc(x.quem)+'</b> · '+qdt(x.em)+' · '+n+(n===1?' mudança':' mudanças')+'<br><span class="hint">'+x.it.slice(0,4).map(esc).join('; ')+(n>4?'; e mais '+(n-4):'')+'</span></li>'}).join('')||'<li>Nenhuma edição ainda: tudo é a rev6.</li>';
-  $('tk-upd').textContent='Lista da '+FONTE+' (corte '+dt(corte())+') · última edição: '+(u?u.quem+', '+qdt(u.em):'nenhuma')+'.'}
+  $('tk-upd').textContent='Lista da '+FONTE+' (corte '+dt(corte())+') · hoje '+dt(hojeEf())+' · última edição: '+(u?u.quem+', '+qdt(u.em):'nenhuma')+'.'}
 function rTa(){
   var all=tF(true),pes={},tot={},nm=function(r){return r.dono||'SEM DONO'};
   all.forEach(function(r){var k=nm(r);tot[k]=(tot[k]||0)+1;if(aberT(r))pes[k]=(pes[k]||0)+1});
@@ -507,7 +508,7 @@ function rTa(){
   $('ed-modo').setAttribute('aria-pressed',String(EM));$('ed-nova').hidden=!EM;tkSim();
   var ref=function(x){return sim?'':x};
   kpis('k-ta',[{k:TKN.ab,v:String(sn.ab),s:'ABERTA ou MONITORAR',ref:'05C coluna H',dest:true},{k:TKN.at,v:String(sn.at),s:(hoje===corte()?'prazo antes do corte':'prazo antes de '+dt(hoje))+(atr?' + '+dTxt(atr):''),ref:'05C coluna L',bad:sn.at>0},{k:TKN.wk,v:String(sn.wk),s:'até 7 dias depois de '+(hoje===corte()?'o corte':dt(hoje)),ref:'05C coluna L'},{k:TKN.sd,v:String(sn.sd),s:'falta pessoa',ref:'05C coluna G',bad:sn.sd>0},{k:TKN.re,v:String(sn.re),s:'situação RESOLVIDA',ref:'05C coluna H'},{k:TKN.pe,v:String(sn.pe),s:'com tarefa aberta'}]);
-  if(sim)document.querySelectorAll('#k-ta .kpi').forEach(function(k){k.title='Simulação local, não altera a rev6'});
+  if(sim)document.querySelectorAll('#k-ta .kpi').forEach(function(k){k.title='Com edições salvas; a planilha rev6 não muda'});
   $('t-res').innerHTML='<b>'+rs.length+'</b> tarefas'+(S.pes?' de <b>'+esc(S.pes)+'</b>':'');
   var gk=function(r){return S.grp==='obra'?nObra(r.obra):nm(r)},g={};rs.forEach(function(r){var k=gk(r);(g[k]=g[k]||[]).push(r)});
   gObr(tarAll().filter(function(r){return okQ([r.n,r.frente,r.txt,r.dono,r.resposta])&&(!S.pes||nm(r)===S.pes)}));
@@ -524,7 +525,7 @@ function rTa(){
   return tkRes(rs.length);
 }
 function tkRes(n){if(n==null)n=sortT(tF(false)).filter(function(r){return (!S.al||r.alerta===S.al)&&(!S.atr||r.alerta==='VENCIDA')}).length;return n+' tarefas'+(edVazio()?' (rev6)':' (simulação local)')}
-function msgPes(p,L){var A=L.filter(aberT);if(!A.length)return '';return '*'+p+'* · tarefas abertas ('+(ED&&ED.hoje?'data '+dt(ED.hoje):'corte '+dt(corte()))+')'+(edVazio()?'':' · simulação local, não altera a rev6')+'\n'+A.map(function(r){return '- '+r.n+' ('+(S.grp==='obra'?(r.dono||'SEM DONO'):r.obra)+'): '+r.txt+' · '+(r.nova?'nova data '+dt(r.nova):r.prazo?'até '+dt(r.prazo):'sem prazo')+(r.alerta==='VENCIDA'?' · VENCIDA':'')}).join('\n')}
+function msgPes(p,L){var A=L.filter(aberT);if(!A.length)return '';return '*'+p+'* · tarefas abertas ('+'data '+dt(hojeEf())+')'+'\n'+A.map(function(r){return '- '+r.n+' ('+(S.grp==='obra'?(r.dono||'SEM DONO'):r.obra)+'): '+r.txt+' · '+(r.nova?'nova data '+dt(r.nova):r.prazo?'até '+dt(r.prazo):'sem prazo')+(r.alerta==='VENCIDA'?' · VENCIDA':'')}).join('\n')}
 /* edição: tudo vira simulação local por cima da rev6 (localStorage) */
 function setCampo(id,c,v){
   ens();var a=null;ED.add.forEach(function(x){if(x.id===id)a=x});
@@ -539,7 +540,7 @@ function tkInit(){
   var iso=/^\d{4}-\d\d-\d\d$/;
   document.querySelectorAll('#p-tarefas [data-g]').forEach(function(b){b.addEventListener('click',function(){S.grp=b.dataset.g;try{localStorage.setItem(GK,S.grp)}catch(e){}TKPP=null;render()})});
   $('t-fx').addEventListener('click',function(){S.fx=null;render()});
-  $('ed-hoje').addEventListener('change',function(e){var v=e.target.value;if(!iso.test(v))return;ens().hoje=v===corte()?null:v;TKW='Hoje = '+ddmm(v);edAplica()});
+  $('ed-hoje').addEventListener('change',function(e){var v=e.target.value;if(!iso.test(v))return;ens().hoje=v===hojeReal()?null:v;TKW='Hoje = '+ddmm(v);edAplica()});
   var aplAtr=function(v){v=Math.max(0,Math.min(365,Math.round(+v)||0));ens().atr=v;TKW='Atrasada após '+dTxt(v);edAplica()};
   $('ed-atr-r').addEventListener('input',function(e){$('ed-atr').value=e.target.value;aplAtr(e.target.value)});
   $('ed-atr').addEventListener('change',function(e){aplAtr(e.target.value);$('ed-atr-r').value=Math.min(30,+e.target.value||0)});
