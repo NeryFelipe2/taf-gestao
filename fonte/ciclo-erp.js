@@ -104,6 +104,9 @@ E.detalhe = function (ativ, abrir) {
   });
 };
 
+// chave só de leitura: não liga compra (o botão que o papel não pode usar não aparece)
+function soLe() { return !!(CC.ator && CC.ator.papel === 'leitura'); }
+
 // bloco da tarefa
 function htmlAtiv(el) {
   var ativ = el.getAttribute('data-cc-erp-ativ'), dem = el.getAttribute('data-demanda') || '';
@@ -115,8 +118,8 @@ function htmlAtiv(el) {
   var h = '<div class="cc-erp-t">Compras e custo</div>';
   if (ls.length) h += ls.map(linhaHtml).join('');
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Nenhuma compra ligada a esta tarefa' + (dem ? ' para a demanda D' + esc(dem) : '') + '.</div>';
-  h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(ativ) + '" href="' + esc(E.url(ativ, ldem)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
+  h += '<div class="cc-acts">' + (ls.length || !soLe() ? '<a class="cc-btn" data-erp-abrir="' + esc(ativ) + '" href="' + esc(E.url(ativ, ldem)) + '" target="_blank" rel="noopener">' +
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' : '') + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
   return h;
 }
 function btnDet(ativ) {
@@ -141,8 +144,8 @@ function htmlDem(el) {
   if (ls.length) h += ls.map(linhaHtml).join('');
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Ainda sem compra ligada a esta demanda.</div>';
   var alvo = ls.length ? String(ls[0].ativ || ativs[0]) : ativs[0];
-  h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(alvo) + '" href="' + esc(E.url(alvo, num)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
+  h += '<div class="cc-acts">' + (ls.length || !soLe() ? '<a class="cc-btn" data-erp-abrir="' + esc(alvo) + '" href="' + esc(E.url(alvo, num)) + '" target="_blank" rel="noopener">' +
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' : '') + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
   return h;
 }
 
@@ -237,7 +240,7 @@ var CSS = [
   '.cc-erp .cc-acts{align-items:center;margin-top:6px}',
   '.cc-erp-det{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line2,rgba(15,23,42,.18))}',
   '.cc-erp-ev{margin:0 0 8px}',
-  '.cc-erp a.cc-btn{text-decoration:none;min-height:36px;padding:5px 12px}'
+  '.cc-erp a.cc-btn{text-decoration:none;min-height:44px;padding:5px 12px}'
 ].join('\n');
 function estilo() {
   if (!D.head || D.getElementById('cc-erp-css')) return;

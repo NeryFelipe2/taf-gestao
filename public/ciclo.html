@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="taf-versao" content="08f1b1de27">
+<meta name="taf-versao" content="d24204d1db">
 <title>Obra 342 · Ciclo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
@@ -125,6 +125,26 @@ td.dt{white-space:nowrap}
 textarea.copia{display:block;width:100%;min-height:150px;margin-top:8px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--raised);font-size:14px}
 footer.rod{margin-top:28px;color:var(--mu2);font-size:12px}
 @media (max-width:640px){header h1{font-size:18px}.card{padding:12px}}
+/* até 640 px: as tabelas da Semana viram cartões (cada linha um cartão; rótulo em cima de cada valor). Resultado e causa vêm logo depois do Nº. */
+@media (max-width:640px){
+  .scroll-x.cartoes{overflow-x:visible;border:0;background:none}
+  table.tcart,table.tcart tbody{display:block;width:100%}
+  table.tcart thead{display:none}
+  table.tcart tr{display:flex;flex-wrap:wrap;gap:2px 14px;background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);padding:10px 12px;margin-bottom:10px}
+  table.tcart td{display:block;border:0;padding:3px 0;min-width:0!important;max-width:100%;flex:1 1 100%;text-align:left!important;white-space:normal!important;overflow-wrap:anywhere}
+  table.tcart td[data-r]::before{content:attr(data-r);display:block;font-size:11px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;color:var(--mu2)}
+  table.tcart td.c-n{flex:0 0 auto;order:0}
+  table.tcart td.c-res{flex:1 1 40%;order:1}
+  table.tcart td.c-cau{flex:1 1 40%;order:2}
+  table.tcart td.c-rep{flex:1 1 40%;order:3}
+  table.tcart td.c-sal{flex:1 1 40%;order:4}
+  table.tcart td.c-at{order:5}
+  table.tcart td.c-dias{order:6}
+  table.tcart td.c-pub{order:7}
+  table.tcart td.c-mud{order:8}
+  table.tcart td.c-meio{flex:1 1 40%}
+  table.tcart .dias{flex-wrap:wrap}
+}
 
 /* dentro do Centro de Gestão (?embed=1): a navegação é a do Centro */
 html.emb header,html.emb nav.tabs,html.emb footer.rod{display:none}
@@ -201,7 +221,7 @@ html.emb body{background:transparent;background-image:none}
   <div class="card" id="m-lista"></div>
   <div id="m-mais"></div>
 </section>
-<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">08f1b1de27</span></footer>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">d24204d1db</span></footer>
 </div>
 
 <script>/* ciclo-core.js · núcleo comum do /marko (engenheiro) e do /ciclo (gestor), obra 342.
@@ -247,7 +267,8 @@ function curto(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.s
 function uniq(a) { var o = []; (a || []).forEach(function (x) { if (x != null && x !== '' && o.indexOf(x) < 0) o.push(x); }); return o; }
 CC.curto = curto;
 
-// eventos internos: 'fila' (estado), 'ok' (item, resposta), 'recusa' (item, motivo, erro), 'ler' (ler)
+// eventos internos: 'fila' (estado), 'ok' (item, resposta), 'recusa' (item, motivo, erro), 'ler' (ler),
+// 'chave' (motivo): a chave caiu (revogada, trocada, sem acesso). A fila fica parada, presa à chave, até CC.init({chave}) de novo.
 var EV = {};
 CC.ouvir = function (nome, fn) {
   (EV[nome] = EV[nome] || []).push(fn);
@@ -312,8 +333,13 @@ CC.diaSP = function (ts) { var p = sp(ts); return p ? p.iso : ''; };
 CC.quando = function (ts) { var p = sp(ts); return p ? CC.dd(p.iso) + ' ' + p.h + ':' + p.mi : ''; };
 
 // relógio do servidor: CC.ler acerta o desvio com o 'agora' devolvido; as telas usam CC.hoje()/CC.agora()
-var DESVIO = 0;
-CC.relogio = function (agora) { var t = CC.ts(agora); if (!isNaN(t)) DESVIO = t - Date.now(); return DESVIO; };
+var DESVIO = 0, RELOGIO_OK = false, ULT_SEM_HORA = false;
+CC.relogio = function (agora) {
+  var t = CC.ts(agora);
+  if (!isNaN(t)) { DESVIO = t - Date.now(); RELOGIO_OK = true; if (ULT_SEM_HORA) { ULT_SEM_HORA = false; ULT = CC.agora(); CC.ls.set(EK, ULT); } }
+  return DESVIO;
+};
+CC.relogioOk = function () { return RELOGIO_OK; };
 CC.agoraMs = function () { return Date.now() + DESVIO; };
 CC.agora = function () { return new Date(CC.agoraMs()).toISOString(); };
 CC.hoje = function () { return CC.diaSP(CC.agoraMs()); };
@@ -369,7 +395,7 @@ CC.ler = function (seg) {
     CC.ultimo = L;
     emitir('ler', L);
     return L;
-  });
+  }, function (e) { if (CC.ehChave(e)) chaveCaiu(e); throw e; });
 };
 CC.situacao = function () { return CC.rpc('taf_ciclo_situacao', { p_chave: C.chave, p_obra: C.obra, p_quem: C.quem || null }); };
 CC.historico = function (o) {
@@ -458,10 +484,10 @@ CC.mudouDepois = function (motivo) { return /^MUDOU DEPOIS/.test(String(motivo |
 
 // ===================================================================== permissões (espelho da matriz 5.3)
 var PODE = {
-  gestor: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'reabrir'],
+  gestor: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'reabrir', 'simular'],
   engenheiro: ['preparo', 'preparo_ok', 'comp', 'comp_tirar', 'comp_cancelar', 'fora', 'publicar', 'apont', 'apont_lote',
-    'apont_apagar', 'real', 'fechar_item', 'fechar_semana', 'replan', 'efeito', 'saldo', 'demanda', 'demanda_resp', 'cobrar', 'impacto'],
-  diretoria: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo']
+    'apont_apagar', 'real', 'fechar_item', 'fechar_semana', 'replan', 'efeito', 'saldo', 'demanda', 'demanda_resp', 'cobrar', 'impacto', 'simular'],
+  diretoria: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'simular']
 };
 CC.pode = function (papel, acao) { return (PODE[papel] || []).indexOf(acao) >= 0; };
 // diretoria só mexe (responder, nova data, editar, cancelar) nas demandas em que é responsável ou decide
@@ -478,7 +504,7 @@ CC.podeDemanda = function (ator, d) {
 // (sem a chave: cada item guarda só uma impressão curta da chave, 'dono', para ser enviado pela mesma chave).
 var FK = 'taf-ciclo-fila', RK = 'taf-ciclo-recusas', EK = 'taf-ciclo-enviado';
 var MEM = [], SO_MEM = false, PEND = {}, ENVIANDO = null, DE_NOVO = false, EMVOO = null, TIMER = null, FALHA = null;
-var ULT = CC.ls.get(EK) || null, REC_MEM = null, INIT = false, CBS = {};
+var ULT = CC.ls.get(EK) || null, REC_MEM = null, INIT = false, CBS = {}, CHAVE_RUIM = null;
 
 function fp(s) {      // FNV-1a 32 bits: só para separar os itens de cada chave, não é segredo
   var h = 0x811c9dc5; s = String(s || '');
@@ -515,11 +541,13 @@ function offline() { return W.navigator && W.navigator.onLine === false; }
 
 CC.estado = function () {
   var a = filaLer(), meus = a.filter(meu), n = meus.length, txt;
-  if (!n) txt = 'tudo enviado' + (!ULT ? '' : CC.diaSP(ULT) === CC.hoje() ? ' ' + CC.hm(ULT) : ' ' + CC.quando(ULT));   // de outro dia: com a data
+  // a hora só aparece depois que o servidor deu o relógio (nunca a do aparelho)
+  if (!n) txt = 'tudo enviado' + (!ULT || !RELOGIO_OK ? '' : CC.diaSP(ULT) === CC.hoje() ? ' ' + CC.hm(ULT) : ' ' + CC.quando(ULT));   // de outro dia: com a data
+  else if (CHAVE_RUIM) txt = n + ' aguardando: entre de novo com a chave';
   else if (FALHA || offline()) txt = n + ' aguardando sinal';
   else txt = 'enviando ' + n + '…';
   return { pendentes: n, outros: a.length - n, enviando: !!EMVOO, memoria: SO_MEM, ultimo: ULT,
-    erro: FALHA ? FALHA.msg : null, texto: txt, itens: meus };
+    erro: FALHA ? FALHA.msg : null, chave: CHAVE_RUIM, texto: txt, itens: meus };
 };
 function emitirFila() { emitir('fila', CC.estado()); }
 
@@ -556,6 +584,18 @@ function proximo() {
   for (var u in PEND) if (meu(PEND[u].item)) return PEND[u].item;   // outra aba já tirou: reenvia (volta 'repetido')
   return null;
 }
+// chave revogada, trocada ou sem acesso à obra: não é recusa do item; o item fica na fila, preso à chave, e a página volta ao gate
+CC.ehChave = function (e) {
+  var m = CC.erro(e);
+  return !!e && !e.rede && /^(CHAVE INVALIDA|SEM ACESSO A OBRA|OBRA INVALIDA)/.test(String(m || ''));
+};
+function chaveCaiu(e) {
+  var m = CC.erro(e);
+  if (CHAVE_RUIM) return;
+  CHAVE_RUIM = m || 'CHAVE INVALIDA';
+  emitirFila();
+  emitir('chave', CHAVE_RUIM);
+}
 function ehRecusa(e) {
   return !!e && !e.rede && e.json && e.status >= 400 && e.status < 500 && [401, 403, 404, 408, 425, 429].indexOf(e.status) < 0;
 }
@@ -591,13 +631,14 @@ function passo() {
   return CC.rpc('taf_ciclo_salvar', { p_chave: C.chave, p_obra: it.obra, p_acao: it.acao, p_dados: it.dados, p_uid: it.uid,
     p_quem: it.quem || C.quem || null }, { timeout: 20000 }).then(function (r) {
     tirar(it.uid); FALHA = null; EMVOO = null;
-    ULT = CC.agora(); CC.ls.set(EK, ULT);
+    if (RELOGIO_OK) { ULT = CC.agora(); CC.ls.set(EK, ULT); } else { ULT = null; ULT_SEM_HORA = true; }
     if (r && typeof r.versao === 'number' && r.versao > CC.versao) CC.versao = r.versao;
     emitirFila();          // o cabeçalho já mostra o novo estado quando a promessa resolve
     concluir(it, r);
     return passo();
   }, function (e) {
     EMVOO = null;
+    if (CC.ehChave(e)) { FALHA = { em: Date.now(), msg: CC.erro(e), status: e.status, chave: true }; chaveCaiu(e); return undefined; }
     if (ehRecusa(e)) { tirar(it.uid); FALHA = null; emitirFila(); recusar(it, e); return passo(); }
     FALHA = { em: Date.now(), msg: CC.erro(e), status: e.status };      // sem sinal ou servidor fora: fica na fila
     var a = filaLer();
@@ -608,7 +649,7 @@ function passo() {
 }
 // um envio por vez; um pedido que chega durante uma rodada (item novo, 'online', intervalo) faz mais uma rodada no fim
 function drenar() {
-  if (!C.chave) return Promise.resolve();
+  if (!C.chave || CHAVE_RUIM) return Promise.resolve();
   if (ENVIANDO) { DE_NOVO = true; var r = ENVIANDO; return r.then(function () { return ENVIANDO && ENVIANDO !== r ? ENVIANDO : undefined; }); }
   DE_NOVO = false;
   function fim() { ENVIANDO = null; EMVOO = null; emitirFila(); if (DE_NOVO) { DE_NOVO = false; drenar(); } }
@@ -623,13 +664,13 @@ CC.fila = {
   cancelar: CC.cancelar
 };
 
-// CC.init({chave, quem, obra:'342', onFila(estado), onRecusa(item, motivo, erro), onOk(item, resposta)})
+// CC.init({chave, quem, obra:'342', onFila(estado), onRecusa(item, motivo, erro), onOk(item, resposta), onChave(motivo)})
 CC.init = function (o) {
   o = o || {};
-  if ('chave' in o) C.chave = o.chave || '';
+  if ('chave' in o) { C.chave = o.chave || ''; CHAVE_RUIM = null; FALHA = null; }
   if ('quem' in o) C.quem = o.quem || '';
   if (o.obra) { C.obra = String(o.obra); CC.OBRA = C.obra; }
-  [['onFila', 'fila'], ['onRecusa', 'recusa'], ['onOk', 'ok']].forEach(function (k) {
+  [['onFila', 'fila'], ['onRecusa', 'recusa'], ['onOk', 'ok'], ['onChave', 'chave']].forEach(function (k) {
     if (!(k[0] in o)) return;
     if (CBS[k[0]]) { CBS[k[0]](); delete CBS[k[0]]; }
     if (typeof o[k[0]] === 'function') CBS[k[0]] = CC.ouvir(k[1], o[k[0]]);
@@ -667,7 +708,7 @@ CC.vigiar = function (onMudou, digitando, ms) {
       if (typeof digitando === 'function' && digitando()) return;
       avisado = v; avisadoEm = Date.now();
       if (typeof onMudou === 'function') onMudou(v);
-    }, function () { ocupado = false; });
+    }, function (e) { ocupado = false; if (CC.ehChave(e)) chaveCaiu(e); });
   }
   var t = setInterval(checar, ms || 30000);
   function vis() { if (D.visibilityState === 'visible') checar(); }
@@ -760,6 +801,15 @@ CC.COR = {
   acordo: { pendente: 'cf', ok: 'ok', revisar: 'ne' },
   item_estado: { ok: 'ok', pendente: 'ne', na: 'mu', '': 'mu' }
 };
+// nome simples das 22 ações (linha do tempo e Mudanças): nunca mostrar o código interno
+var ACAO_TXT = { preparo: 'conferiu a preparação', preparo_ok: 'preparação: tudo OK', comp: 'compromisso', comp_tirar: 'tirou do rascunho',
+  comp_cancelar: 'cancelou', fora: 'não entra', publicar: 'publicou', apont: 'apontou', apont_lote: 'apontou em lote', apont_apagar: 'apagou apontamento',
+  real: 'data real', fechar_item: 'fechou', fechar_semana: 'fechou a semana', replan: 'replanejou', efeito: 'decidiu o efeito', saldo: 'decidiu o saldo',
+  demanda: 'demanda', demanda_resp: 'respondeu', cobrar: 'cobrou', impacto: 'recalculou o impacto', acordo: 'de acordo', reabrir: 'reabriu',
+  CARGA: 'carga inicial' };
+CC.acaoTxt = function (a) { return ACAO_TXT[a] || String(a == null ? '' : a).replace(/_/g, ' '); };
+// quem gravou, para mostrar: a carga do sistema não é uma pessoa
+CC.quemTxt = function (r) { return !r ? '' : r.papel === 'carga' || r.acao === 'CARGA' ? 'Carga inicial do sistema' : (r.quem || ''); };
 CC.rot = function (grupo, v, vazio) {
   var g = CC.ROT[grupo] || {};
   if (v == null || v === '') return g[''] || vazio || 'não informado';
@@ -1858,6 +1908,9 @@ E.detalhe = function (ativ, abrir) {
   });
 };
 
+// chave só de leitura: não liga compra (o botão que o papel não pode usar não aparece)
+function soLe() { return !!(CC.ator && CC.ator.papel === 'leitura'); }
+
 // bloco da tarefa
 function htmlAtiv(el) {
   var ativ = el.getAttribute('data-cc-erp-ativ'), dem = el.getAttribute('data-demanda') || '';
@@ -1869,8 +1922,8 @@ function htmlAtiv(el) {
   var h = '<div class="cc-erp-t">Compras e custo</div>';
   if (ls.length) h += ls.map(linhaHtml).join('');
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Nenhuma compra ligada a esta tarefa' + (dem ? ' para a demanda D' + esc(dem) : '') + '.</div>';
-  h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(ativ) + '" href="' + esc(E.url(ativ, ldem)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
+  h += '<div class="cc-acts">' + (ls.length || !soLe() ? '<a class="cc-btn" data-erp-abrir="' + esc(ativ) + '" href="' + esc(E.url(ativ, ldem)) + '" target="_blank" rel="noopener">' +
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' : '') + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
   return h;
 }
 function btnDet(ativ) {
@@ -1895,8 +1948,8 @@ function htmlDem(el) {
   if (ls.length) h += ls.map(linhaHtml).join('');
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Ainda sem compra ligada a esta demanda.</div>';
   var alvo = ls.length ? String(ls[0].ativ || ativs[0]) : ativs[0];
-  h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(alvo) + '" href="' + esc(E.url(alvo, num)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
+  h += '<div class="cc-acts">' + (ls.length || !soLe() ? '<a class="cc-btn" data-erp-abrir="' + esc(alvo) + '" href="' + esc(E.url(alvo, num)) + '" target="_blank" rel="noopener">' +
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' : '') + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
   return h;
 }
 
@@ -1991,7 +2044,7 @@ var CSS = [
   '.cc-erp .cc-acts{align-items:center;margin-top:6px}',
   '.cc-erp-det{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line2,rgba(15,23,42,.18))}',
   '.cc-erp-ev{margin:0 0 8px}',
-  '.cc-erp a.cc-btn{text-decoration:none;min-height:36px;padding:5px 12px}'
+  '.cc-erp a.cc-btn{text-decoration:none;min-height:44px;padding:5px 12px}'
 ].join('\n');
 function estilo() {
   if (!D.head || D.getElementById('cc-erp-css')) return;
@@ -2163,7 +2216,7 @@ function iniciar() {
 }
 function entrar(chave, origem) {
   K.chave = chave; K.origem = origem;
-  CC.init({ chave: chave, quem: quem(), onFila: onFila, onRecusa: onRecusa, onOk: onOk });
+  CC.init({ chave: chave, quem: quem(), onFila: onFila, onRecusa: onRecusa, onOk: onOk, onChave: chaveCaiu });
   $('g-ok').disabled = true;
   if (!$('gate').hidden) $('g-err').textContent = 'Entrando…';
   carregar().then(function () {
@@ -2180,6 +2233,12 @@ function entrar(chave, origem) {
     if (/CHAVE/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Chave inválida.'); return; }
     gate('Não consegui abrir: ' + m, true);
   });
+}
+// a chave caiu no meio do uso (revogada, trocada, sem acesso): volta ao gate; o que estava na fila fica guardado e sai quando entrar de novo
+function chaveCaiu(m) {
+  if (K.origem === 'ciclo') CC.ls.del('taf-ciclo-chave');
+  gate(/SEM ACESSO/.test(m || '') ? 'Esta chave não tem mais acesso à obra ' + OBRA + '. Entre com outra chave: o que estava para enviar continua guardado.' :
+    'Chave inválida. Entre de novo: o que estava para enviar continua guardado.');
 }
 function pedirNome() {
   $('gate').hidden = true; $('app').hidden = true; $('nome').hidden = false;
@@ -2484,7 +2543,7 @@ function abrirDecisao() {
   c.appendChild(form);
   var fn = CC.demandas.formNova(form, S.L, {
     titulo: 'Decisão da semana', botao: 'Registrar decisão',
-    preset: { origem: 'segunda', prazo: CC.mais(CC.seg(CC.hoje()), 4) },
+    preset: { origem: 'segunda' },   // prazo: o padrão do formulário (próxima sexta a partir de hoje; no sábado, a da semana que vem)
     onPronto: function (dados) {
       var p = CC.enviar('demanda', dados, { mod: 'ciclo', tipo: 'decisao', rotulo: 'decisão da semana' });
       p.catch(function () { /* recusa aparece no cartão */ });
@@ -2645,7 +2704,11 @@ function rSemNav() {
 function rSemCab() {
   if (!S.L) return;
   var L = S.L, s = L.semana, pl = L.placar || {}, h = '<div class="card">';
-  if (!s) { pinta('w-cab', h + '<div class="lin fraco">Semana sem compromisso: nada publicado nem em rascunho.</div></div>'); return; }
+  // o ler sempre devolve a semana (estado 'nova' e comps vazio quando não há nada): isso é "sem compromisso", nunca "ainda não fechada"
+  if (!s || (!(s.comps || []).length && (s.estado || 'nova') === 'nova')) {
+    var passou = CC.mais(L.seg, 6) < CC.hoje();
+    pinta('w-cab', h + '<div class="lin"><b>Semana sem compromisso</b></div><div class="lin fraco">' + (passou ? 'Nada foi publicado nesta semana: ficou sem programação.' : 'Nada publicado nem em rascunho ainda.') + '</div></div>'); return;
+  }
   h += '<div class="cc-cab">' + CC.seloDe('semana', s.estado) + (s.status_pub ? CC.seloDe('status_pub', s.status_pub) : '') +
     (s.cobertura ? CC.seloDe('cobertura', s.cobertura) : '') + (s.ensaio ? CC.selo('ENSAIO', 'cf') : '') +
     (s.reaberta ? CC.selo('REABERTA ' + s.reaberta + 'x', 'cf') : '') + '</div>';
@@ -2768,15 +2831,15 @@ function rSemComps() {
   var w = $('w-comps');
   if (!cs.length) { pinta(w, '<div class="card fraco">Sem compromisso nesta semana.</div>'); return; }
   if (!$('w-comps-tb')) {
-    w.innerHTML = '<div class="scroll-x"><table><thead><tr><th>Nº</th><th>Atual</th><th>Publicado</th><th>Dias</th><th>Resultado</th><th>Causa</th><th>Replanejamento</th><th>Saldo</th><th></th></tr></thead><tbody id="w-comps-tb"></tbody></table></div>' +
+    w.innerHTML = '<div class="scroll-x cartoes"><table class="tcart"><thead><tr><th>Nº</th><th>Atual</th><th>Publicado</th><th>Dias</th><th>Resultado</th><th>Causa</th><th>Replanejamento</th><th>Saldo</th><th></th></tr></thead><tbody id="w-comps-tb"></tbody></table></div>' +
       '<div class="hint" style="margin-top:6px">Dias: A andou · P parado · E entregue · – sem apontamento (toque no dia para ver o detalhe). Borda tracejada: apontado depois do prazo.</div>';
     w.__h = null;
   }
   lista($('w-comps-tb'), cs, function (c) { return 'wc-' + idSeguro(L.seg + '-' + c.cid); }, function (c) {
-    return '<td><b>' + esc(c.cid) + '</b>' + (c.ativ ? '<div class="cod">' + esc(c.ativ) + '</div>' : c.frente ? '<div class="cod">' + esc(c.frente) + '</div>' : '') + '</td>' +
-      '<td style="min-width:220px">' + compAtual(c) + compErp(c, L) + '</td><td style="min-width:200px">' + compPub(c) + '</td><td>' + compDias(c, L) + '</td>' +
-      '<td style="min-width:110px">' + rotRes(c) + '</td><td style="min-width:120px">' + compCausa(c) + '</td><td style="min-width:130px">' + compReplan(c) + '</td><td style="min-width:110px">' + compSaldo(c) + '</td>' +
-      '<td><button type="button" class="btn" data-a="mud-comp" data-v="' + esc(L.seg + '|' + c.cid) + '" title="Ver as mudanças deste compromisso">Mudanças</button></td>';
+    return '<td class="c-n"><b>' + esc(c.cid) + '</b>' + (c.ativ ? '<div class="cod">' + esc(c.ativ) + '</div>' : c.frente ? '<div class="cod">' + esc(c.frente) + '</div>' : '') + '</td>' +
+      '<td class="c-at" data-r="Atual" style="min-width:220px">' + compAtual(c) + compErp(c, L) + '</td><td class="c-pub" data-r="Publicado" style="min-width:200px">' + compPub(c) + '</td><td class="c-dias" data-r="Dias">' + compDias(c, L) + '</td>' +
+      '<td class="c-res" data-r="Resultado" style="min-width:110px">' + rotRes(c) + '</td><td class="c-cau" data-r="Causa" style="min-width:120px">' + compCausa(c) + '</td><td class="c-rep" data-r="Replanejamento" style="min-width:130px">' + compReplan(c) + '</td><td class="c-sal" data-r="Saldo" style="min-width:110px">' + compSaldo(c) + '</td>' +
+      '<td class="c-mud"><button type="button" class="btn" data-a="mud-comp" data-v="' + esc(L.seg + '|' + c.cid) + '" title="Ver as mudanças deste compromisso">Mudanças</button></td>';
   }, 'tr');
 }
 function rSemProg() {
@@ -2787,11 +2850,11 @@ function rSemProg() {
   if (jp && jp.cobertura && jp.cobertura !== p.cobertura) h += '<div class="lin cc-cinza">Na publicação: ' + esc(jp.cobertura) + ' (' + esc(jp.total) + ' atividades)</div>';
   h += '</div>';
   if (at.length) {
-    h += '<div class="scroll-x" style="margin-bottom:12px"><table><thead><tr><th>Atividade</th><th>Na semana</th><th>Compromisso</th><th>Se não entra, por quê</th></tr></thead><tbody>' +
+    h += '<div class="scroll-x cartoes" style="margin-bottom:12px"><table class="tcart"><thead><tr><th>Atividade</th><th>Na semana</th><th>Compromisso</th><th>Se não entra, por quê</th></tr></thead><tbody>' +
       at.map(function (a) {
-        return '<tr><td>' + tComNome(a.id) + '</td><td class="dt">' + esc(CC.d(a.ini)) + ' a ' + esc(CC.d(a.fim)) + '</td>' +
-          '<td>' + ((a.cids || []).length ? esc(a.cids.join(', ')) : '<span class="fraco">sem compromisso</span>') + '</td>' +
-          '<td>' + (a.fora ? esc(CC.rot('nao_entra', a.fora)) + (a.fora_txt ? '<div class="cc-cinza">' + esc(a.fora_txt) + '</div>' : '') :
+        return '<tr><td>' + tComNome(a.id) + '</td><td class="dt c-meio" data-r="Na semana">' + esc(CC.d(a.ini)) + ' a ' + esc(CC.d(a.fim)) + '</td>' +
+          '<td class="c-meio" data-r="Compromisso">' + ((a.cids || []).length ? esc(a.cids.join(', ')) : '<span class="fraco">sem compromisso</span>') + '</td>' +
+          '<td data-r="Se não entra, por quê">' + (a.fora ? esc(CC.rot('nao_entra', a.fora)) + (a.fora_txt ? '<div class="cc-cinza">' + esc(a.fora_txt) + '</div>' : '') :
             (a.cids || []).length ? '<span class="fraco">não se aplica</span>' : CC.selo('SEM JUSTIFICATIVA', 'ne')) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
@@ -2809,19 +2872,21 @@ function rSemHist() {
   if (!S.L) return;
   var l = (S.L.semanas || []).slice().sort(function (a, b) { return a.seg < b.seg ? 1 : -1; });
   if (!l.length) { pinta('w-hist', '<div class="card fraco">Nenhuma semana ainda.</div>'); return; }
-  pinta('w-hist', '<div class="scroll-x"><table><thead><tr><th>Semana</th><th>Estado</th><th class="num">PPC</th><th class="num">1º fechamento</th><th>Publicação</th><th>Cobertura</th><th>Ensaio</th><th class="num">Reaberta</th><th class="num">Dias apontados</th><th>Nota</th></tr></thead><tbody>' +
+  pinta('w-hist', '<div class="scroll-x cartoes"><table class="tcart"><thead><tr><th>Semana</th><th>Estado</th><th class="num">PPC</th><th class="num">1º fechamento</th><th>Publicação</th><th>Cobertura</th><th>Ensaio</th><th class="num">Reaberta</th><th class="num">Dias apontados</th><th>Nota</th></tr></thead><tbody>' +
     l.map(function (s) {
       var e = S.ens[s.seg];
+      var fech = s.estado === 'fechada', vazia = !(+s.publicados) && s.estado !== 'publicada' && !fech;
       return '<tr><td class="dt"><button type="button" class="btn" data-a="sem-ir" data-v="' + esc(s.seg) + '">' + esc(CC.semana(s.seg)) + '</button></td>' +
-        '<td>' + CC.seloDe('semana', s.estado) + '</td>' +
-        '<td class="num">' + (s.ppc != null ? esc(s.ppc) + '% <span class="cc-cinza">(' + esc(s.cumpridos) + ' de ' + esc(s.publicados) + ')</span>' : '<span class="fraco">não fechada</span>') + '</td>' +
-        '<td class="num">' + (s.ppc_1o != null && s.ppc_1o !== s.ppc ? esc(s.ppc_1o) + '%' : '<span class="fraco">igual</span>') + '</td>' +
-        '<td>' + (s.status_pub ? CC.seloDe('status_pub', s.status_pub) : '<span class="fraco">não publicada</span>') + '</td>' +
-        '<td>' + (s.cobertura ? CC.seloDe('cobertura', s.cobertura) : '<span class="fraco">não informado</span>') + '</td>' +
-        '<td>' + (s.estado !== 'publicada' && s.estado !== 'fechada' ? '<span class="fraco">não publicada</span>' : e === undefined ? '<span class="fraco">não informado</span>' : e ? CC.selo('ENSAIO', 'cf') : 'não') + '</td>' +
-        '<td class="num">' + (s.reaberta ? esc(s.reaberta) + 'x' : '0') + '</td>' +
-        '<td class="num">' + (s.dias_apontados_obra != null ? esc(s.dias_apontados_obra) : '<span class="fraco">não informado</span>') + '</td>' +
-        '<td>' + (s.nota ? esc(s.nota) : '') + '</td></tr>';
+        '<td class="c-meio" data-r="Estado">' + CC.seloDe('semana', s.estado) + '</td>' +
+        '<td class="num c-meio" data-r="PPC">' + (s.ppc != null ? esc(s.ppc) + '% <span class="cc-cinza">(' + esc(s.cumpridos) + ' de ' + esc(s.publicados) + ')</span>' : '<span class="fraco">' + (fech ? 'sem compromisso' : vazia ? 'sem compromisso' : 'não fechada') + '</span>') + '</td>' +
+        // "igual" só quando a semana já fechou e o 1º placar é o mesmo; aberta: ainda não houve 1º fechamento
+        '<td class="num c-meio" data-r="1º fechamento">' + (s.ppc_1o != null && s.ppc_1o !== s.ppc ? esc(s.ppc_1o) + '%' : fech ? '<span class="fraco">igual</span>' : '<span class="fraco">—</span>') + '</td>' +
+        '<td class="c-meio" data-r="Publicação">' + (s.status_pub ? CC.seloDe('status_pub', s.status_pub) : '<span class="fraco">não publicada</span>') + '</td>' +
+        '<td class="c-meio" data-r="Cobertura">' + (s.cobertura ? CC.seloDe('cobertura', s.cobertura) : '<span class="fraco">não informado</span>') + '</td>' +
+        '<td class="c-meio" data-r="Ensaio">' + (s.estado !== 'publicada' && s.estado !== 'fechada' ? '<span class="fraco">não publicada</span>' : e === undefined ? '<span class="fraco">não informado</span>' : e ? CC.selo('ENSAIO', 'cf') : 'não') + '</td>' +
+        '<td class="num c-meio" data-r="Reaberta">' + (s.reaberta ? esc(s.reaberta) + 'x' : '0') + '</td>' +
+        '<td class="num c-meio" data-r="Dias apontados">' + (s.dias_apontados_obra != null ? esc(s.dias_apontados_obra) : '<span class="fraco">não informado</span>') + '</td>' +
+        '<td' + (s.nota ? ' data-r="Nota"' : '') + '>' + (s.nota ? esc(s.nota) : '') + '</td></tr>';
     }).join('') + '</tbody></table></div>');
 }
 function irSemana(seg) {
@@ -2910,7 +2975,7 @@ var CAMPO = {
   fim_novo: 'novo término', ini_novo: 'novo início', justif: 'justificativa', acao: 'ação', dono: 'dono', motivo: 'motivo', txt: 'texto'
 };
 var NAO_MOSTRA = { em: 1, quem: 1, obra: 1, criada_em: 1, criada_por: 1, fechado_em: 1, fechado_por: 1, publicada_em: 1, publicada_por: 1, fechada_em: 1, fechada_por: 1,
-  acordo_em: 1, acordo_por: 1, decidido_em: 1, respondida_em: 1, respondida_por: 1, resolvida_por: 1, cancelado_em: 1, sugestao: 1, atualizado_em: 1, atualizado_por: 1, janela: 1, resumo: 1, resumo_atual: 1, liberacao: 1 };
+  versao: 1, acordo_em: 1, acordo_por: 1, decidido_em: 1, respondida_em: 1, respondida_por: 1, resolvida_por: 1, cancelado_em: 1, sugestao: 1, atualizado_em: 1, atualizado_por: 1, janela: 1, resumo: 1, resumo_atual: 1, liberacao: 1 };
 function valTxt(k, v) {
   if (v == null || v === '') return 'vazio';
   if (typeof v === 'boolean') return v ? 'sim' : 'não';
@@ -2962,7 +3027,7 @@ function traduz(r) {
     else if (ac === 'comp_cancelar') o.txt = 'cancelado' + (d && d.cancel_motivo ? ': ' + d.cancel_motivo : '');
     else if (!a && d) o.txt = (d.origem === 'saldo' ? 'compromisso de saldo criado' + (d.origem_ref ? ' (de ' + String(d.origem_ref).split('|')[1] + ' ' + CC.d(String(d.origem_ref).split('|')[0]) + ')' : '') : d.extra ? 'extra criado' : 'compromisso criado') + ': ' + d.entrega;
     else if (ac === 'saldo' && d && 'saldo' in d) o.txt = d.saldo === 'aceito' ? 'saldo aceito' : d.saldo === 'descartado' ? 'saldo descartado' + (d.saldo_motivo ? ': ' + d.saldo_motivo : '') : 'saldo volta a decidir';
-    else o.txt = difTxt(a, d) || ac;
+    else o.txt = difTxt(a, d) || CC.acaoTxt(ac);
   } else if (tab === 'apont') {
     o.item = (p[1] || '') + at + (p[2] ? ' ' + CC.dd(p[2]) : ''); o.l2 = 'semana ' + CC.semana(p[0]);
     if (ac === 'apont_apagar' || !d) o.txt = 'apontamento apagado';
@@ -2977,7 +3042,7 @@ function traduz(r) {
     else if (d && 'nova_data' in d && a && a.nova_data !== d.nova_data) o.txt = 'nova data ' + CC.d(d.nova_data) + (d.vezes ? ' (' + d.vezes + 'ª vez)' : '') + (r.motivo ? ': ' + r.motivo : '');
     else if (d && d.situacao === 'cancelada') o.txt = 'cancelada' + (r.motivo ? ': ' + r.motivo : '');
     else if (d && d.situacao === 'aberta' && a && a.situacao && a.situacao !== 'aberta') o.txt = 'reaberta' + (r.motivo ? ': ' + r.motivo : '');
-    else o.txt = difTxt(a, d) || ac;
+    else o.txt = difTxt(a, d) || CC.acaoTxt(ac);
   } else if (tab === 'replan') {
     o.item = '#' + ch + at;
     if (!a && d) o.txt = 'replanejamento aberto ' + CC.rot('origem_replan', d.origem) + ': término ' + CC.d(d.fim_antes) + ' → ' + CC.d(d.fim_novo) + (d.causa ? ', ' + d.causa : '');
@@ -2988,7 +3053,7 @@ function traduz(r) {
       if ((d.dispensa || []).length) o.txt += '; ligações ' + d.dispensa.join(', ') + ' suspensas';
       if (d.acordo === 'pendente') o.txt += '; aguarda de acordo';
       if (d.justif) o.l2 = 'justificativa: ' + d.justif;
-    } else o.txt = difTxt(a, d) || ac;
+    } else o.txt = difTxt(a, d) || CC.acaoTxt(ac);
   } else if (tab === 'ativ') {
     o.item = ch;
     if (d && ('ini_real' in d || 'fim_real' in d)) {
@@ -2997,14 +3062,14 @@ function traduz(r) {
       if ('fim_real' in d) ps.push(d.fim_real ? 'término real ' + CC.d(d.fim_real) : 'término real tirado');
       o.txt = ps.join(', ') + (d.real_origem ? ' (' + (d.real_origem === 'apontamento' ? 'do apontamento' : d.real_origem === 'manual' ? 'informado à mão' : d.real_origem) + ')' : '');
     } else if (d && ('prev_fim' in d || 'prev_ini' in d)) o.txt = d.prev_fim ? 'previsão ' + CC.d(d.prev_ini) + ' a ' + CC.d(d.prev_fim) + (d.prev_replan ? ' (replanejamento #' + d.prev_replan + ')' : '') : 'previsão tirada';
-    else o.txt = difTxt(a, d) || ac;
+    else o.txt = difTxt(a, d) || CC.acaoTxt(ac);
   } else if (tab === 'semana') {
     o.item = 'semana ' + CC.d(ch);
     if (ac === 'publicar' && d && d.estado === 'publicada') o.txt = 'publicada (' + CC.rot('status_pub', d.status_pub) + ', ' + (d.cobertura || 'cobertura não informada') + ')' + (d.ensaio ? ', ensaio' : '');
     else if (ac === 'fechar_semana' && d) o.txt = 'fechada' + (d.nota ? ': ' + d.nota : '');
     else if (ac === 'reabrir') o.txt = 'reaberta' + (r.motivo ? ': ' + r.motivo : '');
     else if (!a && d) o.txt = 'semana aberta (rascunho)';
-    else o.txt = difTxt(a, d) || ac;
+    else o.txt = difTxt(a, d) || CC.acaoTxt(ac);
   } else if (tab === 'preparo') {
     o.item = (p[0] || '') + ' ' + CC.rot('item', p[1]).toLowerCase();
     if (!d) o.txt = 'conferência apagada';
@@ -3014,7 +3079,7 @@ function traduz(r) {
     o.txt = d ? 'não entra: ' + CC.rot('nao_entra', d.motivo) + (d.txt ? ': ' + d.txt : '') : 'volta a entrar na semana';
   } else {
     o.item = (ROT_TAB[tab] || tab) + ' ' + ch;
-    o.txt = difTxt(a, d) || ac;
+    o.txt = difTxt(a, d) || CC.acaoTxt(ac);
   }
   if (r.motivo && o.txt.indexOf(r.motivo) < 0 && !/^Replanejamento #/.test(r.motivo)) o.l2 = (o.l2 ? o.l2 + ' · ' : '') + 'motivo: ' + r.motivo;
   return o;
@@ -3031,6 +3096,7 @@ function horaDe(r) {      // hora do ato (a do servidor que gravou o campo); sen
 }
 function quemHtml(r) {
   if (r.papel === 'banco') return '<span class="sqld">' + esc(r.quem || 'SQL direto') + '</span>';
+  if (r.papel === 'carga' || r.acao === 'CARGA') return esc(CC.quemTxt(r));
   return esc(r.quem || 'sem nome') + ' (' + esc(chaveLabel(r)) + ')';
 }
 function linhaMud(r) {
@@ -3044,14 +3110,14 @@ function rMud() {
   if (!S.L) return;
   var f = filtroServidor();
   var pessoas = [];
-  (S.H || []).forEach(function (r) { if (r.quem && pessoas.indexOf(r.quem) < 0) pessoas.push(r.quem); });
+  (S.H || []).forEach(function (r) { var q = CC.quemTxt(r); if (q && pessoas.indexOf(q) < 0) pessoas.push(q); });
   if (S.hf.pessoa && pessoas.indexOf(S.hf.pessoa) < 0) pessoas.push(S.hf.pessoa);
   var fh = '<div class="card filtros"><div><span class="cc-rot">Tabela</span>' + CC.chips(TABS, S.hf.tab, 'hf-tab', { rotulo: 'Tabela' }) + '</div>' +
     '<div class="lin2"><div><label class="cc-rot" for="m-ativ">Atividade</label><input type="search" id="m-ativ" data-k="m-ativ" placeholder="Ex.: T18" value="' + esc(S.hf.ativ) + '" autocapitalize="characters"></div>' +
     '<div><label class="cc-rot" for="m-item">Item</label><input type="search" id="m-item" data-k="m-item" placeholder="Ex.: C3 26/10, D6, #3, 26/10" value="' + esc(S.hf.item) + '"></div></div>' +
     '<div><span class="cc-rot">Pessoa <span class="cc-cinza">(filtra no aparelho)</span></span>' + CC.chips([{ v: '', r: 'Todas' }].concat(pessoas.map(function (p) { return { v: p, r: p }; })), S.hf.pessoa, 'hf-pessoa', { rotulo: 'Pessoa' }) + '</div></div>';
   pinta('m-filtros', fh);
-  var rows = (S.H || []).filter(function (r) { return !S.hf.pessoa || r.quem === S.hf.pessoa; });
+  var rows = (S.H || []).filter(function (r) { return !S.hf.pessoa || CC.quemTxt(r) === S.hf.pessoa; });
   var info = S.hErr ? '<div class="cc-recusa" role="alert">' + esc(S.hErr) + '</div>' :
     '<div class="hint" style="margin-bottom:8px">' + (S.hCarregando ? 'Carregando…' : esc(plural(rows.length, 'mudança', 'mudanças')) + (S.H && S.H.length >= S.hLim ? ' (as ' + S.hLim + ' mais recentes)' : '')) +
     (f.rot ? ' · filtro: ' + esc(f.rot) : '') + '</div>';
@@ -3247,7 +3313,7 @@ function montarXlsx(lers, H) {
   var md = [['Quando', 'Quem', 'Chave', 'Papel', 'Tabela', 'Item', 'Atividade', 'O que mudou', 'Detalhe', 'Ação (técnico)']];
   H.forEach(function (r) {
     var t = traduz(r), tab = String(r.tabela || '').replace(/^taf_ciclo_/, '');
-    md.push([CC.quando(horaDe(r)), r.quem || '', chaveLabel(r), r.papel === 'banco' ? 'banco' : r.papel === 'carga' ? 'carga' : CC.rot('papel', r.papel),
+    md.push([CC.quando(horaDe(r)), CC.quemTxt(r), chaveLabel(r), r.papel === 'banco' ? 'banco' : r.papel === 'carga' ? 'carga' : CC.rot('papel', r.papel),
       ROT_TAB[tab] || tab, t.item, r.ativ || '', t.txt, t.l2 || '', r.acao || '']);
   });
   XLSX.utils.book_append_sheet(wb, folha(md, [16, 22, 14, 11, 16, 20, 9, 70, 50, 14]), 'MUDANÇAS');

@@ -41,7 +41,8 @@ function curto(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.s
 function uniq(a) { var o = []; (a || []).forEach(function (x) { if (x != null && x !== '' && o.indexOf(x) < 0) o.push(x); }); return o; }
 CC.curto = curto;
 
-// eventos internos: 'fila' (estado), 'ok' (item, resposta), 'recusa' (item, motivo, erro), 'ler' (ler)
+// eventos internos: 'fila' (estado), 'ok' (item, resposta), 'recusa' (item, motivo, erro), 'ler' (ler),
+// 'chave' (motivo): a chave caiu (revogada, trocada, sem acesso). A fila fica parada, presa à chave, até CC.init({chave}) de novo.
 var EV = {};
 CC.ouvir = function (nome, fn) {
   (EV[nome] = EV[nome] || []).push(fn);
@@ -106,8 +107,13 @@ CC.diaSP = function (ts) { var p = sp(ts); return p ? p.iso : ''; };
 CC.quando = function (ts) { var p = sp(ts); return p ? CC.dd(p.iso) + ' ' + p.h + ':' + p.mi : ''; };
 
 // relógio do servidor: CC.ler acerta o desvio com o 'agora' devolvido; as telas usam CC.hoje()/CC.agora()
-var DESVIO = 0;
-CC.relogio = function (agora) { var t = CC.ts(agora); if (!isNaN(t)) DESVIO = t - Date.now(); return DESVIO; };
+var DESVIO = 0, RELOGIO_OK = false, ULT_SEM_HORA = false;
+CC.relogio = function (agora) {
+  var t = CC.ts(agora);
+  if (!isNaN(t)) { DESVIO = t - Date.now(); RELOGIO_OK = true; if (ULT_SEM_HORA) { ULT_SEM_HORA = false; ULT = CC.agora(); CC.ls.set(EK, ULT); } }
+  return DESVIO;
+};
+CC.relogioOk = function () { return RELOGIO_OK; };
 CC.agoraMs = function () { return Date.now() + DESVIO; };
 CC.agora = function () { return new Date(CC.agoraMs()).toISOString(); };
 CC.hoje = function () { return CC.diaSP(CC.agoraMs()); };
@@ -163,7 +169,7 @@ CC.ler = function (seg) {
     CC.ultimo = L;
     emitir('ler', L);
     return L;
-  });
+  }, function (e) { if (CC.ehChave(e)) chaveCaiu(e); throw e; });
 };
 CC.situacao = function () { return CC.rpc('taf_ciclo_situacao', { p_chave: C.chave, p_obra: C.obra, p_quem: C.quem || null }); };
 CC.historico = function (o) {
@@ -252,10 +258,10 @@ CC.mudouDepois = function (motivo) { return /^MUDOU DEPOIS/.test(String(motivo |
 
 // ===================================================================== permissões (espelho da matriz 5.3)
 var PODE = {
-  gestor: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'reabrir'],
+  gestor: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'reabrir', 'simular'],
   engenheiro: ['preparo', 'preparo_ok', 'comp', 'comp_tirar', 'comp_cancelar', 'fora', 'publicar', 'apont', 'apont_lote',
-    'apont_apagar', 'real', 'fechar_item', 'fechar_semana', 'replan', 'efeito', 'saldo', 'demanda', 'demanda_resp', 'cobrar', 'impacto'],
-  diretoria: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo']
+    'apont_apagar', 'real', 'fechar_item', 'fechar_semana', 'replan', 'efeito', 'saldo', 'demanda', 'demanda_resp', 'cobrar', 'impacto', 'simular'],
+  diretoria: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'simular']
 };
 CC.pode = function (papel, acao) { return (PODE[papel] || []).indexOf(acao) >= 0; };
 // diretoria só mexe (responder, nova data, editar, cancelar) nas demandas em que é responsável ou decide
@@ -272,7 +278,7 @@ CC.podeDemanda = function (ator, d) {
 // (sem a chave: cada item guarda só uma impressão curta da chave, 'dono', para ser enviado pela mesma chave).
 var FK = 'taf-ciclo-fila', RK = 'taf-ciclo-recusas', EK = 'taf-ciclo-enviado';
 var MEM = [], SO_MEM = false, PEND = {}, ENVIANDO = null, DE_NOVO = false, EMVOO = null, TIMER = null, FALHA = null;
-var ULT = CC.ls.get(EK) || null, REC_MEM = null, INIT = false, CBS = {};
+var ULT = CC.ls.get(EK) || null, REC_MEM = null, INIT = false, CBS = {}, CHAVE_RUIM = null;
 
 function fp(s) {      // FNV-1a 32 bits: só para separar os itens de cada chave, não é segredo
   var h = 0x811c9dc5; s = String(s || '');
@@ -309,11 +315,13 @@ function offline() { return W.navigator && W.navigator.onLine === false; }
 
 CC.estado = function () {
   var a = filaLer(), meus = a.filter(meu), n = meus.length, txt;
-  if (!n) txt = 'tudo enviado' + (!ULT ? '' : CC.diaSP(ULT) === CC.hoje() ? ' ' + CC.hm(ULT) : ' ' + CC.quando(ULT));   // de outro dia: com a data
+  // a hora só aparece depois que o servidor deu o relógio (nunca a do aparelho)
+  if (!n) txt = 'tudo enviado' + (!ULT || !RELOGIO_OK ? '' : CC.diaSP(ULT) === CC.hoje() ? ' ' + CC.hm(ULT) : ' ' + CC.quando(ULT));   // de outro dia: com a data
+  else if (CHAVE_RUIM) txt = n + ' aguardando: entre de novo com a chave';
   else if (FALHA || offline()) txt = n + ' aguardando sinal';
   else txt = 'enviando ' + n + '…';
   return { pendentes: n, outros: a.length - n, enviando: !!EMVOO, memoria: SO_MEM, ultimo: ULT,
-    erro: FALHA ? FALHA.msg : null, texto: txt, itens: meus };
+    erro: FALHA ? FALHA.msg : null, chave: CHAVE_RUIM, texto: txt, itens: meus };
 };
 function emitirFila() { emitir('fila', CC.estado()); }
 
@@ -350,6 +358,18 @@ function proximo() {
   for (var u in PEND) if (meu(PEND[u].item)) return PEND[u].item;   // outra aba já tirou: reenvia (volta 'repetido')
   return null;
 }
+// chave revogada, trocada ou sem acesso à obra: não é recusa do item; o item fica na fila, preso à chave, e a página volta ao gate
+CC.ehChave = function (e) {
+  var m = CC.erro(e);
+  return !!e && !e.rede && /^(CHAVE INVALIDA|SEM ACESSO A OBRA|OBRA INVALIDA)/.test(String(m || ''));
+};
+function chaveCaiu(e) {
+  var m = CC.erro(e);
+  if (CHAVE_RUIM) return;
+  CHAVE_RUIM = m || 'CHAVE INVALIDA';
+  emitirFila();
+  emitir('chave', CHAVE_RUIM);
+}
 function ehRecusa(e) {
   return !!e && !e.rede && e.json && e.status >= 400 && e.status < 500 && [401, 403, 404, 408, 425, 429].indexOf(e.status) < 0;
 }
@@ -385,13 +405,14 @@ function passo() {
   return CC.rpc('taf_ciclo_salvar', { p_chave: C.chave, p_obra: it.obra, p_acao: it.acao, p_dados: it.dados, p_uid: it.uid,
     p_quem: it.quem || C.quem || null }, { timeout: 20000 }).then(function (r) {
     tirar(it.uid); FALHA = null; EMVOO = null;
-    ULT = CC.agora(); CC.ls.set(EK, ULT);
+    if (RELOGIO_OK) { ULT = CC.agora(); CC.ls.set(EK, ULT); } else { ULT = null; ULT_SEM_HORA = true; }
     if (r && typeof r.versao === 'number' && r.versao > CC.versao) CC.versao = r.versao;
     emitirFila();          // o cabeçalho já mostra o novo estado quando a promessa resolve
     concluir(it, r);
     return passo();
   }, function (e) {
     EMVOO = null;
+    if (CC.ehChave(e)) { FALHA = { em: Date.now(), msg: CC.erro(e), status: e.status, chave: true }; chaveCaiu(e); return undefined; }
     if (ehRecusa(e)) { tirar(it.uid); FALHA = null; emitirFila(); recusar(it, e); return passo(); }
     FALHA = { em: Date.now(), msg: CC.erro(e), status: e.status };      // sem sinal ou servidor fora: fica na fila
     var a = filaLer();
@@ -402,7 +423,7 @@ function passo() {
 }
 // um envio por vez; um pedido que chega durante uma rodada (item novo, 'online', intervalo) faz mais uma rodada no fim
 function drenar() {
-  if (!C.chave) return Promise.resolve();
+  if (!C.chave || CHAVE_RUIM) return Promise.resolve();
   if (ENVIANDO) { DE_NOVO = true; var r = ENVIANDO; return r.then(function () { return ENVIANDO && ENVIANDO !== r ? ENVIANDO : undefined; }); }
   DE_NOVO = false;
   function fim() { ENVIANDO = null; EMVOO = null; emitirFila(); if (DE_NOVO) { DE_NOVO = false; drenar(); } }
@@ -417,13 +438,13 @@ CC.fila = {
   cancelar: CC.cancelar
 };
 
-// CC.init({chave, quem, obra:'342', onFila(estado), onRecusa(item, motivo, erro), onOk(item, resposta)})
+// CC.init({chave, quem, obra:'342', onFila(estado), onRecusa(item, motivo, erro), onOk(item, resposta), onChave(motivo)})
 CC.init = function (o) {
   o = o || {};
-  if ('chave' in o) C.chave = o.chave || '';
+  if ('chave' in o) { C.chave = o.chave || ''; CHAVE_RUIM = null; FALHA = null; }
   if ('quem' in o) C.quem = o.quem || '';
   if (o.obra) { C.obra = String(o.obra); CC.OBRA = C.obra; }
-  [['onFila', 'fila'], ['onRecusa', 'recusa'], ['onOk', 'ok']].forEach(function (k) {
+  [['onFila', 'fila'], ['onRecusa', 'recusa'], ['onOk', 'ok'], ['onChave', 'chave']].forEach(function (k) {
     if (!(k[0] in o)) return;
     if (CBS[k[0]]) { CBS[k[0]](); delete CBS[k[0]]; }
     if (typeof o[k[0]] === 'function') CBS[k[0]] = CC.ouvir(k[1], o[k[0]]);
@@ -461,7 +482,7 @@ CC.vigiar = function (onMudou, digitando, ms) {
       if (typeof digitando === 'function' && digitando()) return;
       avisado = v; avisadoEm = Date.now();
       if (typeof onMudou === 'function') onMudou(v);
-    }, function () { ocupado = false; });
+    }, function (e) { ocupado = false; if (CC.ehChave(e)) chaveCaiu(e); });
   }
   var t = setInterval(checar, ms || 30000);
   function vis() { if (D.visibilityState === 'visible') checar(); }
@@ -554,6 +575,15 @@ CC.COR = {
   acordo: { pendente: 'cf', ok: 'ok', revisar: 'ne' },
   item_estado: { ok: 'ok', pendente: 'ne', na: 'mu', '': 'mu' }
 };
+// nome simples das 22 ações (linha do tempo e Mudanças): nunca mostrar o código interno
+var ACAO_TXT = { preparo: 'conferiu a preparação', preparo_ok: 'preparação: tudo OK', comp: 'compromisso', comp_tirar: 'tirou do rascunho',
+  comp_cancelar: 'cancelou', fora: 'não entra', publicar: 'publicou', apont: 'apontou', apont_lote: 'apontou em lote', apont_apagar: 'apagou apontamento',
+  real: 'data real', fechar_item: 'fechou', fechar_semana: 'fechou a semana', replan: 'replanejou', efeito: 'decidiu o efeito', saldo: 'decidiu o saldo',
+  demanda: 'demanda', demanda_resp: 'respondeu', cobrar: 'cobrou', impacto: 'recalculou o impacto', acordo: 'de acordo', reabrir: 'reabriu',
+  CARGA: 'carga inicial' };
+CC.acaoTxt = function (a) { return ACAO_TXT[a] || String(a == null ? '' : a).replace(/_/g, ' '); };
+// quem gravou, para mostrar: a carga do sistema não é uma pessoa
+CC.quemTxt = function (r) { return !r ? '' : r.papel === 'carga' || r.acao === 'CARGA' ? 'Carga inicial do sistema' : (r.quem || ''); };
 CC.rot = function (grupo, v, vazio) {
   var g = CC.ROT[grupo] || {};
   if (v == null || v === '') return g[''] || vazio || 'não informado';

@@ -1150,7 +1150,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='6be9f39970',VK='taf-recarga';
+var BUILD='f68f08f832',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
@@ -1313,7 +1313,8 @@ var SUBS={
  financeiro:[['fin','Pagar e conciliar','erp',{vista:'fin'}],['fat','Faturamento e caixa','erp',{vista:'fat'}],['ctb','Contabilidade','erp',{vista:'ctb'}],['plano','Plano de contas','erp',{vista:'plano'}]],
  cadastros:[['cad','Cadastros','erp',{vista:'cad'}],['ctr','Contratos','erp',{vista:'ctr'}],['prj','Projetos','erp',{vista:'prj'}],['pes','Pessoas e ponto','erp',{vista:'pes'}],['sst','Segurança (SST)','erp',{vista:'sst'}],['pat','Patrimônio','erp',{vista:'pat'}],['frt','Frota','erp',{vista:'frt'}],['fluxo','Fluxos e SLA','erp',{vista:'fluxo'}],['aud','Auditoria','erp',{vista:'aud'}],['admin','Administração','erp',{vista:'admin'}],['usuarios','Usuários','erp',{vista:'usuarios'}]]
 };
-var CARREGADAS=['342','999'];   /* obras com cronograma e ERP no banco */
+var CARREGADAS=['342','999'];   /* obras com cronograma (ciclo semanal) no banco */
+var ERP_OBRAS=['342','343','281','999'];   /* obras com ERP no banco; 343 e 281 só têm ERP, sem cronograma */
 var PARAM={ciclo:'aba',marko:'aba',erp:'vista'};
 function defSub(t){var l=SUBS[t];if(!l)return null;var k=S.sub[t]||l[0][0];return l.filter(function(x){return x[0]===k})[0]||l[0]}
 function obraEmb(){if(OBRA_FORCE)return OBRA_FORCE;var o=QS.get('obra');if(/^\d{3}$/.test(o||''))return o;return S.obras.length===1?S.obras[0]:'342'}
@@ -1342,7 +1343,8 @@ function telas(){
   else if(ex||JSON.stringify(f._par)!==JSON.stringify(par)){f._par=par;if(f.dataset.pronto==='1')f.contentWindow.postMessage({taf:1,ir:tudo},location.origin);else f._pend=tudo}
   Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=x!==f});
   var av=box.querySelector(':scope>.aviso');
-  if(CARREGADAS.indexOf(ob)<0){if(!av){av=document.createElement('div');av.className='aviso';box.insertBefore(av,box.firstChild)}av.textContent='A obra '+ob+' ainda não tem cronograma nem ERP carregados no banco; a planilha rev6 continua valendo para ela. Escolha a 342 (ou deixe só uma obra marcada) para usar esta tela.'}
+  var okObra=(mod==='erp'?ERP_OBRAS:CARREGADAS).indexOf(ob)>=0;
+  if(!okObra){if(!av){av=document.createElement('div');av.className='aviso';box.insertBefore(av,box.firstChild)}av.textContent=mod==='erp'?'A obra '+ob+' ainda não tem ERP carregado no banco; a planilha rev6 continua valendo para ela.':'A obra '+ob+' ainda não tem cronograma semanal no banco (só o ERP: custo, compras, notas e BM); a planilha rev6 continua valendo para o resto. Escolha a 342 (ou deixe só uma obra marcada) para usar esta tela.'}
   else if(av)av.remove();
 }
 function rota(h){
