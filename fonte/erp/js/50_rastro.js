@@ -38,7 +38,7 @@ function viewRastro(X){
   else if(!d)corpo=`<div class="sub" style="padding:18px">${RS.crono?'Escolha uma tarefa do cronograma.':'Carregando o cronograma…'}</div>`;
   else corpo=rastroCorpo(d);
   return `<div class="head"><div><h1>Da tarefa à compra, ao custo e ao BM</h1><p class="lead">Escolha uma tarefa do cronograma e veja o que foi pedido para ela, se o material chegou, quanto já virou custo e a quais eventos de medição ela leva. Tarefa, pedido e item de BM não são um para um: aqui aparecem só os vínculos que existem.</p></div>
-   <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="/marko">Tela do engenheiro</a><a class="btn" href="/ciclo">Visão da gestão</a></div></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="/marko?obra=${encodeURIComponent(SB.obraId||'342')}">Tela do engenheiro</a><a class="btn" href="/ciclo?obra=${encodeURIComponent(SB.obraId||'342')}&aba=sit">Visão da gestão</a></div></div>
    <div class="toolbar"><select id="rs-sel" style="min-width:min(520px,100%)"><option value="">Escolha a tarefa…</option>${opt}</select></div>${corpo}`}
 /* demandas do Ciclo que travam esta tarefa, e se cada uma já tem compra ligada (o vínculo guarda o número da demanda) */
 function rastroDemandas(d){
@@ -49,7 +49,7 @@ function rastroDemandas(d){
     return `<tr${+x.num===RS.dem?' style="outline:2px solid var(--brand,#2b6cb0);outline-offset:-2px"':''}><td><b class="mono">D${x.num}</b><div class="mut" style="font-size:11.5px">${esc(AREA_ROT[x.area]||x.area)}${x.item?' · '+esc(x.item):''}</div></td>
      <td>${esc(x.oque)}</td><td>${esc(x.resp)}<div class="mut" style="font-size:11.5px">precisa até ${fdata(x.prazo)}${x.nova_data?' · nova data '+fdata(x.nova_data):''}</div>${rsPill(sit[0],sit[1])}</td>
      <td>${ls.length?ls.map(c=>`<b class="mono">${esc((c.sol||{}).num||'?')}</b>${c.item?' · item '+esc(c.item.codigo):''}`).join('<br>'):(ehCompra?'<span class="mut">Ainda sem compra ligada</span>':'<span class="mut">não é compra</span>')}</td>
-     <td class="r" style="white-space:nowrap">${ehCompra?`<button class="btn sm dark" data-act="rs-nova" data-dem="${x.num}" ${can('rastro')?'':'disabled'}>Nova solicitação</button> <button class="btn sm" data-act="rs-liga" data-dem="${x.num}" ${can('rastro')?'':'disabled'}>Ligar existente</button> `:''}<a class="btn sm" href="/ciclo?demanda=${x.num}">Ver no Ciclo</a></td></tr>`}).join('')}</tbody></table></div>
+     <td class="r" style="white-space:nowrap">${ehCompra?`<button class="btn sm dark" data-act="rs-nova" data-dem="${x.num}" ${can('rastro')?'':'disabled'}>Nova solicitação</button> <button class="btn sm" data-act="rs-liga" data-dem="${x.num}" ${can('rastro')?'':'disabled'}>Ligar existente</button> `:''}<a class="btn sm" href="/ciclo?obra=${encodeURIComponent(SB.obraId||'342')}&aba=dem&demanda=${x.num}">Ver na semana</a></td></tr>`}).join('')}</tbody></table></div>
    <div class="sub">A demanda é a do Marko, com o mesmo número. A compra fica no ERP e só é ligada aqui; nada é digitado duas vezes.</div></div></div>`}
 function rastroCorpo(d){
   /* primeiro os eventos dos itens que já têm compra ligada, depois o próprio evento da tarefa, depois os mais próximos no tempo */

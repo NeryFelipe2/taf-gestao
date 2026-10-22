@@ -7,7 +7,7 @@
 <title>ERP TAF</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%278%27 fill=%27%23141416%27/%3E%3Ctext x=%2716%27 y=%2722%27 font-size=%2718%27 font-family=%27Arial%27 font-weight=%27700%27 text-anchor=%27middle%27 fill=%27white%27%3ET%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Outfit:wght@500;600;700&display=swap">
 <style>
 :root{
   --bg:#f3f3f4; --panel:#fff; --panel-2:#f8f8f9; --line:#e8e8eb; --ink:#111113; --ink-2:#55555c; --ink-3:#6a6a72;
@@ -232,6 +232,22 @@ label{display:block;font:500 10.5px var(--mono);letter-spacing:.06em;text-transf
 .apfaixa{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;background:var(--info-bg);color:var(--info-ink);border-radius:999px;padding:3px 10px;margin-right:8px}
 .apfaixa[hidden]{display:none}
 @media (max-width:820px){.apmenu button,.apbtn{min-height:44px}}
+
+/* dentro do Centro de Gestão (?embed=1): mesma paleta, tipografia e cartões do Centro; sem menu lateral nem topo próprios (o Centro navega) */
+html.emb .side,html.emb .top{display:none}
+html.emb .app{display:block;padding:0;min-height:0}
+html.emb,html.emb body{height:auto}
+html.emb .main{padding:0}
+html:root.emb{--bg:transparent;--panel:#FFFFFF;--panel-2:#EEF1F6;--line:rgba(15,23,42,.10);--ink:#1B2433;--ink-2:#4B5563;--ink-3:#6B7280;
+  --ok:#15803D;--ok-bg:rgba(21,128,61,.10);--warn:#B45309;--warn-bg:rgba(180,83,9,.10);--bad:#B91C1C;--bad-bg:rgba(185,28,28,.09);--info:#1D4ED8;--info-bg:rgba(29,78,216,.09);
+  --ok-ink:#15803D;--warn-ink:#92400E;--bad-ink:#B91C1C;--info-ink:#1D4ED8;--btn:#0F766E;--btn-ink:#fff;--r:12px;--sh:none}
+html:root.emb[data-theme="dark"]{--bg:transparent;--panel:#0B0B19;--panel-2:#12122A;--line:rgba(255,255,255,.07);--ink:#E6E6EE;--ink-2:#A0A0B8;--ink-3:#73738C;
+  --ok:#4ADE80;--ok-bg:rgba(74,222,128,.12);--warn:#FBBF24;--warn-bg:rgba(251,191,36,.10);--bad:#F87171;--bad-bg:rgba(248,113,113,.12);--info:#60A5FA;--info-bg:rgba(96,165,250,.12);
+  --ok-ink:#4ADE80;--warn-ink:#FDE68A;--bad-ink:#F87171;--info-ink:#60A5FA;--btn:#14B8A6;--btn-ink:#042F2E}
+html.emb body{background:transparent}
+html.emb h1,html.emb h2,html.emb h3{font-family:'Outfit','Inter',system-ui,sans-serif;font-weight:600}
+html.emb .btn.dark{background:var(--btn);color:var(--btn-ink);border-color:transparent}
+html.emb a.btn[href="/"]{display:none}
 </style>
 </head>
 <body>
@@ -271,6 +287,38 @@ label{display:block;font:500 10.5px var(--mono);letter-spacing:.06em;text-transf
 
 <script>window.TAF_CONFIG={"modo": "chave", "supabaseUrl": "https://vblfdikfobsirwpdnybw.supabase.co", "supabaseKey": "sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW", "marca": "TAF"};</script>
 <script>
+/* embed.js · as telas do ciclo, do engenheiro e do ERP dentro do Centro de Gestão.
+   Dentro do Centro (?embed=1): sem cabeçalho próprio, links entre telas viram navegação do Centro (obra e contexto vão junto), tema e comandos vêm do Centro.
+   Fora do Centro: /ciclo e /erp abrem o Centro já na tela certa (?solo=1 mantém a tela sozinha). O /marko continua sendo a visão do engenheiro. */
+(function () {
+  var W = window, D = document, Q = new URLSearchParams(W.location.search), P = W.location.pathname.replace(/\/$/, '');
+  var EMB = Q.get('embed') === '1' && W.parent !== W;
+  var ouv = [];
+  W.TAF_EMB = { ativo: EMB, on: function (f) { ouv.push(f); } };
+  if (!EMB) {
+    if ((P === '/ciclo' || P === '/erp') && Q.get('solo') !== '1' && !/[?&]solo=1/.test(W.location.search)) {
+      var o = Q.get('obra');
+      W.location.replace('/?' + (o ? 'obra=' + encodeURIComponent(o) + '&' : '') + 'ir=' + encodeURIComponent(P + W.location.search));
+    }
+    return;
+  }
+  D.documentElement.classList.add('emb');
+  function envia(m) { m.taf = 1; try { W.parent.postMessage(m, W.location.origin); } catch (e) {} }
+  W.TAF_EMB.envia = envia;
+  D.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    var h = a.getAttribute('href') || '';
+    if (/^\/(erp|ciclo|marko)?(\?|#|$)/.test(h)) { e.preventDefault(); e.stopPropagation(); envia({ ir: h }); }
+  }, true);
+  W.addEventListener('message', function (e) {
+    if (e.origin !== W.location.origin || !e.data || !e.data.taf) return;
+    var m = e.data;
+    if (m.tema) D.documentElement.setAttribute('data-theme', m.tema);
+    ouv.forEach(function (f) { try { f(m); } catch (x) {} });
+  });
+  envia({ pronto: 1, pagina: P });
+}());
 /* ============ util ============ */
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -516,7 +564,8 @@ async function chCarregar(ob){
   pintaObra();$('#src-label').textContent='Banco do site TAF';$('#src-sub').textContent=CH.leitura?'Só leitura':'Tudo que você lança fica salvo para todos';
   if(!CH.leitura)Object.keys(PX).forEach(k=>{if(!(SB.pool[k]||[]).length||SB.pool[k].length<5)chPool(k)});
   /* o extrato financeiro histórico da obra (quando existe na base) NÃO é lançado sozinho: só entra quando alguém conferir e mandar */
-  if(!CH.linkFeito&&new URLSearchParams(location.search).get('tarefa')){CH.linkFeito=1;S.view='rastro'}
+  {const P=new URLSearchParams(location.search),pv=P.get('vista');   /* vindo do Centro de Gestão ou de um link: abre a tela pedida */
+    if(!CH.linkFeito&&(pv||P.get('tarefa'))){CH.linkFeito=1;S.view=(pv&&NAV_BASE.some(n=>n[0]===pv))?pv:'rastro'}}
   render();chOutras();
 }
 /* estado das outras obras, só para ler (painel da carteira, RH, comparativo): nunca é gravado por aqui */
@@ -564,7 +613,7 @@ async function chPool(k){if(!SB.obraId||CH.leitura)return;SB.poolBusy=SB.poolBus
 
 /* ---------- o planejamento da semana fica no Ciclo do site ---------- */
 function chViewLean(){return `<div class="head"><div><h1>Planejamento semanal</h1><p class="lead">O plano da semana, as restrições, as demandas para compras e o PPC da obra agora ficam no <b>Ciclo semanal</b> do site: o engenheiro preenche no celular e a gestão acompanha.</p></div></div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn dark" href="/marko">Tela do engenheiro</a><a class="btn" href="/ciclo">Visão da gestão</a></div>`}
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn dark" href="/marko?obra=${encodeURIComponent(SB.obraId||'342')}">Tela do engenheiro</a><a class="btn" href="/ciclo?obra=${encodeURIComponent(SB.obraId||'342')}&aba=sit">Visão da gestão</a></div>`}
 
 if(MODO_CH){sbBoot=chBoot;sbSync=chSync;sbPull=chPull;sbPool=chPool;sbCarregar=chCarregar;sbSair=chSair;doLogin=chLoginForm;obraData=chObraData;viewLean=chViewLean;
   sbImportar=async()=>toast('As obras são carregadas no banco pelo site.');importarObraBanco=sbImportar;
@@ -2917,7 +2966,7 @@ function viewRastro(X){
   else if(!d)corpo=`<div class="sub" style="padding:18px">${RS.crono?'Escolha uma tarefa do cronograma.':'Carregando o cronograma…'}</div>`;
   else corpo=rastroCorpo(d);
   return `<div class="head"><div><h1>Da tarefa à compra, ao custo e ao BM</h1><p class="lead">Escolha uma tarefa do cronograma e veja o que foi pedido para ela, se o material chegou, quanto já virou custo e a quais eventos de medição ela leva. Tarefa, pedido e item de BM não são um para um: aqui aparecem só os vínculos que existem.</p></div>
-   <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="/marko">Tela do engenheiro</a><a class="btn" href="/ciclo">Visão da gestão</a></div></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="/marko?obra=${encodeURIComponent(SB.obraId||'342')}">Tela do engenheiro</a><a class="btn" href="/ciclo?obra=${encodeURIComponent(SB.obraId||'342')}&aba=sit">Visão da gestão</a></div></div>
    <div class="toolbar"><select id="rs-sel" style="min-width:min(520px,100%)"><option value="">Escolha a tarefa…</option>${opt}</select></div>${corpo}`}
 /* demandas do Ciclo que travam esta tarefa, e se cada uma já tem compra ligada (o vínculo guarda o número da demanda) */
 function rastroDemandas(d){
@@ -2928,7 +2977,7 @@ function rastroDemandas(d){
     return `<tr${+x.num===RS.dem?' style="outline:2px solid var(--brand,#2b6cb0);outline-offset:-2px"':''}><td><b class="mono">D${x.num}</b><div class="mut" style="font-size:11.5px">${esc(AREA_ROT[x.area]||x.area)}${x.item?' · '+esc(x.item):''}</div></td>
      <td>${esc(x.oque)}</td><td>${esc(x.resp)}<div class="mut" style="font-size:11.5px">precisa até ${fdata(x.prazo)}${x.nova_data?' · nova data '+fdata(x.nova_data):''}</div>${rsPill(sit[0],sit[1])}</td>
      <td>${ls.length?ls.map(c=>`<b class="mono">${esc((c.sol||{}).num||'?')}</b>${c.item?' · item '+esc(c.item.codigo):''}`).join('<br>'):(ehCompra?'<span class="mut">Ainda sem compra ligada</span>':'<span class="mut">não é compra</span>')}</td>
-     <td class="r" style="white-space:nowrap">${ehCompra?`<button class="btn sm dark" data-act="rs-nova" data-dem="${x.num}" ${can('rastro')?'':'disabled'}>Nova solicitação</button> <button class="btn sm" data-act="rs-liga" data-dem="${x.num}" ${can('rastro')?'':'disabled'}>Ligar existente</button> `:''}<a class="btn sm" href="/ciclo?demanda=${x.num}">Ver no Ciclo</a></td></tr>`}).join('')}</tbody></table></div>
+     <td class="r" style="white-space:nowrap">${ehCompra?`<button class="btn sm dark" data-act="rs-nova" data-dem="${x.num}" ${can('rastro')?'':'disabled'}>Nova solicitação</button> <button class="btn sm" data-act="rs-liga" data-dem="${x.num}" ${can('rastro')?'':'disabled'}>Ligar existente</button> `:''}<a class="btn sm" href="/ciclo?obra=${encodeURIComponent(SB.obraId||'342')}&aba=dem&demanda=${x.num}">Ver na semana</a></td></tr>`}).join('')}</tbody></table></div>
    <div class="sub">A demanda é a do Marko, com o mesmo número. A compra fica no ERP e só é ligada aqui; nada é digitado duas vezes.</div></div></div>`}
 function rastroCorpo(d){
   /* primeiro os eventos dos itens que já têm compra ligada, depois o próprio evento da tarefa, depois os mais próximos no tempo */
@@ -2988,6 +3037,13 @@ ACOES['rs-liga-ok']=async()=>{const s=$('#rl-sol').value;if(!s)return;rastroElo(
 ACOES['rs-solta']=async el=>{const x=S.t.elos.find(o=>o.id===el.dataset.elo);if(!x)return;x.cancelado=true;x.cancelado_por=user();log('vinculo',x.ativ,'solicitação '+x.sol,'ligada','solta');save();await rastroGrava();toast('Vínculo desfeito. A solicitação continua existindo.')};
 /* o vínculo nasce junto com a solicitação criada a partir da tarefa */
 function rastroAposSol(s){if(!S.rastroPend)return false;const p=S.rastroPend;S.rastroPend=null;RS.tarefa=p.ativ;rastroElo(s.id,p.demanda||null);S.view='rastro';setTimeout(rastroGrava,60);return true}
+/* Dentro do Centro de Gestão (?embed=1): o Centro manda a tela (vista) e a tarefa/demanda; a tela já aberta muda sem recarregar. */
+if(window.TAF_EMB&&window.TAF_EMB.ativo)window.TAF_EMB.on(m=>{
+  const c=m.ir||m;
+  if(!S.D)return;
+  if(c.vista&&NAV_BASE.some(n=>n[0]===c.vista)){S.view=c.vista;render()}
+  if(c.tarefa&&typeof rastroCarrega==='function'){S.view='rastro';RS.dem=+c.demanda||null;render();rastroCarrega(c.tarefa)}
+});
 /* ============ inicialização ============ */
 (async()=>{
   {const mk=String(CFG.marca||'Grupo Nery');$('#marca').textContent=mk;$('#marca-logo').textContent=mk.trim().charAt(0).toUpperCase()||'G'}

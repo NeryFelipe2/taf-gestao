@@ -125,6 +125,11 @@ td.dt{white-space:nowrap}
 textarea.copia{display:block;width:100%;min-height:150px;margin-top:8px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--raised);font-size:14px}
 footer.rod{margin-top:28px;color:var(--mu2);font-size:12px}
 @media (max-width:640px){header h1{font-size:18px}.card{padding:12px}}
+
+/* dentro do Centro de Gestão (?embed=1): a navegação é a do Centro */
+html.emb header,html.emb nav.tabs,html.emb footer.rod{display:none}
+html.emb .wrap{max-width:none;padding:0 0 24px}
+html.emb body{background:transparent;background-image:none}
 </style>
 </head>
 <body>
@@ -1415,6 +1420,8 @@ function mostrar() {
     S.pronto = true;
     var a0 = CC.ls.get('taf-ciclo-aba');
     if (ABAS.indexOf(a0) >= 0) S.aba = a0;
+    var qa = /[?&]aba=([a-z]+)/.exec(window.location.search);     // vindo do Centro de Gestão: abre na tela pedida
+    if (qa && ABAS.indexOf(qa[1]) >= 0) S.aba = qa[1];
     CC.recusas().forEach(function (r) { if (r.meta && r.meta.mod === 'ciclo') S.rec[r.uid] = { motivo: r.motivo, item: r }; });
     VIG = CC.vigiar(function () { reler(); }, digitando, 30000);
   }
@@ -1434,6 +1441,11 @@ window.CICLO = {
   reler: function () { return reler().then(function () { return true; }); },
   aba: function (t) { irAba(t); }
 };
+if (window.TAF_EMB) window.TAF_EMB.on(function (m) {   // comandos do Centro (a tela já aberta muda sem recarregar)
+  var c = m.ir || m;
+  if (c.aba && ABAS.indexOf(c.aba) >= 0) irAba(c.aba);
+  if (c.demanda) { irAba('dem'); verDemanda(+c.demanda); }
+});
 iniciar();
 }());
 </script>

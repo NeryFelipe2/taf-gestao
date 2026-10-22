@@ -3,7 +3,7 @@ from PIL import Image
 
 # Gera ../public/ciclo.html: logo no /*LOGOCANTO*/, núcleo (ciclo-core.js) no /*CICLOCORE*/ e o hash da versão no /*VERSAO*/.
 t = open('ciclo.html', encoding='utf-8').read()
-core = open('ciclo-core.js', encoding='utf-8').read() + '\n' + open('ciclo-erp.js', encoding='utf-8').read()   # núcleo + ligação com o ERP
+core = open('ciclo-core.js', encoding='utf-8').read() + '\n' + open('ciclo-erp.js', encoding='utf-8').read() + '\n' + open('embed.js', encoding='utf-8').read()   # núcleo + ligação com o ERP
 assert '</script' not in core.lower() and '<!--' not in core, 'o núcleo não pode fechar a tag script'
 
 im = Image.open(io.BytesIO(base64.b64decode(open('logo_canto.b64').read())))

@@ -162,6 +162,11 @@ button.mk-dias{width:100%;min-height:44px;background:none;border:0;padding:4px 0
 #app .mk-inl>.cc-campo{flex:0 1 150px;width:150px;min-width:0}
 .mk-inl>span{flex:1 1 auto;min-width:0}
 .mk-x .cc-form{border-top:1px dashed var(--line2)}
+
+/* dentro do Centro de Gestão (?embed=1): a navegação é a do Centro */
+html.emb header,html.emb nav.mk-abas{display:none}
+html.emb .wrap{max-width:none;padding:0 0 24px}
+html.emb body{background:transparent;background-image:none}
 </style>
 </head>
 <body>
@@ -177,7 +182,7 @@ button.mk-dias{width:100%;min-height:44px;background:none;border:0;padding:4px 0
 <div id="faixa" class="mk-faixa" role="status" hidden></div>
 <header>
   <img src="data:image/webp;base64,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" alt="TAF">
-  <div><h1 id="h-nome">Obra 342</h1><div class="sub">Santo Antônio · SANEAGO · <span id="h-fila"></span></div></div>
+  <div><h1 id="h-nome">Obra 342</h1><div class="sub">Centro de Gestão TAF · visão do engenheiro · Santo Antônio · SANEAGO · <span id="h-fila"></span></div></div>
   <span class="sp"></span>
   <button class="btn" id="b-sair" type="button">Sair</button>
 </header>
@@ -1892,7 +1897,7 @@ function htmlAtiv(el) {
   if (ls.length) h += ls.map(linhaHtml).join('');
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Nenhuma compra ligada a esta tarefa' + (dem ? ' para a demanda D' + esc(dem) : '') + '.</div>';
   h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(ativ) + '" href="' + esc(E.url(ativ, ldem)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Abrir no ERP' : 'Ligar a compra no ERP') + '</a>' + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
   return h;
 }
 function btnDet(ativ) {
@@ -1918,7 +1923,7 @@ function htmlDem(el) {
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Ainda sem compra ligada a esta demanda.</div>';
   var alvo = ls.length ? String(ls[0].ativ || ativs[0]) : ativs[0];
   h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(alvo) + '" href="' + esc(E.url(alvo, num)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Abrir no ERP' : 'Ligar a compra no ERP') + '</a>' + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
   return h;
 }
 
@@ -2044,6 +2049,39 @@ function iniciar() {
 }
 if (D.body) iniciar(); else D.addEventListener('DOMContentLoaded', iniciar);
 })(window, document);
+
+/* embed.js · as telas do ciclo, do engenheiro e do ERP dentro do Centro de Gestão.
+   Dentro do Centro (?embed=1): sem cabeçalho próprio, links entre telas viram navegação do Centro (obra e contexto vão junto), tema e comandos vêm do Centro.
+   Fora do Centro: /ciclo e /erp abrem o Centro já na tela certa (?solo=1 mantém a tela sozinha). O /marko continua sendo a visão do engenheiro. */
+(function () {
+  var W = window, D = document, Q = new URLSearchParams(W.location.search), P = W.location.pathname.replace(/\/$/, '');
+  var EMB = Q.get('embed') === '1' && W.parent !== W;
+  var ouv = [];
+  W.TAF_EMB = { ativo: EMB, on: function (f) { ouv.push(f); } };
+  if (!EMB) {
+    if ((P === '/ciclo' || P === '/erp') && Q.get('solo') !== '1' && !/[?&]solo=1/.test(W.location.search)) {
+      var o = Q.get('obra');
+      W.location.replace('/?' + (o ? 'obra=' + encodeURIComponent(o) + '&' : '') + 'ir=' + encodeURIComponent(P + W.location.search));
+    }
+    return;
+  }
+  D.documentElement.classList.add('emb');
+  function envia(m) { m.taf = 1; try { W.parent.postMessage(m, W.location.origin); } catch (e) {} }
+  W.TAF_EMB.envia = envia;
+  D.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    var h = a.getAttribute('href') || '';
+    if (/^\/(erp|ciclo|marko)?(\?|#|$)/.test(h)) { e.preventDefault(); e.stopPropagation(); envia({ ir: h }); }
+  }, true);
+  W.addEventListener('message', function (e) {
+    if (e.origin !== W.location.origin || !e.data || !e.data.taf) return;
+    var m = e.data;
+    if (m.tema) D.documentElement.setAttribute('data-theme', m.tema);
+    ouv.forEach(function (f) { try { f(m); } catch (x) {} });
+  });
+  envia({ pronto: 1, pagina: P });
+}());
 </script>
 <script>
 (function(){
@@ -3692,6 +3730,8 @@ $('app').addEventListener('focusout',function(){setTimeout(agendarPintar,0)});
 // =====================================================================================
 function abaInicial(L){
   var a0=ls.g('taf-marko-aba'),d0=ls.g('taf-marko-aba-dia'),s0=ls.g('taf-marko-mais');
+  var qa=/[?&]aba=([a-z]+)/.exec(window.location.search);   // vindo do Centro de Gestão: abre na tela pedida
+  if(qa&&['hoje','semana','preparar','demandas','mais'].indexOf(qa[1])>=0)return qa[1];
   if(s0&&['tarefas','fis','crono','pedido'].indexOf(s0)>=0)SUB=s0;
   if(a0==='tarefas'||a0==='crono'||a0==='pedido'){SUB=a0;return 'mais'}
   if(a0==='preparar'||a0==='demandas'||a0==='mais')return a0;
@@ -3730,6 +3770,10 @@ function entrar(digitada){
     else{TAB='mais';abas();['hj','sm','pp'].forEach(function(i){$(i).innerHTML='<div class="cc-recusa">O ciclo semanal não abriu: '+esc(CC.erro(e2))+'</div>'})}
   });
 }
+if(window.TAF_EMB)window.TAF_EMB.on(function(m){   // comandos do Centro (a tela já aberta muda sem recarregar)
+  var c=m.ir||m;
+  if(c.aba&&['hoje','semana','preparar','demandas','mais'].indexOf(c.aba)>=0&&typeof cicloOk!=='undefined'&&cicloOk)irAba(c.aba);
+});
 if(chave)entrar(false);else gate();
 })();
 </script>

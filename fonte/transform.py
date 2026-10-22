@@ -70,7 +70,7 @@ sub("function tkSim(){var s=$('ed-sim');if(s)s.hidden=edVazio()}","function tkSi
 sub("D=extractRev6(wb);FONTE=f.name+', lido agora';","D=extractRev6(wb);FONTE=f.name+', lido agora';TAF.rpc('taf_snap_salvar',{p_chave:TAF.chave,p_snap:D,p_fonte:f.name,p_quem:TAF.quem()}).then(function(){toast('rev6 salva para todos')},function(){toast('Li a rev6 aqui, mas não consegui salvar no banco')});")
 # aba WhatsApp some se vazia
 sub("$('n-wa').textContent=W.acoes.length;","$('n-wa').textContent=W.acoes.length;$('t-whatsapp').hidden=!W.acoes.length;")
-sub("if(TABS.indexOf(h0)>=0)S.tab=h0;","if(TABS.indexOf(h0)>=0)S.tab=h0;if(S.tab==='whatsapp'&&!W.acoes.length)S.tab='painel';")
+sub("if(TABS.indexOf(h0[0])>=0){S.tab=h0[0];if(h0[1])S.sub[h0[0]]=h0[1]}","if(TABS.indexOf(h0[0])>=0){S.tab=h0[0];if(h0[1])S.sub[h0[0]]=h0[1]}if(S.tab==='whatsapp'&&!W.acoes.length)S.tab='painel';")
 # head
 sub('<title>Painel de Gestão TAF</title>','<title>Gestão das obras TAF</title>\n<meta name="robots" content="noindex,nofollow">')
 sub('/*WCRCSS*/',css+"""

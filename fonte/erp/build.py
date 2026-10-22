@@ -21,7 +21,7 @@ ajuda = "/* GERADO por build.py a partir de manuais/MANUAL_*.md: não edite. */\
 
 shell = (AQUI / "shell.html").read_text(encoding="utf-8")
 css = (AQUI / "style.css").read_text(encoding="utf-8").rstrip("\n")
-mods = []
+mods = [(FONTE / "embed.js").read_text(encoding="utf-8").rstrip("\n")]   # telas dentro do Centro de Gestão
 for p in sorted((AQUI / "js").glob("*.js")):
     if p.name == "40_ajuda_dados.js":
         continue
@@ -37,4 +37,4 @@ out = shell.replace('<script src="vendor/supabase.js"></script>\n', "").replace(
 out = out.replace("<title>TAF Admin</title>", "<title>ERP TAF</title>").replace("/*@@STYLE@@*/", css).replace("/*@@SCRIPT@@*/", js)
 PUBLIC.mkdir(exist_ok=True)
 (PUBLIC / "erp.html").write_text(out, encoding="utf-8")
-print("public/erp.html", len(out) // 1024, "KB,", len(mods) - 1, "módulos")
+print("public/erp.html", len(out) // 1024, "KB,", len(mods) - 2, "módulos")

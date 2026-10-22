@@ -85,7 +85,8 @@ async function chCarregar(ob){
   pintaObra();$('#src-label').textContent='Banco do site TAF';$('#src-sub').textContent=CH.leitura?'Só leitura':'Tudo que você lança fica salvo para todos';
   if(!CH.leitura)Object.keys(PX).forEach(k=>{if(!(SB.pool[k]||[]).length||SB.pool[k].length<5)chPool(k)});
   /* o extrato financeiro histórico da obra (quando existe na base) NÃO é lançado sozinho: só entra quando alguém conferir e mandar */
-  if(!CH.linkFeito&&new URLSearchParams(location.search).get('tarefa')){CH.linkFeito=1;S.view='rastro'}
+  {const P=new URLSearchParams(location.search),pv=P.get('vista');   /* vindo do Centro de Gestão ou de um link: abre a tela pedida */
+    if(!CH.linkFeito&&(pv||P.get('tarefa'))){CH.linkFeito=1;S.view=(pv&&NAV_BASE.some(n=>n[0]===pv))?pv:'rastro'}}
   render();chOutras();
 }
 /* estado das outras obras, só para ler (painel da carteira, RH, comparativo): nunca é gravado por aqui */
@@ -133,7 +134,7 @@ async function chPool(k){if(!SB.obraId||CH.leitura)return;SB.poolBusy=SB.poolBus
 
 /* ---------- o planejamento da semana fica no Ciclo do site ---------- */
 function chViewLean(){return `<div class="head"><div><h1>Planejamento semanal</h1><p class="lead">O plano da semana, as restrições, as demandas para compras e o PPC da obra agora ficam no <b>Ciclo semanal</b> do site: o engenheiro preenche no celular e a gestão acompanha.</p></div></div>
-  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn dark" href="/marko">Tela do engenheiro</a><a class="btn" href="/ciclo">Visão da gestão</a></div>`}
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn dark" href="/marko?obra=${encodeURIComponent(SB.obraId||'342')}">Tela do engenheiro</a><a class="btn" href="/ciclo?obra=${encodeURIComponent(SB.obraId||'342')}&aba=sit">Visão da gestão</a></div>`}
 
 if(MODO_CH){sbBoot=chBoot;sbSync=chSync;sbPull=chPull;sbPool=chPool;sbCarregar=chCarregar;sbSair=chSair;doLogin=chLoginForm;obraData=chObraData;viewLean=chViewLean;
   sbImportar=async()=>toast('As obras são carregadas no banco pelo site.');importarObraBanco=sbImportar;

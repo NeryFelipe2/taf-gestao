@@ -15,6 +15,20 @@
 .luz h4{margin:0;font:600 17px var(--f-hd);color:var(--hd)}
 .luz .lr{display:flex;justify-content:space-between;align-items:center;font:600 11px var(--f-mono);letter-spacing:.08em;color:var(--mu)}
 @media (max-width:820px){.luz{grid-template-columns:minmax(0,1fr)}}
+.subnav{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:2px 0 12px}
+.subnav .sp{flex:1}
+.subnav .abre{font-size:12.5px;color:var(--mu);text-decoration:underline;text-underline-offset:3px}
+.rot{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.rot .chip{font-size:12.5px}
+.rot .seta{color:var(--mu2)}
+.embv{position:relative}
+.embv iframe{display:block;width:100%;border:0;background:transparent;height:max(520px,calc(100vh - 300px))}
+.embv .aviso{border:1px solid var(--line2);background:var(--raised);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--mu);margin-bottom:10px}
+.embv .carr{padding:24px;color:var(--mu);font-size:13px}
+.rotl{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
+.rotl>div{border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--raised);display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+.rotl b{font:600 14px var(--f-hd);color:var(--hd);min-width:120px}
+.rotl span{flex:1 1 260px;font-size:13px;color:var(--mu)}
 #upl{position:absolute;width:1px;height:1px;opacity:0}
 .selo .btns{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;margin-top:8px}
 .selo .btn{letter-spacing:0;text-transform:none;font-size:12.5px}
@@ -30,7 +44,7 @@
     <p id="sub"></p>
   </div>
   <div class="selo"><span id="selo-corte"></span><br><b id="selo-master"></b>
-    <div class="btns"><a class="btn" href="/ciclo" style="text-decoration:none;color:inherit" title="Ciclo semanal da obra 342: semana do Marko, demandas e decisões">Ciclo 342</a><a class="btn" href="/erp" style="text-decoration:none;color:inherit" title="ERP: orçamento, compras, recebimento, nota, medição e BM das obras">ERP</a><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><button class="btn" id="b-tema" type="button" aria-pressed="false">Tema escuro</button></div>
+    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><button class="btn" id="b-tema" type="button" aria-pressed="false">Tema escuro</button></div>
   </div>
 </header>
 
@@ -40,6 +54,10 @@
   <button role="tab" id="t-medicao" aria-controls="p-medicao" aria-selected="false">Medição <span class="tab-n" id="n-me"></span></button>
   <button role="tab" id="t-tarefas" aria-controls="p-tarefas" aria-selected="false">Tarefas <span class="tab-n" id="n-ta"></span></button>
   <button role="tab" id="t-cobrancas" aria-controls="p-cobrancas" aria-selected="false">Cobranças <span class="tab-n" id="n-co"></span></button>
+  <button role="tab" id="t-compras" aria-controls="p-compras" aria-selected="false">Compras</button>
+  <button role="tab" id="t-custos" aria-controls="p-custos" aria-selected="false">Custos</button>
+  <button role="tab" id="t-financeiro" aria-controls="p-financeiro" aria-selected="false">Financeiro</button>
+  <button role="tab" id="t-cadastros" aria-controls="p-cadastros" aria-selected="false">Cadastros</button>
   <button role="tab" id="t-whatsapp" aria-controls="p-whatsapp" aria-selected="false">WhatsApp <span class="tab-n" id="n-wa"></span></button>
   <button role="tab" id="t-metodo" aria-controls="p-metodo" aria-selected="false">Método</button>
   <button role="tab" id="t-historico" aria-controls="p-historico" aria-selected="false">Histórico <span class="tab-n" id="n-hi"></span></button>
@@ -52,6 +70,7 @@
       <span id="f-obras" class="row"></span>
       <label class="field busca" for="f-q"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="f-q" type="search" placeholder="Restrição, frente, pessoa, BM ou texto" autocomplete="off"></label>
     </div>
+    <div class="row" id="rotina" role="group" aria-label="Rotina da obra"></div>
     <div class="row">
       <span class="resumo" id="resumo"></span>
       <span style="flex:1"></span>
@@ -137,6 +156,11 @@
     <div class="card"><h3>Conferências em aberto</h3><p class="hint">13. CHECKS com PENDENTE ou DECIDIR. Master check na C3.</p><div class="scroll-x"><table class="tb"><thead><tr><th>Nº</th><th>Conferência</th><th>Resultado</th><th>O que fazer</th></tr></thead><tbody id="t-chk"></tbody></table></div></div>
   </section>
 
+  <section role="tabpanel" id="p-compras" aria-labelledby="t-compras" hidden></section>
+  <section role="tabpanel" id="p-custos" aria-labelledby="t-custos" hidden></section>
+  <section role="tabpanel" id="p-financeiro" aria-labelledby="t-financeiro" hidden></section>
+  <section role="tabpanel" id="p-cadastros" aria-labelledby="t-cadastros" hidden></section>
+
   <section role="tabpanel" id="p-whatsapp" aria-labelledby="t-whatsapp" hidden>
     <div class="card"><h3>Grupos de WhatsApp das obras 281 e 342</h3><p class="hint" id="wa-fonte"></p></div>
     <div class="kpis" id="k-wa"></div>
@@ -158,6 +182,7 @@
   </section>
 
   <section role="tabpanel" id="p-metodo" aria-labelledby="t-metodo" hidden>
+    <div class="card"><h3>Rotina contínua da obra</h3><p class="hint">Um caminho só: planejar, preparar, executar, apontar, controlar, replanejar. Cada passo é uma tela deste Centro; a obra escolhida acima vale para todas.</p><div id="mt-rotina"></div></div>
     <div class="card"><h3>Método de gestão: como estamos</h3><p class="hint" id="mt-fonte"></p>
       <div class="mt-leg" style="display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:12px;color:var(--mu);margin-top:6px"><span class="mt-c VERDE">VERDE</span> na meta <span class="mt-c AMARELO">AMARELO</span> atenção <span class="mt-c VERMELHO">VERMELHO</span> fora da meta <span class="mt-c SEM">SEM BASE</span> falta dado (não é zero)</div></div>
     <div class="card"><h3>As 10 perguntas</h3><div class="scroll-x"><table class="tb" id="mt-ind"></table></div></div>
@@ -184,9 +209,10 @@ var FONTE='rev6 do projeto, lida em 19/10/2026';
 "use strict";
 var OB=['342','343','281'];
 var NOME={'342':'342 SANEAGO','343':'343 CAESB','281':'281 SANEAGO'};
-var TABS=['painel','apontamentos','medicao','tarefas','cobrancas','whatsapp','metodo','historico'];
-var S={tab:'painel',obras:[],q:'',cs:'281',pes:'',al:'',atr:false,wp:'',wt:'',grp:'obra',fx:null};
-var h0=(location.hash||'').slice(1);if(TABS.indexOf(h0)>=0)S.tab=h0;
+var TABS=['painel','apontamentos','medicao','tarefas','cobrancas','compras','custos','financeiro','cadastros','whatsapp','metodo','historico'];
+var S={tab:'painel',sub:{},par:null,obras:[],q:'',cs:'281',pes:'',al:'',atr:false,wp:'',wt:'',grp:'obra',fx:null};
+var EF={},QS=new URLSearchParams(location.search),OBRA_FORCE='',EM_OBRA='';
+var h0=(location.hash||'').slice(1).split('/');if(TABS.indexOf(h0[0])>=0){S.tab=h0[0];if(h0[1])S.sub[h0[0]]=h0[1]}
 var abertosMe=new Set(),todosMe=false;
 var $=function(id){return document.getElementById(id)};
 var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})};
@@ -215,7 +241,7 @@ function toast(t){var el=$('toast');el.textContent=t;el.hidden=false;clearTimeou
 function copiar(t,msg){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast(msg)},function(){toast('Não deu para copiar aqui')})}else toast('Não deu para copiar aqui')}
 // tema
 var TK='taf-tema';
-function tema(t){document.documentElement.setAttribute('data-theme',t);var b=$('b-tema');b.textContent=t==='light'?'Tema escuro':'Tema claro';b.setAttribute('aria-pressed',String(t==='dark'))}
+function tema(t){document.documentElement.setAttribute('data-theme',t);emitir({tema:t});var b=$('b-tema');b.textContent=t==='light'?'Tema escuro':'Tema claro';b.setAttribute('aria-pressed',String(t==='dark'))}
 try{tema(localStorage.getItem(TK)==='dark'?'dark':'light')}catch(e){tema('light')}
 $('b-tema').onclick=function(){var t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';tema(t);try{localStorage.setItem(TK,t)}catch(e){}};
 // tooltip
@@ -680,22 +706,31 @@ function rHi(){
 
 /* ---------- controle ---------- */
 var R={painel:rPainel,apontamentos:rAp,medicao:rMe,tarefas:rTa,cobrancas:rCo,whatsapp:rWa,metodo:rMt,historico:rHi};
+var RS=function(){var t=S.tab,f=R[t],x=f?f():'',d=defSub(t);return d&&d[0]!=='nat'?d[1]+' · obra '+obraEmb():x};
 function cab(){
   $('sub').textContent='342 (SANEAGO, Santo Antônio do Descoberto), 343 (CAESB, Sobradinho) e 281 (SANEAGO, Mozarlândia, consórcio). Tudo lido da '+FONTE+'; passe o mouse num número para ver a célula. Falta dado = SEM BASE.';
   $('selo-corte').textContent='CORTE '+dt(corte());
   $('selo-master').textContent='MASTER CHECK: '+(D.master.v||'SEM BASE');
   $('f-obras').innerHTML=OB.map(function(o){var x=D.obras[o],w=['PRODUCAO','DINHEIRO','PLANO'].map(function(k){return x.luz[k].v}),c=w.indexOf('VERMELHO')>=0?'--s-ne':w.indexOf('AMARELO')>=0?'--s-cf':w.indexOf('VERDE')>=0?'--s-ex':'--s-si';return '<button type="button" class="chip" data-o="'+o+'" aria-pressed="'+(S.obras.indexOf(o)>=0)+'"><span class="dot" style="background:'+cv(c)+'"></span>'+esc(NOME[o])+'</button>'}).join('');
-  $('f-obras').querySelectorAll('[data-o]').forEach(function(b){b.onclick=function(){var o=b.dataset.o,i=S.obras.indexOf(o);if(i>=0)S.obras.splice(i,1);else S.obras.push(o);render()}});
+  $('f-obras').querySelectorAll('[data-o]').forEach(function(b){b.onclick=function(){OBRA_FORCE='';var o=b.dataset.o,i=S.obras.indexOf(o);if(i>=0)S.obras.splice(i,1);else S.obras.push(o);render()}});
   $('n-ap').textContent=D.apont.length;$('n-me').textContent=D.bms.length;$('n-ta').textContent=tarAll().filter(aberT).length;$('n-co').textContent=D.decisoes.filter(decAb).length;$('n-hi').textContent=D.changelog.length;$('n-wa').textContent=W.acoes.length;
   $('nota').innerHTML='<b>Como ler.</b> Tudo vem da '+esc(FONTE)+'; nada é digitado no painel. Para atualizar, clique em "Atualizar com a rev6" e escolha o arquivo: o painel relê as mesmas células. Luzes (01A): Produção = P2 a P4, Dinheiro = P1, P5, P7 e P9, Plano = P6, P8 e P10; a pior cor manda. Carteira da TAF (08B B9): 342 e 343 a 100%, 281 a 50% (03 F22, a confirmar com Thadeu). Pior caixa (10 C15): 342 + 343 com juro; a 281 entra quando tiver plano de custo. Restrição vencida = prazo antes do corte e ainda aberta (05C); nova data só quando o dono replanejou (coluna U). Curva S (12. EVM): medido = BM aprovado (06). SEM BASE = falta dado, não é zero.';
 }
 function render(){
   cab();
   TABS.forEach(function(t){$('t-'+t).setAttribute('aria-selected',String(t===S.tab));$('p-'+t).hidden=t!==S.tab});
-  $('resumo').innerHTML=esc(R[S.tab]())+(S.obras.length?' · obras: <b>'+S.obras.join(', ')+'</b>':'');
+  $('resumo').innerHTML=esc(RS())+(S.obras.length?' · obras: <b>'+S.obras.join(', ')+'</b>':'');
+  telas();rotinaBar();
 }
-function ir(t){S.tab=t;try{history.replaceState(null,'','#'+t)}catch(e){}render();window.scrollTo(0,0)}
+function ir(t,sub,par,push){
+  if(sub&&SUBS[t])S.sub[t]=sub;
+  S.tab=t;S.par=par||null;
+  try{var h='#'+t+(SUBS[t]&&S.sub[t]&&S.sub[t]!=='nat'?'/'+S.sub[t]:''),b=location.pathname+location.search.replace(/([?&])ir=[^&]*&?/,'$1').replace(/[?&]$/,'');
+    if(location.hash!==h||b!==location.pathname+location.search)history[push===false?'replaceState':'pushState'](null,'',b+h)}catch(e){}
+  render();window.scrollTo(0,0)}
+window.addEventListener('popstate',function(){var h=(location.hash||'').slice(1).split('/');if(TABS.indexOf(h[0])>=0){S.tab=h[0];if(SUBS[h[0]])S.sub[h[0]]=h[1]||'nat';render()}});
 TABS.forEach(function(t){$('t-'+t).onclick=function(){ir(t)}});
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-go]');if(!b)return;var g=b.dataset.go.split('/');e.preventDefault();ir(g[0],g[1])});
 $('f-q').addEventListener('input',function(e){S.q=e.target.value;render()});
 $('b-limpar').onclick=function(){S.obras=[];S.q='';S.pes='';S.al='';S.atr=false;S.fx=null;S.wp='';S.wt='';$('f-q').value='';render()};
 $('t-lim').onclick=function(){S.pes='';S.al='';S.atr=false;S.fx=null;render()};
@@ -711,6 +746,92 @@ $('b-copiar').onclick=function(){var L=[];
   copiar(L.join('\n'),L.length+' linhas copiadas')};
 $('upl').onchange=function(e){var f=e.target.files[0];if(!f)return;if(typeof XLSX==='undefined'){toast('Leitor de planilha não carregou');return}
   var rd=new FileReader();rd.onload=function(){try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});if(!wb.Sheets['01A. GESTÃO DA SEMANA']||!wb.Sheets['05C. RESTRIÇÕES'])throw 0;D=extractRev6(wb);FONTE=f.name+', lido agora';var sem=ED?Object.keys(ED.ov).filter(function(k){return !D.restricoes.some(function(r){return r.n===k})}).length:0;TKPREV=null;TKPP=null;render();toast('Painel relido de '+f.name+(edVazio()?'':'. Suas edições locais continuam por cima'+(sem?' ('+sem+' sem linha na nova leitura foram ignoradas)':'')))}catch(err){toast('Esse arquivo não tem as abas da rev6 (01A, 05C)')}};rd.readAsArrayBuffer(f)};
+
+/* ---------- telas do ciclo, do engenheiro e do ERP dentro do Centro ---------- */
+/* [chave, nome, tela, parâmetros]; tela 'nat' = o que o Centro já tinha (planilha rev6). As demais abrem a mesma obra, no mesmo banco. */
+var SUBS={
+ painel:[['nat','Empresa e obras'],['sit','Situação da obra','ciclo',{aba:'sit'}],['dash','Início da obra (ERP)','erp',{vista:'dash'}],['hoje','Hoje no ERP','erp',{vista:'hoje'}]],
+ tarefas:[['nat','Pendências da planilha (05C)'],['hoje','Hoje','marko',{aba:'hoje'}],['sem','Semana','ciclo',{aba:'sem'}],['prep','Preparar as próximas semanas','marko',{aba:'preparar'}],['mud','Mudanças','ciclo',{aba:'mud'}],['crono','Cronograma e pedidos','marko',{aba:'mais'}]],
+ apontamentos:[['nat','Compromissos (planilha)'],['dia','Apontar o dia','marko',{aba:'hoje'}],['campo','Campo','erp',{vista:'campo'}],['lean','Planejamento semanal','erp',{vista:'lean'}]],
+ cobrancas:[['nat','Cobranças e decisões'],['dem','Demandas das áreas','ciclo',{aba:'dem'}]],
+ medicao:[['nat','BMs (planilha)'],['med','Medição e resultado','erp',{vista:'med'}],['rastro','Da tarefa à compra e ao BM','erp',{vista:'rastro'}]],
+ compras:[['compras','Compras','erp',{vista:'compras'}],['pedc','Pedidos','erp',{vista:'pedc'}],['nota','Notas e rateio','erp',{vista:'nota'}],['cdash','Painel de compras','erp',{vista:'cdash'}],['est','Estoque','erp',{vista:'est'}]],
+ custos:[['eap','Orçamento (EAP)','erp',{vista:'eap'}],['pac','Pacotes','erp',{vista:'pac'}],['pain','Painéis','erp',{vista:'pain'}],['bi','Indicadores','erp',{vista:'bi'}]],
+ financeiro:[['fin','Pagar e conciliar','erp',{vista:'fin'}],['fat','Faturamento e caixa','erp',{vista:'fat'}],['ctb','Contabilidade','erp',{vista:'ctb'}],['plano','Plano de contas','erp',{vista:'plano'}]],
+ cadastros:[['cad','Cadastros','erp',{vista:'cad'}],['ctr','Contratos','erp',{vista:'ctr'}],['prj','Projetos','erp',{vista:'prj'}],['pes','Pessoas e ponto','erp',{vista:'pes'}],['sst','Segurança (SST)','erp',{vista:'sst'}],['pat','Patrimônio','erp',{vista:'pat'}],['frt','Frota','erp',{vista:'frt'}],['fluxo','Fluxos e SLA','erp',{vista:'fluxo'}],['aud','Auditoria','erp',{vista:'aud'}],['admin','Administração','erp',{vista:'admin'}],['usuarios','Usuários','erp',{vista:'usuarios'}]]
+};
+var CARREGADAS=['342','999'];   /* obras com cronograma e ERP no banco */
+var PARAM={ciclo:'aba',marko:'aba',erp:'vista'};
+function defSub(t){var l=SUBS[t];if(!l)return null;var k=S.sub[t]||l[0][0];return l.filter(function(x){return x[0]===k})[0]||l[0]}
+function obraEmb(){if(OBRA_FORCE)return OBRA_FORCE;var o=QS.get('obra');if(/^\d{3}$/.test(o||''))return o;return S.obras.length===1?S.obras[0]:'342'}
+function srcDe(mod,par){var q=['embed=1','obra='+obraEmb()];Object.keys(par||{}).forEach(function(k){q.push(k+'='+encodeURIComponent(par[k]))});return '/'+mod+'?'+q.join('&')}
+function emitir(m){m.taf=1;Object.keys(EF).forEach(function(k){var f=EF[k];if(f&&f.dataset.pronto==='1'){try{f.contentWindow.postMessage(m,location.origin)}catch(e){}}})}
+function temaAtual(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'}
+function monta(t){var p=$('p-'+t),nat=null;
+  if(p.childNodes.length){nat=document.createElement('div');nat.className='nat';while(p.firstChild)nat.appendChild(p.firstChild)}
+  var nav=document.createElement('div');nav.className='subnav';nav.id='sn-'+t;
+  var box=document.createElement('div');box.className='embv';box.id='ev-'+t;
+  p.appendChild(nav);if(nat)p.appendChild(nat);p.appendChild(box);
+  nav.addEventListener('click',function(e){var b=e.target.closest('[data-sub]');if(b)ir(t,b.dataset.sub)})}
+function telas(){
+  var ob=obraEmb();
+  if(ob!==EM_OBRA){Object.keys(EF).forEach(function(k){if(EF[k].parentNode)EF[k].parentNode.removeChild(EF[k])});EF={};EM_OBRA=ob}   /* outra obra: as telas reabrem nela */
+  var t=S.tab,l=SUBS[t];if(!l)return;
+  var d=defSub(t),nat=$('p-'+t).querySelector(':scope>.nat'),box=$('ev-'+t),nav=$('sn-'+t);
+  nav.innerHTML=l.map(function(x){return '<button type="button" class="chip" data-sub="'+x[0]+'" aria-pressed="'+String(x[0]===d[0])+'">'+esc(x[1])+'</button>'}).join('')+'<span class="sp"></span>'
+    +(d[2]?'<a class="abre" target="_blank" rel="noopener" href="/'+d[2]+'?'+(d[2]==='marko'?'':'solo=1&')+'obra='+ob+'&'+PARAM[d[2]]+'='+encodeURIComponent(d[3][PARAM[d[2]]])+'" title="Abre esta tela sozinha, na mesma obra">tela cheia ↗</a>':'');
+  if(nat)nat.hidden=d[0]!=='nat';
+  box.hidden=d[0]==='nat';
+  if(d[0]==='nat')return;
+  var mod=d[2],par=d[3],k=t+'|'+mod,f=EF[k],ex=S.par;S.par=null;
+  var tudo=Object.assign({},par,ex||{});
+  if(!f){f=document.createElement('iframe');f.title=d[1]+' · obra '+ob;f.dataset.mod=mod;f.dataset.pronto='0';f._par=par;f.src=srcDe(mod,tudo);EF[k]=f;box.appendChild(f)}
+  else if(ex||JSON.stringify(f._par)!==JSON.stringify(par)){f._par=par;if(f.dataset.pronto==='1')f.contentWindow.postMessage({taf:1,ir:tudo},location.origin);else f._pend=tudo}
+  Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=x!==f});
+  var av=box.querySelector(':scope>.aviso');
+  if(CARREGADAS.indexOf(ob)<0){if(!av){av=document.createElement('div');av.className='aviso';box.insertBefore(av,box.firstChild)}av.textContent='A obra '+ob+' ainda não tem cronograma nem ERP carregados no banco; a planilha rev6 continua valendo para ela. Escolha a 342 (ou deixe só uma obra marcada) para usar esta tela.'}
+  else if(av)av.remove();
+}
+function rota(h){
+  var u;try{u=new URL(h,location.origin)}catch(e){return null}
+  var q=u.searchParams,p=u.pathname.replace(/\/$/,''),o=q.get('obra'),r={obra:/^\d{3}$/.test(o||'')?o:'',par:null};
+  if(p===''){r.tab='painel';r.sub='nat';return r}
+  if(p==='/ciclo'){var a=q.get('aba')||(q.get('demanda')?'dem':'sit'),M={sit:['painel','sit'],dem:['cobrancas','dem'],sem:['tarefas','sem'],mud:['tarefas','mud']}[a]||['painel','sit'];r.tab=M[0];r.sub=M[1];if(q.get('demanda'))r.par={demanda:q.get('demanda')};return r}
+  if(p==='/marko'){var b=q.get('aba')||'hoje',N={hoje:['tarefas','hoje'],semana:['tarefas','sem'],preparar:['tarefas','prep'],demandas:['cobrancas','dem'],mais:['tarefas','crono']}[b]||['tarefas','hoje'];r.tab=N[0];r.sub=N[1];return r}
+  if(p==='/erp'){var v=q.get('vista')||(q.get('tarefa')?'rastro':'dash');
+    for(var i=0;i<TABS.length;i++){var l=SUBS[TABS[i]]||[];for(var j=0;j<l.length;j++){if(l[j][2]==='erp'&&l[j][3].vista===v){r.tab=TABS[i];r.sub=l[j][0];if(q.get('tarefa'))r.par={tarefa:q.get('tarefa'),demanda:q.get('demanda')||''};return r}}}
+    r.tab='painel';r.sub='dash';return r}
+  return null}
+window.addEventListener('message',function(e){
+  if(e.origin!==location.origin||!e.data||!e.data.taf)return;
+  var f=null;Object.keys(EF).forEach(function(k){if(EF[k].contentWindow===e.source)f=EF[k]});
+  if(e.data.pronto){if(f){f.dataset.pronto='1';f.contentWindow.postMessage({taf:1,tema:temaAtual()},location.origin);if(f._pend){f.contentWindow.postMessage({taf:1,ir:f._pend},location.origin);f._pend=null}}return}
+  if(e.data.ir){var r=rota(e.data.ir);if(!r)return;if(r.obra&&r.obra!==obraEmb())OBRA_FORCE=r.obra;ir(r.tab,r.sub,r.par)}
+});
+/* rotina: o caminho da obra, sempre visível */
+var ROTINA=[['Planejar','tarefas','sem'],['Preparar','tarefas','prep'],['Executar e apontar','apontamentos','dia'],['Controlar','cobrancas','dem'],['Medir e pagar','medicao','med'],['Replanejar','tarefas','mud']];
+function rotinaBar(){var h='<span class="lbl">Rotina</span><span class="rot">'+ROTINA.map(function(x,i){var on=S.tab===x[1]&&(S.sub[x[1]]||'nat')===x[2];
+  return (i?'<span class="seta">›</span>':'')+'<button type="button" class="chip" data-go="'+x[1]+'/'+x[2]+'" aria-pressed="'+String(on)+'">'+(i+1)+' '+x[0]+'</button>'}).join('')+'</span>';
+  var el=$('rotina');if(el.dataset.h!==h){el.dataset.h=h;el.innerHTML=h}}
+function rotinaMetodo(){
+  var P=[['1 Planejar','Cronograma da obra e meta da semana, com as datas do contrato à vista.','Tarefas › Semana','tarefas/sem'],
+   ['2 Preparar','O que precisa estar pronto antes de começar: material, equipe, projeto, liberação. Cada pedido às áreas vira demanda.','Tarefas › Preparar','tarefas/prep'],
+   ['3 Executar e apontar','O engenheiro aponta o dia: andou, parcial ou parou, com a causa. Cada atividade ligada à compra e ao evento do BM.','Apontamentos › Apontar o dia','apontamentos/dia'],
+   ['4 Controlar','Demandas das áreas, cobranças, pendências da planilha e custo da obra. Parcial e causa aparecem aqui.','Cobranças › Demandas das áreas','cobrancas/dem'],
+   ['5 Medir e pagar','Evento do BM, nota, faturamento e caixa. Seguindo da atividade ao BM sem digitar de novo.','Medição › Da tarefa à compra e ao BM','medicao/rastro'],
+   ['6 Replanejar','Mudou data ou causa: o engenheiro confirma, a gestão dá o de acordo, e o histórico fica guardado.','Tarefas › Mudanças','tarefas/mud']];
+  var F=[['Cadastros, contratos e propostas','Fornecedores, contratos, propostas e despesas administrativas não precisam de tarefa da semana.','Cadastros','cadastros/cad'],
+   ['Orçamento, metas e custo','Orçamento (EAP), pacotes, metas e teto por obra.','Custos','custos/eap'],
+   ['Compras e notas','Solicitação, pedido, recebimento e nota, com o rateio por obra.','Compras','compras/compras'],
+   ['Financeiro e caixa','Pagar e conciliar, faturamento e caixa.','Financeiro','financeiro/fin']];
+  var row=function(a){return '<div><b>'+a[0]+'</b><span>'+a[1]+'</span><button type="button" class="btn" data-go="'+a[3]+'">'+a[2]+'</button></div>'};
+  $('mt-rotina').innerHTML='<div class="rotl">'+P.map(row).join('')+'</div><h4 style="margin:16px 0 8px;font:600 14px var(--f-hd);color:var(--hd)">Também na empresa, sem passar pela semana da obra</h4><div class="rotl">'+F.map(row).join('')+'</div>';
+}
+Object.keys(SUBS).forEach(monta);
+rotinaMetodo();
+(function(){var ir0=QS.get('ir');if(ir0){var r=rota(ir0);if(r){if(r.obra&&!QS.get('obra'))OBRA_FORCE=r.obra;S.tab=r.tab;if(r.sub&&SUBS[r.tab])S.sub[r.tab]=r.sub;S.par=r.par}}})();
+
+if(QS.get('ir')){var u0=location.pathname+location.search.replace(/([?&])ir=[^&]*&?/,'$1').replace(/[?&]$/,'');try{history.replaceState(null,'',u0+'#'+S.tab+(SUBS[S.tab]&&S.sub[S.tab]&&S.sub[S.tab]!=='nat'?'/'+S.sub[S.tab]:''))}catch(e){}}
 tkInit();
 render();
 })();

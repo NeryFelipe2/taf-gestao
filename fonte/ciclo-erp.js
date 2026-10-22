@@ -116,7 +116,7 @@ function htmlAtiv(el) {
   if (ls.length) h += ls.map(linhaHtml).join('');
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Nenhuma compra ligada a esta tarefa' + (dem ? ' para a demanda D' + esc(dem) : '') + '.</div>';
   h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(ativ) + '" href="' + esc(E.url(ativ, ldem)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Abrir no ERP' : 'Ligar a compra no ERP') + '</a>' + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
   return h;
 }
 function btnDet(ativ) {
@@ -142,7 +142,7 @@ function htmlDem(el) {
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Ainda sem compra ligada a esta demanda.</div>';
   var alvo = ls.length ? String(ls[0].ativ || ativs[0]) : ativs[0];
   h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(alvo) + '" href="' + esc(E.url(alvo, num)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Abrir no ERP' : 'Ligar a compra no ERP') + '</a>' + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
   return h;
 }
 

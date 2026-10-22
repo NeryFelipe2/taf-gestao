@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="taf-versao" content="500fc9c0f8">
+<meta name="taf-versao" content="08f1b1de27">
 <title>Obra 342 · Ciclo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
@@ -125,6 +125,11 @@ td.dt{white-space:nowrap}
 textarea.copia{display:block;width:100%;min-height:150px;margin-top:8px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--raised);font-size:14px}
 footer.rod{margin-top:28px;color:var(--mu2);font-size:12px}
 @media (max-width:640px){header h1{font-size:18px}.card{padding:12px}}
+
+/* dentro do Centro de Gestão (?embed=1): a navegação é a do Centro */
+html.emb header,html.emb nav.tabs,html.emb footer.rod{display:none}
+html.emb .wrap{max-width:none;padding:0 0 24px}
+html.emb body{background:transparent;background-image:none}
 </style>
 </head>
 <body>
@@ -196,7 +201,7 @@ footer.rod{margin-top:28px;color:var(--mu2);font-size:12px}
   <div class="card" id="m-lista"></div>
   <div id="m-mais"></div>
 </section>
-<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">500fc9c0f8</span></footer>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">08f1b1de27</span></footer>
 </div>
 
 <script>/* ciclo-core.js · núcleo comum do /marko (engenheiro) e do /ciclo (gestor), obra 342.
@@ -1865,7 +1870,7 @@ function htmlAtiv(el) {
   if (ls.length) h += ls.map(linhaHtml).join('');
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Nenhuma compra ligada a esta tarefa' + (dem ? ' para a demanda D' + esc(dem) : '') + '.</div>';
   h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(ativ) + '" href="' + esc(E.url(ativ, ldem)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Abrir no ERP' : 'Ligar a compra no ERP') + '</a>' + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(ativ) : '') + rodape() + '</div>' + detHtml(ativ);
   return h;
 }
 function btnDet(ativ) {
@@ -1891,7 +1896,7 @@ function htmlDem(el) {
   else h += '<div class="cc-erp-lin cc-mu" data-erp-vazio="1">Ainda sem compra ligada a esta demanda.</div>';
   var alvo = ls.length ? String(ls[0].ativ || ativs[0]) : ativs[0];
   h += '<div class="cc-acts"><a class="cc-btn" data-erp-abrir="' + esc(alvo) + '" href="' + esc(E.url(alvo, num)) + '" target="_blank" rel="noopener">' +
-    (ls.length ? 'Abrir no ERP' : 'Ligar a compra no ERP') + '</a>' + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
+    (ls.length ? 'Ver compra e custo' : 'Ligar a compra') + '</a>' + (ls.length ? btnDet(alvo) : '') + rodape() + '</div>' + detHtml(alvo);
   return h;
 }
 
@@ -2017,6 +2022,39 @@ function iniciar() {
 }
 if (D.body) iniciar(); else D.addEventListener('DOMContentLoaded', iniciar);
 })(window, document);
+
+/* embed.js · as telas do ciclo, do engenheiro e do ERP dentro do Centro de Gestão.
+   Dentro do Centro (?embed=1): sem cabeçalho próprio, links entre telas viram navegação do Centro (obra e contexto vão junto), tema e comandos vêm do Centro.
+   Fora do Centro: /ciclo e /erp abrem o Centro já na tela certa (?solo=1 mantém a tela sozinha). O /marko continua sendo a visão do engenheiro. */
+(function () {
+  var W = window, D = document, Q = new URLSearchParams(W.location.search), P = W.location.pathname.replace(/\/$/, '');
+  var EMB = Q.get('embed') === '1' && W.parent !== W;
+  var ouv = [];
+  W.TAF_EMB = { ativo: EMB, on: function (f) { ouv.push(f); } };
+  if (!EMB) {
+    if ((P === '/ciclo' || P === '/erp') && Q.get('solo') !== '1' && !/[?&]solo=1/.test(W.location.search)) {
+      var o = Q.get('obra');
+      W.location.replace('/?' + (o ? 'obra=' + encodeURIComponent(o) + '&' : '') + 'ir=' + encodeURIComponent(P + W.location.search));
+    }
+    return;
+  }
+  D.documentElement.classList.add('emb');
+  function envia(m) { m.taf = 1; try { W.parent.postMessage(m, W.location.origin); } catch (e) {} }
+  W.TAF_EMB.envia = envia;
+  D.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    var h = a.getAttribute('href') || '';
+    if (/^\/(erp|ciclo|marko)?(\?|#|$)/.test(h)) { e.preventDefault(); e.stopPropagation(); envia({ ir: h }); }
+  }, true);
+  W.addEventListener('message', function (e) {
+    if (e.origin !== W.location.origin || !e.data || !e.data.taf) return;
+    var m = e.data;
+    if (m.tema) D.documentElement.setAttribute('data-theme', m.tema);
+    ouv.forEach(function (f) { try { f(m); } catch (x) {} });
+  });
+  envia({ pronto: 1, pagina: P });
+}());
 </script>
 <script>
 (function () {
@@ -3233,6 +3271,8 @@ function mostrar() {
     S.pronto = true;
     var a0 = CC.ls.get('taf-ciclo-aba');
     if (ABAS.indexOf(a0) >= 0) S.aba = a0;
+    var qa = /[?&]aba=([a-z]+)/.exec(window.location.search);     // vindo do Centro de Gestão: abre na tela pedida
+    if (qa && ABAS.indexOf(qa[1]) >= 0) S.aba = qa[1];
     CC.recusas().forEach(function (r) { if (r.meta && r.meta.mod === 'ciclo') S.rec[r.uid] = { motivo: r.motivo, item: r }; });
     VIG = CC.vigiar(function () { reler(); }, digitando, 30000);
   }
@@ -3252,6 +3292,11 @@ window.CICLO = {
   reler: function () { return reler().then(function () { return true; }); },
   aba: function (t) { irAba(t); }
 };
+if (window.TAF_EMB) window.TAF_EMB.on(function (m) {   // comandos do Centro (a tela já aberta muda sem recarregar)
+  var c = m.ir || m;
+  if (c.aba && ABAS.indexOf(c.aba) >= 0) irAba(c.aba);
+  if (c.demanda) { irAba('dem'); verDemanda(+c.demanda); }
+});
 iniciar();
 }());
 </script>

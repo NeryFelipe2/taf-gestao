@@ -162,6 +162,11 @@ button.mk-dias{width:100%;min-height:44px;background:none;border:0;padding:4px 0
 #app .mk-inl>.cc-campo{flex:0 1 150px;width:150px;min-width:0}
 .mk-inl>span{flex:1 1 auto;min-width:0}
 .mk-x .cc-form{border-top:1px dashed var(--line2)}
+
+/* dentro do Centro de Gestão (?embed=1): a navegação é a do Centro */
+html.emb header,html.emb nav.mk-abas{display:none}
+html.emb .wrap{max-width:none;padding:0 0 24px}
+html.emb body{background:transparent;background-image:none}
 </style>
 </head>
 <body>
@@ -177,7 +182,7 @@ button.mk-dias{width:100%;min-height:44px;background:none;border:0;padding:4px 0
 <div id="faixa" class="mk-faixa" role="status" hidden></div>
 <header>
   <img src="data:image/webp;base64,/*LOGOCANTO*/" alt="TAF">
-  <div><h1 id="h-nome">Obra 342</h1><div class="sub">Santo Antônio · SANEAGO · <span id="h-fila"></span></div></div>
+  <div><h1 id="h-nome">Obra 342</h1><div class="sub">Centro de Gestão TAF · visão do engenheiro · Santo Antônio · SANEAGO · <span id="h-fila"></span></div></div>
   <span class="sp"></span>
   <button class="btn" id="b-sair" type="button">Sair</button>
 </header>
@@ -1874,6 +1879,8 @@ $('app').addEventListener('focusout',function(){setTimeout(agendarPintar,0)});
 // =====================================================================================
 function abaInicial(L){
   var a0=ls.g('taf-marko-aba'),d0=ls.g('taf-marko-aba-dia'),s0=ls.g('taf-marko-mais');
+  var qa=/[?&]aba=([a-z]+)/.exec(window.location.search);   // vindo do Centro de Gestão: abre na tela pedida
+  if(qa&&['hoje','semana','preparar','demandas','mais'].indexOf(qa[1])>=0)return qa[1];
   if(s0&&['tarefas','fis','crono','pedido'].indexOf(s0)>=0)SUB=s0;
   if(a0==='tarefas'||a0==='crono'||a0==='pedido'){SUB=a0;return 'mais'}
   if(a0==='preparar'||a0==='demandas'||a0==='mais')return a0;
@@ -1912,6 +1919,10 @@ function entrar(digitada){
     else{TAB='mais';abas();['hj','sm','pp'].forEach(function(i){$(i).innerHTML='<div class="cc-recusa">O ciclo semanal não abriu: '+esc(CC.erro(e2))+'</div>'})}
   });
 }
+if(window.TAF_EMB)window.TAF_EMB.on(function(m){   // comandos do Centro (a tela já aberta muda sem recarregar)
+  var c=m.ir||m;
+  if(c.aba&&['hoje','semana','preparar','demandas','mais'].indexOf(c.aba)>=0&&typeof cicloOk!=='undefined'&&cicloOk)irAba(c.aba);
+});
 if(chave)entrar(false);else gate();
 })();
 </script>

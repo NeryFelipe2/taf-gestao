@@ -1,0 +1,32 @@
+/* embed.js · as telas do ciclo, do engenheiro e do ERP dentro do Centro de Gestão.
+   Dentro do Centro (?embed=1): sem cabeçalho próprio, links entre telas viram navegação do Centro (obra e contexto vão junto), tema e comandos vêm do Centro.
+   Fora do Centro: /ciclo e /erp abrem o Centro já na tela certa (?solo=1 mantém a tela sozinha). O /marko continua sendo a visão do engenheiro. */
+(function () {
+  var W = window, D = document, Q = new URLSearchParams(W.location.search), P = W.location.pathname.replace(/\/$/, '');
+  var EMB = Q.get('embed') === '1' && W.parent !== W;
+  var ouv = [];
+  W.TAF_EMB = { ativo: EMB, on: function (f) { ouv.push(f); } };
+  if (!EMB) {
+    if ((P === '/ciclo' || P === '/erp') && Q.get('solo') !== '1' && !/[?&]solo=1/.test(W.location.search)) {
+      var o = Q.get('obra');
+      W.location.replace('/?' + (o ? 'obra=' + encodeURIComponent(o) + '&' : '') + 'ir=' + encodeURIComponent(P + W.location.search));
+    }
+    return;
+  }
+  D.documentElement.classList.add('emb');
+  function envia(m) { m.taf = 1; try { W.parent.postMessage(m, W.location.origin); } catch (e) {} }
+  W.TAF_EMB.envia = envia;
+  D.addEventListener('click', function (e) {
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (!a) return;
+    var h = a.getAttribute('href') || '';
+    if (/^\/(erp|ciclo|marko)?(\?|#|$)/.test(h)) { e.preventDefault(); e.stopPropagation(); envia({ ir: h }); }
+  }, true);
+  W.addEventListener('message', function (e) {
+    if (e.origin !== W.location.origin || !e.data || !e.data.taf) return;
+    var m = e.data;
+    if (m.tema) D.documentElement.setAttribute('data-theme', m.tema);
+    ouv.forEach(function (f) { try { f(m); } catch (x) {} });
+  });
+  envia({ pronto: 1, pagina: P });
+}());
