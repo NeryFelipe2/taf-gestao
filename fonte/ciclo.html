@@ -798,6 +798,15 @@ function rDem() {
     S.dmOk = true;
   } else CC.demandas.atualizar(L);
 }
+// restrição da 05C (Rxx) → demanda: abre a que já existe (sem duplicar) ou uma nova com as atividades da mesma frente sugeridas
+function ligar(c) {
+  irAba('dem');
+  var L = S.L || {}, ex = (L.demandas || []).filter(function (d) { return d.tarefa_id === c.lig && d.situacao !== 'cancelada'; })[0];
+  if (ex) { verDemanda(+ex.num); return; }
+  var sug = (L.crono || []).filter(function (x) { return c.frente && x.frente === c.frente && !x.fim_real && (x.tipo === 'ativ' || x.tipo === 'continua'); })
+    .sort(function (a, b) { return a.o - b.o; }).slice(0, 6).map(function (x) { return x.id; });
+  setTimeout(function () { CC.demandas.abrirNova({ tarefa_id: c.lig, oque: String(c.oque || '').slice(0, 300), ativs: sug }); }, 60);
+}
 function verDemanda(num) {
   irAba('dem');
   var go = function () {
@@ -1465,6 +1474,8 @@ function mostrar() {
     S.linkFeito = true;
     var qd = /[?&]demanda=(\d+)/.exec(window.location.search);
     if (qd) verDemanda(+qd[1]);
+    var ql = /[?&]lig=(R\d{1,4}|N\d{1,15})/.exec(window.location.search);
+    if (ql) ligar({ lig: ql[1], frente: (/[?&]frente=([^&]*)/.exec(window.location.search) || [])[1] ? decodeURIComponent(/[?&]frente=([^&]*)/.exec(window.location.search)[1]) : '', oque: (/[?&]oque=([^&]*)/.exec(window.location.search) || [])[1] ? decodeURIComponent(/[?&]oque=([^&]*)/.exec(window.location.search)[1]) : '' });
   }
 }
 S.ens = lsJson('taf-ciclo-ensaio', {});
@@ -1478,6 +1489,7 @@ if (window.TAF_EMB) window.TAF_EMB.on(function (m) {   // comandos do Centro (a 
   var c = m.ir || m;
   if (c.aba && ABAS.indexOf(c.aba) >= 0) irAba(c.aba);
   if (c.demanda) { irAba('dem'); verDemanda(+c.demanda); }
+  if (c.lig) ligar(c);
 });
 iniciar();
 }());

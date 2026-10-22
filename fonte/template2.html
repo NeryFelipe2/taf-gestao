@@ -403,6 +403,7 @@ function dTxt(n){return n+' dia'+(n===1?'':'s')}
 function trAtraso(r){return r.alerta==='VENCIDA'&&r.atraso>0?'<span class="tag atr">'+dTxt(r.atraso)+' de atraso</span>':''}
 function trNormal(r){
   return '<div class="ti'+(r.sit==='RESOLVIDA'?' ok':'')+'" title="'+(r.row?'05C. RESTRIÇÕES!A'+r.row:'Tarefa nova (simulação local)')+'"><span class="id">'+esc(r.n)+'</span><div><div class="tt">'+esc(r.txt)+'</div><div class="tk">'+esc(r.obra)+' · '+esc(r.frente||'')+(r.resposta?' · '+esc(r.resposta):'')+'</div></div><div class="tm">'+alP(r.alerta)+trAtraso(r)+(r.edit?'<span class="tag ed">editada</span>':'')+'<span class="td">'+(r.nova?'nova data '+dt(r.nova):r.prazo?'até '+dt(r.prazo):'sem prazo')+'</span></div></div>'}
+function ligBtn(r){return r.obra==='342'&&r.row&&!r.novo&&/^R\d{1,4}$/.test(r.n)&&r.frente&&r.frente!=='BM'&&r.frente!=='APONT'&&r.sit!=='RESOLVIDA'?'<button type="button" class="chip" data-lig="1" title="Abre a demanda desta restrição (ou cria uma) e sugere as atividades da mesma frente">Ligar a atividades</button>':''}
 function trEdit(r){
   var o=OB.map(function(x){return '<option'+(x===r.obra?' selected':'')+'>'+x+'</option>'}).join(''),
       s=SITS.map(function(x){return '<option'+(x===r.sit?' selected':'')+'>'+x+'</option>'}).join('');
@@ -414,7 +415,7 @@ function trEdit(r){
    '<label><span class="lbl">Situação</span><select class="edi" data-ef="sit" aria-label="Situação">'+s+'</select></label>'+
    '<label><span class="lbl">Obra</span><select class="edi" data-ef="obra" aria-label="Obra">'+o+'</select></label>'+
    '<label class="lg"><span class="lbl">Retorno</span><input class="edi" data-ef="resposta" value="'+esc(r.resposta)+'" placeholder="resposta ou retorno" aria-label="Retorno"></label>'+
-   '<button type="button" class="chip" data-q="1">'+(r.sit==='RESOLVIDA'?'Reabrir':'Concluir')+'</button><button type="button" class="chip dng" data-del="1">Excluir</button></div></div>'+
+   '<button type="button" class="chip" data-q="1">'+(r.sit==='RESOLVIDA'?'Reabrir':'Concluir')+'</button><button type="button" class="chip dng" data-del="1">Excluir</button>'+ligBtn(r)+'</div></div>'+
    '<div class="tm">'+alP(r.alerta)+trAtraso(r)+(r.edit?'<span class="tag ed">editada</span>':'')+'<span class="td">'+esc(r.frente?r.obra+' · '+r.frente:r.obra)+'</span></div></div>'}
 function tkSnap(rs){var op=rs.filter(aberT),p={};op.forEach(function(r){p[r.dono||'SEM DONO']=1});
   return {ab:op.length,at:op.filter(function(r){return r.alerta==='VENCIDA'}).length,wk:op.filter(function(r){return r.alerta==='ESTA SEMANA'}).length,sd:op.filter(function(r){return r.alerta==='SEM DONO'}).length,re:rs.length-op.length,pe:Object.keys(p).length}}
@@ -638,7 +639,7 @@ function tkInit(){
     setCampo(id,c,c==='dono'?v.trim():v);
     if(c==='txt'||c==='resposta'){edSave();tkSim();tkLog((c==='txt'?'Texto editado':'Retorno editado')+' em '+nomeT(id)+' → nenhum número mudou',true);return}
     TKW=({dono:'Pessoa de '+nomeT(id)+' = '+(v.trim()||'sem dono'),prazo:'Prazo de '+nomeT(id)+' = '+(v?ddmm(v):'sem prazo'),sit:'Situação de '+nomeT(id)+' = '+v,obra:'Obra de '+nomeT(id)+' = '+v})[c];edAplica()});
-  Ls.addEventListener('click',function(e){var b=e.target.closest('button'),row=e.target.closest('[data-k]');if(!b||!row)return;var id=row.dataset.k;
+  Ls.addEventListener('click',function(e){var b=e.target.closest('button'),row=e.target.closest('[data-k]');if(!b||!row)return;var id=row.dataset.k;if(b.dataset.lig){var rr=tarAll().filter(function(x){return x.id===id})[0];if(rr){OBRA_FORCE='342';ir('cobrancas','dem',{lig:rr.n,frente:rr.frente,oque:rr.txt})}return}
     if(b.dataset.q){var t=null;tarAll().forEach(function(x){if(x.id===id)t=x});if(!t)return;var nv=t.sit==='RESOLVIDA'?'ABERTA':'RESOLVIDA';setCampo(id,'sit',nv);TKW='Situação de '+nomeT(id)+' = '+nv;edAplica()}
     else if(b.dataset.del)dois(b,'Confirmar?',function(){var nm=nomeT(id);ens();var i=-1;ED.add.forEach(function(x,k){if(x.id===id)i=k});if(i>=0)ED.add.splice(i,1);else{ED.del[id]=1;delete ED.ov[id]}TKW='Tarefa excluída '+nm;edAplica()})});
 }
