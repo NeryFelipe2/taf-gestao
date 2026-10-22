@@ -422,7 +422,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
     <p id="sub"></p>
   </div>
   <div class="selo"><span id="selo-corte"></span><br><b id="selo-master"></b>
-    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><button class="btn" id="b-tema" type="button" aria-pressed="false">Tema escuro</button></div>
+    <div class="btns"><a class="btn" href="/ciclo" style="text-decoration:none;color:inherit" title="Ciclo semanal da obra 342: semana do Marko, demandas e decisões">Ciclo 342</a><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><button class="btn" id="b-tema" type="button" aria-pressed="false">Tema escuro</button></div>
   </div>
 </header>
 
@@ -1124,7 +1124,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='4596d4ae9e',VK='taf-recarga';
+var BUILD='af8702684a',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){

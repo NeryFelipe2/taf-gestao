@@ -18,6 +18,10 @@
     {
       "source": "/marko",
       "destination": "/marko.html"
+    },
+    {
+      "source": "/ciclo",
+      "destination": "/ciclo.html"
     }
   ]
 }
