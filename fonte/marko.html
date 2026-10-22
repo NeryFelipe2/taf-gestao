@@ -353,7 +353,7 @@ $('b-xcr').onclick=function(){if(typeof XLSX==='undefined'){toast('O gerador de 
 var E=CC.esc;
 var LER={},CARR={},segH=null,segP=null,TAB='hoje',SUB='tarefas',CR={},SUC={},CTX={},FN={};
 var U={dia:null,outroDia:false,hj:{},av:{},pul:{},lote:null,ptodos:null,forms:{},rp:{},fe:{},g:{},rec:{},smSeg:null,smModo:{},
-  cont:{},folga:{},prepItem:{},prepPend:{},sem46:{},acKeep:{},pub:{},ens:{},feErro:{},fis:{f:'todas',open:{},hist:{},sim:{},folga:{}}};
+  cont:{},folga:{},prepItem:{},prepPend:{},sem46:{},acKeep:{},pub:{},ens:{},feErro:{},fis:{f:'todas',open:{},hist:{},sim:{},folga:{}},reab:{}};
 var cicloOk=false;
 
 function cp(o){try{return JSON.parse(JSON.stringify(o==null?null:o))}catch(e){return null}}
@@ -986,12 +986,15 @@ function ultimoResp(id){
   Object.keys(LER).sort().forEach(function(sg){((LER[sg].semana&&LER[sg].semana.comps)||[]).forEach(function(c){if(c.ativ===id)r=c.resp})});
   return r;
 }
-function prometidoPadrao(seg,fim){var sex=CC.mais(seg,4),p=fim&&fim<sex?fim:sex;if(p<seg)p=seg;var h=hj();if(p<h&&h<=CC.mais(seg,6))p=h<=sex?h:sex;return p}
+function prometidoPadrao(seg,fim,L){var sex=CC.mais(seg,4),p=fim&&fim<sex?fim:sex;if(p<seg)p=seg;var h=hj();if(p<h&&h<=CC.mais(seg,6))p=h<=sex?h:sex;
+  // padrão nunca cai em feriado: vai para o próximo dia útil da semana (ex.: Finados na segunda → terça)
+  if(L){var ds=diasSemana(L,null).map(function(o){return o.v}),nx=ds.filter(function(d){return d>=p})[0];if(nx)p=nx;else if(ds.length)p=ds[ds.length-1]}
+  return p}
 function stComp(L,id,a,avulso){
   var cr=CR[id]||{},fim=cr.fim||(a&&a.fim),tipo=!avulso&&fim&&fim<=CC.mais(L.seg,6)?'concluir':(avulso?'concluir':'etapa');
   var eq=(L.obra&&L.obra.equipe)||[],r=avulso?(L.obra&&L.obra.engenheiro)||'':ultimoResp(id)||'';
   return {ativ:avulso?null:id,tipo:tipo,entrega:tipo==='concluir'?'Atividade concluída':'',comQtd:false,qtd:'',un:'',resp:eq.indexOf(r)>=0?r:'',outro:!!r&&eq.indexOf(r)<0,respOutro:eq.indexOf(r)<0?r:'',
-    prometido:prometidoPadrao(L.seg,avulso?null:fim),local:'',restr:!avulso&&!!a&&a.liberada===false,justif:'',titulo:'',frente:'',frenteEv:'',erro:''};
+    prometido:prometidoPadrao(L.seg,avulso?null:fim,L),local:'',restr:!avulso&&!!a&&a.liberada===false,justif:'',titulo:'',frente:'',frenteEv:'',erro:''};
 }
 function respCampo(L,st,s){
   var eq=((L.obra&&L.obra.equipe)||[]).slice();
@@ -999,7 +1002,11 @@ function respCampo(L,st,s){
   return '<div>'+rot('Responsável')+ch(ops,st.outro?'__outro':st.resp,'f-resp','Responsável')+(st.outro?campo(s,'respOutro',st.respOutro,{max:60,ph:'Nome de quem faz',rot:'Outra pessoa'}):'')+'</div>';
 }
 function respVal(st){return String(st.outro?st.respOutro:st.resp||'').trim()}
-function diasSemana(seg){var o=[];for(var i=0;i<7;i++){var d=CC.mais(seg,i);o.push({v:d,r:CC.dd(d)})}return o}
+// dias para "prometido para": só os úteis da semana (sem sábado, domingo e feriado; o ponto facultativo conta como útil).
+// Um dia já gravado fora disso continua aparecendo (marcado), para não sumir a escolha.
+function diasSemana(L,atual){
+  var fer={};((L&&L.feriados)||[]).forEach(function(f){if(f&&f.data&&f.abrangencia!=='FACULTATIVO')fer[f.data]=f.nome||'feriado'});
+  var o=[];for(var i=0;i<7;i++){var d=CC.mais(L.seg,i),fora=i>=5||!!fer[d];if(fora&&d!==atual)continue;o.push({v:d,r:CC.dd(d)+(fer[d]?' · feriado':'')})}return o}
 function formComp(L,k,st,a,o){
   o=o||{};
   var x='<div class="cc-form">';
@@ -1022,7 +1029,7 @@ function formComp(L,k,st,a,o){
       (CC.UNIDADES_ANDAMENTO.indexOf(st.un)>=0?'<div class="cc-cinza">o metro do dia é andamento; conta o que fechou</div>':'')+'</div>';
   }else x+='<div>'+btn('f-comqtd','+ quantidade')+'</div>';
   x+=respCampo(L,st,'form');
-  x+='<div>'+rot('Prometido para','dentro da semana')+ch(diasSemana(L.seg),st.prometido,'f-prom','Dia prometido')+'</div>';
+  x+='<div>'+rot('Prometido para','dentro da semana')+ch(diasSemana(L,st.prometido),st.prometido,'f-prom','Dia prometido')+'</div>';
   x+='<div>'+rot('Local','opcional, até 60 letras')+campo('form','local',st.local,{max:60,ph:'Ex.: Tanque e elevatória'})+'</div>';
   if(st.restr||(a&&a.liberada===false)){
     x+='<div>'+ch([{v:'1',r:'Com restrição'}],st.restr?'1':'','f-restr','Com restrição')+(a&&a.liberada===false?'<div class="cc-cinza">Não liberada: só entra com restrição e justificativa.</div>':'')+
@@ -1119,7 +1126,7 @@ function cartaoSaldo(L,s,jan,ro){
     var st=f.st;
     x+='<div class="cc-form"><div>'+rot('Entrega')+campo('form','entrega',st.entrega,{area:true,max:300})+'</div>';
     if(s.qtd!=null)x+='<div>'+rot('Quantidade ('+(s.un||'')+')','padrão: o que faltou')+campo('form','qtd',st.qtd,{tipo:'number'})+'</div>';
-    x+=respCampo(L,st,'form')+'<div>'+rot('Prometido para')+ch(diasSemana(L.seg),st.prometido,'f-prom','Dia prometido')+'</div>';
+    x+=respCampo(L,st,'form')+'<div>'+rot('Prometido para')+ch(diasSemana(L,st.prometido),st.prometido,'f-prom','Dia prometido')+'</div>';
     if(st.restr||(a&&a.liberada===false))x+='<div>'+ch([{v:'1',r:'Com restrição'}],st.restr?'1':'','f-restr','Com restrição')+(st.restr?rot('Justificativa','10 letras ou mais')+campo('form','justif',st.justif,{area:true,max:500,ph:'Por que entra mesmo sem estar liberada'}):'')+'</div>';
     x+=erroHtml(st.erro)+'<div class="cc-acts">'+btn('f-ok','Aceitar saldo',{cls:'cc-cheio'})+btn('f-voltar','Voltar')+'</div></div>';
   }
@@ -1141,6 +1148,7 @@ function rodapePub(L){
 // ---------- b) Acompanhar
 function rAcomp(L,it){
   var S=L.semana||{},seg=L.seg,cs=(S.comps||[]).slice().sort(ordComp),ro=!pode('comp');
+  var ri=reabItem(L);if(ri)it.push(ri);
   var pr=U.pub[seg];
   if(pr)it.push({k:'apub:'+seg,c:'cc-card',h:'<div class="cc-tit">Publicada</div><div class="cc-lin">'+CC.seloDe('status_pub',pr.status_pub)+' cobertura '+CC.seloDe('cobertura',pr.cobertura)+' · '+E(pr.publicados)+' compromisso(s)</div>'});
   it.push({k:'aph:'+seg,c:'mk-h',h:'<h2>Compromissos ('+cs.length+')</h2><div class="cc-cinza">Publicada '+E(CC.quando(S.publicada_em))+'. Depois de publicar só mudam responsável, local e dia; o resto é cancelar (fica no PPC) e criar um extra.</div>'});
@@ -1160,7 +1168,7 @@ function cartaoAcomp(L,c,ro){
   if(c.cancelado_em)x+='<div class="cc-aviso">Cancelado '+E(CC.quando(c.cancelado_em))+': '+E(c.cancel_motivo||'')+(c.causa?' · '+E(CC.rot('causa',c.causa)):'')+'</div>';
   if(!ro&&!c.cancelado_em&&!c.resultado&&!f)x+='<div class="cc-acts">'+btn('alterar','Alterar')+(pode('comp_cancelar')?btn('cancelar','Cancelar',{cls:'cc-perigo'}):'')+'</div>';
   if(f&&f.f==='alterar'){var st=f.st;
-    x+='<div class="cc-form">'+respCampo(L,st,'form')+'<div>'+rot('Local')+campo('form','local',st.local,{max:60})+'</div><div>'+rot('Prometido para')+ch(diasSemana(L.seg),st.prometido,'f-prom','Dia prometido')+'</div>'+
+    x+='<div class="cc-form">'+respCampo(L,st,'form')+'<div>'+rot('Local')+campo('form','local',st.local,{max:60})+'</div><div>'+rot('Prometido para')+ch(diasSemana(L,st.prometido),st.prometido,'f-prom','Dia prometido')+'</div>'+
       erroHtml(st.erro)+'<div class="cc-acts">'+btn('f-ok','Salvar',{cls:'cc-cheio'})+btn('f-voltar','Voltar')+'</div></div>'}
   if(f&&f.f==='cancelar'){var s2=f.st;
     x+='<div class="cc-form"><div>'+rot('Por que cancelar?','5 letras ou mais')+campo('form','motivo',s2.motivo,{area:true,max:300})+'</div><div>'+rot('Causa')+ch(CC.CAUSAS,s2.causa,'f-causa','Causa')+
@@ -1188,8 +1196,22 @@ function feSt(k,c){
   return U.fe[k]=d;
 }
 function preTag(d,f){return d.pre&&d.pre[f]!=null&&!d.toc[f]?' <span class="mk-pre-t">(do apontamento)</span>':''}
+// semana reaberta: quem reabriu e por quê (o motivo está no histórico, não na leitura da semana)
+function reabItem(L){
+  var S=L.semana||{},seg=L.seg;if(!S.reaberta)return null;
+  var ck=seg+'|'+S.reaberta,r=U.reab[ck];
+  if(r===undefined){U.reab[ck]=null;CC.historico({tabela:'semana',item:seg,limite:30}).then(function(l){U.reab[ck]=(l||[]).filter(function(x){return x.acao==='reabrir'});agendarPintar()},function(e){U.reab[ck]={erro:CC.erro(e)};agendarPintar()})}
+  var x='<div class="cc-tit">Semana reaberta '+E(S.reaberta)+(S.reaberta===1?' vez':' vezes')+'</div>';
+  if(!r)x+='<div class="cc-lin cc-mu">Carregando o motivo…</div>';
+  else if(r.erro)x+='<div class="cc-lin cc-mu">Motivo não carregou: '+E(r.erro)+'</div>';
+  else if(!r.length)x+='<div class="cc-lin cc-mu">Motivo: não informado</div>';
+  else r.forEach(function(m){x+='<div class="cc-lin">'+E(m.motivo||'não informado')+'</div><div class="cc-cinza">'+E(m.quem||'não informado')+' · '+E(CC.quando(m.em))+'</div>'});
+  if(S.estado!=='fechada')x+='<div class="cc-cinza">Corrija o que precisar e feche de novo: o 1º placar fica guardado ao lado do novo.</div>';
+  return {k:'fra:'+seg,c:'cc-card',h:x};
+}
 function rFechar(L,it){
   var S=L.semana||{},seg=L.seg,cs=(S.comps||[]).slice().sort(porCid);
+  var ri=reabItem(L);if(ri)it.push(ri);
   it.push({k:'fh:'+seg,c:'mk-h',h:'<h2>Fechar semana '+E(CC.semana(seg))+(S.ensaio?' '+sel('ENSAIO','cf'):'')+'</h2><div class="cc-cinza">O resultado vem pré-preenchido em cinza (do apontamento). [Fechar semana] grava tudo de uma vez.</div>'});
   cs.forEach(function(c){it.push(cartaoFechar(L,c))});
   it.push({k:'fr:'+seg,c:'cc-card mk-pub',h:rodapeFechar(L)});
@@ -1326,6 +1348,7 @@ function placarHtml(r,tit,S){
 }
 function rFechada(L,it){
   var S=L.semana||{},seg=L.seg;
+  var ri=reabItem(L);if(ri)it.push(ri);
   it.push({k:'fd:'+seg,c:'cc-card',h:placarHtml(S.resumo,S.reaberta?'1º placar (congelado)':'Placar congelado',S)+'<div class="cc-cinza">Fechada '+E(CC.quando(S.fechada_em))+(S.fechada_por?' por '+E(S.fechada_por):'')+'. Para reabrir, peça ao gestor.</div>'});
   if(S.resumo_atual)it.push({k:'fda:'+seg,c:'cc-card',h:placarHtml(S.resumo_atual,'Placar atual (reaberta '+S.reaberta+(S.reaberta===1?' vez)':' vezes)'),S)});
   (S.comps||[]).slice().sort(porCid).forEach(function(c){
@@ -1780,7 +1803,7 @@ function acao(a,v,k,b){
   case 'saldo-ac':
     var s=cx.s,eq=(cx.L.obra&&cx.L.obra.equipe)||[],falt=s.qtd!=null?Math.max(+s.qtd-(s.feito_qtd!=null?+s.feito_qtd:+s.qtd*(+s.feito_pct||0)/100),0):'';
     abrirForm(k,'saldo-ac',{entrega:'Saldo: '+(s.falta||s.entrega),qtd:falt!==''?Math.round(falt*1000)/1000:'',resp:eq.indexOf(s.resp)>=0?s.resp:'',outro:eq.indexOf(s.resp)<0,respOutro:eq.indexOf(s.resp)<0?s.resp:'',
-      prometido:prometidoPadrao(cx.L.seg,s.ativ&&CR[s.ativ]?CR[s.ativ].fim:null),restr:!!(cx.a&&cx.a.liberada===false),justif:'',erro:''});break;
+      prometido:prometidoPadrao(cx.L.seg,s.ativ&&CR[s.ativ]?CR[s.ativ].fim:null,cx.L),restr:!!(cx.a&&cx.a.liberada===false),justif:'',erro:''});break;
   case 'saldo-desc':abrirForm(k,'saldo-desc',{motivo:'',erro:''});break;
   case 'publicar':var Lp=cx.L,ens=!!U.ens[Lp.seg];enviar('publicar',{seg:Lp.seg,ensaio:ens},{k:k,f:'pub',rotulo:'publicar'});break;
   case 'ens':var Le=cx.L;U.ens[Le.seg]=!U.ens[Le.seg];break;

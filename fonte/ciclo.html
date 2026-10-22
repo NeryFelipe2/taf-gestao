@@ -804,8 +804,10 @@ function rSemCab() {
   if (s.reaberta && s.estado !== 'fechada' && s.resumo && s.resumo.ppc != null) {
     h += '<div class="lin fraco">No fechamento anterior: PPC ' + esc(s.resumo.ppc) + '% (' + esc(s.resumo.cumpridos) + ' de ' + esc(s.resumo.publicados) + '). O placar novo sai quando fechar de novo.</div>';
   }
-  if (s.reaberta && s.estado === 'fechada' && s.resumo_atual && s.resumo && s.resumo.ppc != null && s.resumo_atual.ppc !== s.resumo.ppc) {
-    h += '<div class="lin fraco">1º fechamento: PPC ' + esc(s.resumo.ppc) + '% (' + esc(s.resumo.cumpridos) + ' de ' + esc(s.resumo.publicados) + ')</div>';
+  if (s.reaberta && s.estado === 'fechada' && s.resumo_atual && s.resumo && s.resumo.ppc != null) {
+    // reaberta e fechada de novo: o placar de cima é o atual; o 1º fica congelado ao lado
+    h += '<div class="lin fraco">1º fechamento: PPC ' + esc(s.resumo.ppc) + '% (' + esc(s.resumo.cumpridos) + ' de ' + esc(s.resumo.publicados) + ')' +
+      (s.resumo_atual.ppc === s.resumo.ppc ? ' · igual ao atual' : ' · atual: PPC ' + esc(s.resumo_atual.ppc != null ? s.resumo_atual.ppc + '%' : 'não informado')) + '</div>';
   }
   if (s.nota) h += '<div class="lin"><span class="fraco">Nota do fechamento:</span> ' + esc(s.nota) + '</div>';
   if (s.estado === 'fechada' && pode('reabrir')) {
