@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="taf-versao" content="7d82256453">
+<meta name="taf-versao" content="0eb30493b7">
 <title>Obra 342 · Ciclo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
@@ -196,7 +196,7 @@ footer.rod{margin-top:28px;color:var(--mu2);font-size:12px}
   <div class="card" id="m-lista"></div>
   <div id="m-mais"></div>
 </section>
-<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">7d82256453</span></footer>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">0eb30493b7</span></footer>
 </div>
 
 <script>/* ciclo-core.js · núcleo comum do /marko (engenheiro) e do /ciclo (gestor), obra 342.
@@ -210,12 +210,13 @@ var CC = W.CC = {};
 CC.VERSAO = '1.0';
 CC.URL = 'https://vblfdikfobsirwpdnybw.supabase.co/rest/v1/rpc/';
 CC.KEY = 'sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW';
-CC.OBRA = '342';
+// ?obra=NNN troca a obra da tela (a obra 999 é o cenário de teste); quem autoriza é o banco, pela chave
+CC.OBRA = (function () { var m = /[?&]obra=(\d{3})(?:&|$)/.exec(window.location.search || ''); return m ? m[1] : '342'; })();
 CC.versao = 0;          // última versão vista (taf_ciclo_ler, respostas de salvar)
 CC.ator = null;         // {nome, papel, verificado} do último ler
 CC.ultimo = null;       // último objeto devolvido por CC.ler
 
-var C = { chave: '', quem: '', obra: '342' };   // configuração privada (a chave não fica exposta em CC)
+var C = { chave: '', quem: '', obra: CC.OBRA };   // configuração privada (a chave não fica exposta em CC)
 
 // ===================================================================== utilidades
 function pad(n) { n = +n; return (n < 10 ? '0' : '') + n; }
@@ -1895,6 +1896,7 @@ function htmlDem(el) {
 }
 
 function msgErro() {
+  if (erro && erro.ausente) return '';
   return '<div class="cc-erp-t">Compras e custo</div><div class="cc-cinza">' + (erro && erro.rede ? 'Sem resposta do ERP agora.' : 'O ERP não liberou a leitura para esta chave.') + '</div>';
 }
 
@@ -1924,7 +1926,9 @@ function pedir(ids, forcar) {
       erro = null;
     });
   })).then(function () { return true; }, function (e) {
-    erro = { msg: e && e.message, rede: !!(e && e.rede), ate: Date.now() + 30000 };
+    // 404 (função taf_erp_* ainda não instalada neste banco): o bloco some, sem dizer que a chave não pode ler
+    var ausente = !!(e && (e.status === 404 || e.code === 'PGRST202'));
+    erro = { msg: e && e.message, rede: !!(e && e.rede), ausente: ausente, ate: Date.now() + (ausente ? 600000 : 30000) };
     return true;
   });
 }
@@ -2018,7 +2022,8 @@ if (D.body) iniciar(); else D.addEventListener('DOMContentLoaded', iniciar);
 (function () {
 'use strict';
 var CC = window.CC, esc = CC.esc, $ = CC.$, D = document;
-var OBRA = '342';
+var OBRA = CC.OBRA;
+if (OBRA !== '342') { document.title = document.title.replace('342', OBRA); Array.prototype.forEach.call(D.querySelectorAll('h1,h2,footer.rod'), function (e) { e.innerHTML = e.innerHTML.replace('Obra 342', 'Obra ' + OBRA); }); }
 var K = { chave: '', origem: '' };          // a chave fica só aqui (nunca em window nem no console)
 var ABAS = ['sit', 'dem', 'sem', 'mud'];
 var S = {
@@ -2133,7 +2138,7 @@ function entrar(chave, origem) {
     var m = CC.erro(e);
     K.chave = ''; CC.init({ chave: '' });
     if (e && e.rede) { gate('Sem conexão com o banco (' + m + '). Confira o sinal e tente de novo.', true); return; }
-    if (/SEM ACESSO/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Esta chave não tem acesso à obra 342.'); return; }
+    if (/SEM ACESSO/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Esta chave não tem acesso à obra ' + OBRA + '.'); return; }
     if (/CHAVE/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Chave inválida.'); return; }
     gate('Não consegui abrir: ' + m, true);
   });

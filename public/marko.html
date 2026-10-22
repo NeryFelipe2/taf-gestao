@@ -237,12 +237,13 @@ var CC = W.CC = {};
 CC.VERSAO = '1.0';
 CC.URL = 'https://vblfdikfobsirwpdnybw.supabase.co/rest/v1/rpc/';
 CC.KEY = 'sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW';
-CC.OBRA = '342';
+// ?obra=NNN troca a obra da tela (a obra 999 é o cenário de teste); quem autoriza é o banco, pela chave
+CC.OBRA = (function () { var m = /[?&]obra=(\d{3})(?:&|$)/.exec(window.location.search || ''); return m ? m[1] : '342'; })();
 CC.versao = 0;          // última versão vista (taf_ciclo_ler, respostas de salvar)
 CC.ator = null;         // {nome, papel, verificado} do último ler
 CC.ultimo = null;       // último objeto devolvido por CC.ler
 
-var C = { chave: '', quem: '', obra: '342' };   // configuração privada (a chave não fica exposta em CC)
+var C = { chave: '', quem: '', obra: CC.OBRA };   // configuração privada (a chave não fica exposta em CC)
 
 // ===================================================================== utilidades
 function pad(n) { n = +n; return (n < 10 ? '0' : '') + n; }
@@ -1922,6 +1923,7 @@ function htmlDem(el) {
 }
 
 function msgErro() {
+  if (erro && erro.ausente) return '';
   return '<div class="cc-erp-t">Compras e custo</div><div class="cc-cinza">' + (erro && erro.rede ? 'Sem resposta do ERP agora.' : 'O ERP não liberou a leitura para esta chave.') + '</div>';
 }
 
@@ -1951,7 +1953,9 @@ function pedir(ids, forcar) {
       erro = null;
     });
   })).then(function () { return true; }, function (e) {
-    erro = { msg: e && e.message, rede: !!(e && e.rede), ate: Date.now() + 30000 };
+    // 404 (função taf_erp_* ainda não instalada neste banco): o bloco some, sem dizer que a chave não pode ler
+    var ausente = !!(e && (e.status === 404 || e.code === 'PGRST202'));
+    erro = { msg: e && e.message, rede: !!(e && e.rede), ausente: ausente, ate: Date.now() + (ausente ? 600000 : 30000) };
     return true;
   });
 }
@@ -2066,7 +2070,7 @@ $('g-chave').addEventListener('keydown',function(e){if(e.key==='Enter')$('g-ok')
 $('b-sair').onclick=function(){ls.d(CK);location.reload()};
 
 function render(){
-  var nome=P.pessoa||'';if(!LER[segH])$('h-nome').textContent='Obra 342 · '+nome.split(' ')[0];
+  var nome=P.pessoa||'';if(!LER[segH])$('h-nome').textContent='Obra '+CC.OBRA+' · '+nome.split(' ')[0];
   rTarefas();rCrono();rPedido()}
 
 // ---------- tarefas ----------
@@ -2268,7 +2272,7 @@ function pintarTudo(){
 function cabecalho(){
   var L=Lh();if(!L)return;
   var a=L.ator||{};
-  $('h-nome').textContent='Obra 342 · '+(a.nome||(P&&P.pessoa)||'sem nome');
+  $('h-nome').textContent='Obra '+CC.OBRA+' · '+(a.nome||(P&&P.pessoa)||'sem nome');
   $('h-fila').textContent=CC.estado().texto;
   var fx=$('faixa');
   if(a.papel&&a.papel!=='engenheiro'){fx.hidden=false;fx.textContent='Você está vendo como '+CC.rot('papel',a.papel)+'; quem aponta é o engenheiro'}
@@ -3684,7 +3688,8 @@ function iniciarCiclo(L){
   setInterval(function(){if(U.lote)agendarPintar()},1000);
 }
 function entrar(digitada){
-  CC.init({chave:chave,quem:ls.g('taf-quem')||'',obra:'342',onFila:function(){agendarPintar()},onRecusa:onRecusa,onOk:onOk});
+  if(CC.OBRA!=='342'){document.title=document.title.replace('342',CC.OBRA);Array.prototype.forEach.call(document.querySelectorAll('h1,h2'),function(e){e.innerHTML=e.innerHTML.replace('Obra 342','Obra '+CC.OBRA)})}
+  CC.init({chave:chave,quem:ls.g('taf-quem')||'',obra:CC.OBRA,onFila:function(){agendarPintar()},onRecusa:onRecusa,onOk:onOk});
   var p1=rpc('taf_pessoa_ler',{p_chave:chave}).then(function(x){P=x;return null},function(e){return e});
   var p2=CC.ler().then(function(L){return L},function(e){return e});
   Promise.all([p1,p2]).then(function(r){

@@ -9,12 +9,13 @@ var CC = W.CC = {};
 CC.VERSAO = '1.0';
 CC.URL = 'https://vblfdikfobsirwpdnybw.supabase.co/rest/v1/rpc/';
 CC.KEY = 'sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW';
-CC.OBRA = '342';
+// ?obra=NNN troca a obra da tela (a obra 999 é o cenário de teste); quem autoriza é o banco, pela chave
+CC.OBRA = (function () { var m = /[?&]obra=(\d{3})(?:&|$)/.exec(window.location.search || ''); return m ? m[1] : '342'; })();
 CC.versao = 0;          // última versão vista (taf_ciclo_ler, respostas de salvar)
 CC.ator = null;         // {nome, papel, verificado} do último ler
 CC.ultimo = null;       // último objeto devolvido por CC.ler
 
-var C = { chave: '', quem: '', obra: '342' };   // configuração privada (a chave não fica exposta em CC)
+var C = { chave: '', quem: '', obra: CC.OBRA };   // configuração privada (a chave não fica exposta em CC)
 
 // ===================================================================== utilidades
 function pad(n) { n = +n; return (n < 10 ? '0' : '') + n; }

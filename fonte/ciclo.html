@@ -204,7 +204,8 @@ footer.rod{margin-top:28px;color:var(--mu2);font-size:12px}
 (function () {
 'use strict';
 var CC = window.CC, esc = CC.esc, $ = CC.$, D = document;
-var OBRA = '342';
+var OBRA = CC.OBRA;
+if (OBRA !== '342') { document.title = document.title.replace('342', OBRA); Array.prototype.forEach.call(D.querySelectorAll('h1,h2,footer.rod'), function (e) { e.innerHTML = e.innerHTML.replace('Obra 342', 'Obra ' + OBRA); }); }
 var K = { chave: '', origem: '' };          // a chave fica só aqui (nunca em window nem no console)
 var ABAS = ['sit', 'dem', 'sem', 'mud'];
 var S = {
@@ -319,7 +320,7 @@ function entrar(chave, origem) {
     var m = CC.erro(e);
     K.chave = ''; CC.init({ chave: '' });
     if (e && e.rede) { gate('Sem conexão com o banco (' + m + '). Confira o sinal e tente de novo.', true); return; }
-    if (/SEM ACESSO/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Esta chave não tem acesso à obra 342.'); return; }
+    if (/SEM ACESSO/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Esta chave não tem acesso à obra ' + OBRA + '.'); return; }
     if (/CHAVE/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Chave inválida.'); return; }
     gate('Não consegui abrir: ' + m, true);
   });

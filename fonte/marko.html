@@ -252,7 +252,7 @@ $('g-chave').addEventListener('keydown',function(e){if(e.key==='Enter')$('g-ok')
 $('b-sair').onclick=function(){ls.d(CK);location.reload()};
 
 function render(){
-  var nome=P.pessoa||'';if(!LER[segH])$('h-nome').textContent='Obra 342 · '+nome.split(' ')[0];
+  var nome=P.pessoa||'';if(!LER[segH])$('h-nome').textContent='Obra '+CC.OBRA+' · '+nome.split(' ')[0];
   rTarefas();rCrono();rPedido()}
 
 // ---------- tarefas ----------
@@ -454,7 +454,7 @@ function pintarTudo(){
 function cabecalho(){
   var L=Lh();if(!L)return;
   var a=L.ator||{};
-  $('h-nome').textContent='Obra 342 · '+(a.nome||(P&&P.pessoa)||'sem nome');
+  $('h-nome').textContent='Obra '+CC.OBRA+' · '+(a.nome||(P&&P.pessoa)||'sem nome');
   $('h-fila').textContent=CC.estado().texto;
   var fx=$('faixa');
   if(a.papel&&a.papel!=='engenheiro'){fx.hidden=false;fx.textContent='Você está vendo como '+CC.rot('papel',a.papel)+'; quem aponta é o engenheiro'}
@@ -1870,7 +1870,8 @@ function iniciarCiclo(L){
   setInterval(function(){if(U.lote)agendarPintar()},1000);
 }
 function entrar(digitada){
-  CC.init({chave:chave,quem:ls.g('taf-quem')||'',obra:'342',onFila:function(){agendarPintar()},onRecusa:onRecusa,onOk:onOk});
+  if(CC.OBRA!=='342'){document.title=document.title.replace('342',CC.OBRA);Array.prototype.forEach.call(document.querySelectorAll('h1,h2'),function(e){e.innerHTML=e.innerHTML.replace('Obra 342','Obra '+CC.OBRA)})}
+  CC.init({chave:chave,quem:ls.g('taf-quem')||'',obra:CC.OBRA,onFila:function(){agendarPintar()},onRecusa:onRecusa,onOk:onOk});
   var p1=rpc('taf_pessoa_ler',{p_chave:chave}).then(function(x){P=x;return null},function(e){return e});
   var p2=CC.ler().then(function(L){return L},function(e){return e});
   Promise.all([p1,p2]).then(function(r){

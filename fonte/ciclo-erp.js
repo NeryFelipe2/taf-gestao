@@ -147,6 +147,7 @@ function htmlDem(el) {
 }
 
 function msgErro() {
+  if (erro && erro.ausente) return '';
   return '<div class="cc-erp-t">Compras e custo</div><div class="cc-cinza">' + (erro && erro.rede ? 'Sem resposta do ERP agora.' : 'O ERP não liberou a leitura para esta chave.') + '</div>';
 }
 
@@ -176,7 +177,9 @@ function pedir(ids, forcar) {
       erro = null;
     });
   })).then(function () { return true; }, function (e) {
-    erro = { msg: e && e.message, rede: !!(e && e.rede), ate: Date.now() + 30000 };
+    // 404 (função taf_erp_* ainda não instalada neste banco): o bloco some, sem dizer que a chave não pode ler
+    var ausente = !!(e && (e.status === 404 || e.code === 'PGRST202'));
+    erro = { msg: e && e.message, rede: !!(e && e.rede), ausente: ausente, ate: Date.now() + (ausente ? 600000 : 30000) };
     return true;
   });
 }
