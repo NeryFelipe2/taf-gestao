@@ -86,6 +86,16 @@ td input.qt{min-width:72px;width:80px}
 .cod{font-size:11.5px;color:var(--mu2);white-space:nowrap}
 .tag{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;border:1px solid currentColor;white-space:nowrap}
 .tag.ne{color:var(--ne)}.tag.ok{color:var(--ok)}.tag.mu{color:var(--mu2)}
+.semnav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 10px}
+.semnav .sem{font:600 15px var(--f-hd);color:var(--hd);min-width:170px;text-align:center}
+.kpis{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px}
+.kpi{background:var(--panel);border:1px solid var(--line2);border-radius:10px;padding:8px 12px;min-width:120px}
+.kpi b{display:block;font:600 20px var(--f-hd);color:var(--hd)}
+.kpi span{font-size:12px;color:var(--mu)}
+td select{padding:5px 6px;border:1px solid var(--line2);border-radius:6px;background:var(--raised);min-width:96px}
+tr.feito td{background:rgba(21,128,61,.06)}
+tr.naofez td{background:rgba(185,28,28,.05)}
+.marcos li{margin:3px 0}
 .gantt{position:relative;height:18px;min-width:480px}
 .gantt .b{position:absolute;top:3px;height:6px;border-radius:3px;background:var(--plano)}
 .gantt .m{position:absolute;top:10px;height:6px;border-radius:3px;background:var(--dele)}
@@ -124,10 +134,21 @@ td input.qt{min-width:72px;width:80px}
   <button class="btn" id="b-sair" type="button">Sair</button>
 </header>
 <nav class="tabs" role="tablist">
+  <button role="tab" data-t="semana" aria-selected="false">Semana<span class="n" id="n-sem"></span></button>
   <button role="tab" data-t="tarefas" aria-selected="true">Suas tarefas<span class="n" id="n-tar"></span></button>
   <button role="tab" data-t="crono" aria-selected="false">Cronograma<span class="n" id="n-cr"></span></button>
   <button role="tab" data-t="pedido" aria-selected="false">Pedido ferro fundido (Sankhya)<span class="n" id="n-pe"></span></button>
 </nav>
+
+<section id="p-semana" hidden>
+  <div class="aviso"><b>Planejamento da semana.</b> Aqui vêm as atividades do seu cronograma físico (o do eventograma) que caem na semana. Marca o que vai fazer, escreve a meta da semana e, no fim da semana, marca se fez. Se não fez, escreve o porquê. Salva sozinho e o Felipe vê na hora.</div>
+  <div class="semnav"><button class="btn" id="s-ant" type="button">‹ Anterior</button><span class="sem" id="s-tit"></span><button class="btn" id="s-prox" type="button">Próxima ›</button><button class="btn" id="s-hoje" type="button">Esta semana</button><button class="btn pri" id="b-xsem" type="button">Baixar semana (.xlsx)</button></div>
+  <div class="kpis" id="s-kpi"></div>
+  <div class="scroll-x"><table><thead><tr><th>Atividade</th><th>Vai fazer?</th><th>Meta da semana</th><th>Fez?</th><th>Se não fez, por quê / observação</th></tr></thead><tbody id="t-sem"></tbody></table></div>
+  <div class="barra" style="margin-top:10px"><button class="btn" id="s-add" type="button">+ Atividade fora do cronograma</button></div>
+  <details class="card" id="d-atr"><summary>Do cronograma que já devia ter terminado e não está marcado como feito (<span id="n-atr">0</span>)</summary><p class="hint">Se for fazer alguma dessas nesta semana, marca "Sim" nela.</p><div class="scroll-x"><table><thead><tr><th>Atividade</th><th>Vai fazer?</th><th>Meta da semana</th><th>Fez?</th><th>Se não fez, por quê / observação</th></tr></thead><tbody id="t-atr"></tbody></table></div></details>
+  <div class="card" id="c-marcos"><b>Marcos e eventos do cronograma nesta semana</b><ul class="marcos" id="l-marcos"></ul></div>
+</section>
 
 <section id="p-tarefas">
   <div class="aviso">Responde aqui embaixo de cada uma. O que você escrever vai direto pro Felipe. Se já resolveu, marca <b>Feito</b>.</div>
@@ -179,16 +200,16 @@ $('g-ok').onclick=function(){var c=$('g-chave').value.trim();if(!c){$('g-err').t
 $('g-chave').addEventListener('keydown',function(e){if(e.key==='Enter')$('g-ok').click()});
 $('b-sair').onclick=function(){ls.d(CK);location.reload()};
 
-var TAB='tarefas';
+var TAB='semana';
 document.querySelectorAll('nav.tabs button').forEach(function(b){b.onclick=function(){TAB=b.dataset.t;ls.s('taf-marko-aba',TAB);abas()}});
 function abas(){document.querySelectorAll('nav.tabs button').forEach(function(b){b.setAttribute('aria-selected',b.dataset.t===TAB?'true':'false')});
-  ['tarefas','crono','pedido'].forEach(function(k){$('p-'+k).hidden=k!==TAB})}
-var a0=ls.g('taf-marko-aba');if(a0==='crono'||a0==='pedido')TAB=a0;
+  ['semana','tarefas','crono','pedido'].forEach(function(k){$('p-'+k).hidden=k!==TAB})}
+var a0=ls.g('taf-marko-aba');if(a0==='crono'||a0==='pedido'||a0==='tarefas')TAB=a0;
 
 function render(){
   var nome=P.pessoa||'';$('h-nome').textContent='Obra 342 · '+nome.split(' ')[0];
   $('h-sub').textContent='atualizado '+new Date().toLocaleDateString('pt-BR');
-  rTarefas();rCrono();rPedido();abas()}
+  rSemana();rTarefas();rCrono();rPedido();abas()}
 
 // ---------- tarefas ----------
 function rTarefas(){
@@ -279,6 +300,60 @@ $('b-xcr').onclick=function(){if(typeof XLSX==='undefined'){toast('O gerador de 
   var A=[['Serviço','Frente','Evento','Início planejado','Fim planejado','Data limite SANEAGO','Atende o limite?','Início do Marko','Fim do Marko','Observação']];
   P.crono.forEach(function(r){var c=r.base,e=r.entrada||{};A.push([c.serv,c.frente,c.evento||'',dd(c.ini),dd(c.fim),dd(c.lim),c.atende==='ESTOURA'?'NÃO, passa do limite':c.atende==='OK'?'SIM':'',dd(e.ini),dd(e.fim),e.obs||''])});
   var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,folha(A,[60,26,8,14,14,16,18,14,14,50]),'CRONOGRAMA');baixa(wb,'OBRA 342 - CRONOGRAMA DO MARKO - '+hoje()+'.xlsx')};
+
+// ---------- semana ----------
+var iso=function(d){return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2)};
+var dtl=function(s){var p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2])};
+function segunda(d){var x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-((x.getDay()+6)%7));return x}
+var SEG=segunda(new Date());
+function maisDias(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x}
+function semEnt(){var m={},pre=iso(SEG)+'|';(P.semana||[]).forEach(function(r){if(r.id.indexOf(pre)===0)m[r.id.slice(pre.length)]=r});return m}
+function feitoAlgum(tid){return (P.semana||[]).some(function(r){return r.id.split('|')[1]===tid&&r.entrada&&r.entrada.feito==='Feito'})}
+function selS(k,v,ops){return '<select data-k="'+k+'">'+ops.map(function(o){return '<option value="'+o[0]+'"'+(o[0]===(v||'')?' selected':'')+'>'+o[1]+'</option>'}).join('')+'</select>'}
+function linhaSem(id,nome,sub,e,extra){var cl=e.feito==='Feito'?'feito':e.feito==='Não fez'?'naofez':'';
+  return '<tr class="'+cl+'" data-sm="'+esc(id)+'"><td>'+(extra?'<input class="wide" data-k="n" value="'+esc(e.n||'')+'" placeholder="o que vai fazer">':'<b>'+esc(nome)+'</b>')+'<div class="cod">'+sub+'</div></td>'+
+    '<td>'+selS('vai',e.vai,[['','—'],['Sim','Sim'],['Não','Não']])+'</td>'+
+    '<td><input class="wide" data-k="meta" value="'+esc(e.meta||'')+'" placeholder="o que vai entregar na semana"></td>'+
+    '<td>'+selS('feito',e.feito,[['','—'],['Feito','Feito'],['Parcial','Parcial'],['Não fez','Não fez']])+'</td>'+
+    '<td><input class="wide" data-k="obs" value="'+esc(e.obs||'')+'" placeholder="motivo ou observação"></td></tr>'}
+function rSemana(){var C=(P.cronofis||[]),a=iso(SEG),b=iso(maisDias(SEG,6)),E=semEnt(),h='',cur=null,usados={};
+  $('s-tit').textContent='Semana '+dt(a).slice(0,5)+' a '+dt(b);
+  var na=C.filter(function(r){return !r.base.marco&&r.base.ini<=b&&r.base.fim>=a});
+  na.forEach(function(r){var c=r.base;usados[r.id]=1;if(c.f!==cur){cur=c.f;h+='<tr class="grp"><td colspan="5">'+esc(cur)+'</td></tr>'}
+    h+=linhaSem(r.id,c.n,'cronograma: '+dt(c.ini)+' a '+dt(c.fim)+(c.dur>60?' · contínua':''),(E[r.id]||{}).entrada||{},false)});
+  var ex=Object.keys(E).filter(function(k){return k.charAt(0)==='X'||(!usados[k]&&k.charAt(0)==='T')});
+  if(ex.length){h+='<tr class="grp"><td colspan="5">Fora do cronograma desta semana</td></tr>';
+    ex.forEach(function(k){var c=(C.find(function(r){return r.id===k})||{}).base;usados[k]=1;
+      h+=c?linhaSem(k,c.n,'cronograma: '+dt(c.ini)+' a '+dt(c.fim),E[k].entrada||{},false):linhaSem(k,'','fora do cronograma',E[k].entrada||{},true)})}
+  if(!h)h='<tr><td colspan="5" class="hint">Nenhuma atividade do cronograma nesta semana.</td></tr>';
+  $('t-sem').innerHTML=h;
+  var at=C.filter(function(r){return !r.base.marco&&r.base.fim<a&&!usados[r.id]&&!feitoAlgum(r.id)});
+  $('n-atr').textContent=at.length;$('d-atr').hidden=!at.length;
+  $('t-atr').innerHTML=at.map(function(r){var c=r.base;return linhaSem(r.id,c.n,esc(c.f)+' · cronograma: '+dt(c.ini)+' a '+dt(c.fim),{},false)}).join('');
+  var mc=C.filter(function(r){return r.base.marco&&r.base.fim>=a&&r.base.fim<=b});
+  $('l-marcos').innerHTML=mc.map(function(r){return '<li>'+dt(r.base.fim)+' · '+esc(r.base.n)+'</li>'}).join('')||'<li class="hint">Nenhum nesta semana.</li>';
+  var L=Object.keys(E).map(function(k){return E[k].entrada||{}}),pl=L.filter(function(e){return e.vai==='Sim'}),fe=pl.filter(function(e){return e.feito==='Feito'}).length,pa=pl.filter(function(e){return e.feito==='Parcial'}).length;
+  $('s-kpi').innerHTML='<div class="kpi"><b>'+na.length+'</b><span>no cronograma</span></div><div class="kpi"><b>'+pl.length+'</b><span>vai fazer</span></div><div class="kpi"><b>'+fe+(pa?' <small>+'+pa+' parcial</small>':'')+'</b><span>feitas</span></div><div class="kpi"><b>'+(pl.length?Math.round(fe/pl.length*100)+'%':'—')+'</b><span>do planejado cumprido</span></div>';
+  $('n-sem').textContent=pl.length||'';
+  document.querySelectorAll('#t-sem tr[data-sm] input,#t-sem tr[data-sm] select,#t-atr tr[data-sm] input,#t-atr tr[data-sm] select').forEach(function(i){i.addEventListener('change',function(){salvaSem(i.closest('tr'))})})}
+async function salvaSem(tr){var id=tr.dataset.sm,e={};tr.querySelectorAll('[data-k]').forEach(function(i){var v=i.value.trim();if(v)e[i.dataset.k]=v});
+  var full=iso(SEG)+'|'+id,ent=Object.keys(e).length?e:null;
+  try{await rpc('taf_pessoa_salvar',{p_chave:chave,p_tipo:'semana',p_id:full,p_entrada:ent,p_quem:quem()});
+    P.semana=(P.semana||[]).filter(function(r){return r.id!==full});if(ent)P.semana.push({id:full,entrada:ent,em:new Date().toISOString()});
+    var foco=document.activeElement&&document.activeElement.closest('#t-atr');if(!foco)rSemana();toast('Salvo')}catch(er){toast('Não salvou: '+er.message)}}
+$('s-ant').onclick=function(){SEG=maisDias(SEG,-7);rSemana()};
+$('s-prox').onclick=function(){SEG=maisDias(SEG,7);rSemana()};
+$('s-hoje').onclick=function(){SEG=segunda(new Date());rSemana()};
+$('s-add').onclick=function(){var id='X'+Date.now().toString(36);var tb=$('t-sem');if(tb.querySelector('td.hint'))tb.innerHTML='';
+  tb.insertAdjacentHTML('beforeend',linhaSem(id,'','fora do cronograma',{},true));var tr=tb.lastElementChild;
+  tr.querySelectorAll('input,select').forEach(function(i){i.addEventListener('change',function(){salvaSem(tr)})});tr.querySelector('input').focus()};
+$('b-xsem').onclick=function(){if(typeof XLSX==='undefined'){toast('O gerador de planilha não carregou. Atualize a página.');return}
+  var a=iso(SEG),b=iso(maisDias(SEG,6)),E=semEnt(),C=P.cronofis||[],A=[['Frente','Atividade','Início no cronograma','Fim no cronograma','Vai fazer?','Meta da semana','Fez?','Por quê / observação','Preenchido em']];
+  var ids=C.filter(function(r){return !r.base.marco&&r.base.ini<=b&&r.base.fim>=a}).map(function(r){return r.id});
+  Object.keys(E).forEach(function(k){if(ids.indexOf(k)<0)ids.push(k)});
+  ids.forEach(function(k){var c=(C.find(function(r){return r.id===k})||{}).base||{},r=E[k]||{},e=r.entrada||{};
+    A.push([c.f||'Fora do cronograma',c.n||e.n||'',dd(c.ini),dd(c.fim),e.vai||'',e.meta||'',e.feito||'',e.obs||'',r.em?new Date(r.em):''])});
+  var wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,folha(A,[34,60,14,14,10,50,10,50,16]),'SEMANA');baixa(wb,'OBRA 342 - PLANEJAMENTO DA SEMANA '+dt(a).slice(0,5).replace('/','-')+' A '+dt(b).replace(/\//g,'-')+'.xlsx')};
 
 if(chave)entrar();else gate();
 })();
