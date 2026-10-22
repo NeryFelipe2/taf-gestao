@@ -1,0 +1,1438 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="taf-versao" content="/*VERSAO*/">
+<title>Obra 342 · Ciclo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<style>
+:root{
+  color-scheme:light;
+  --bg:#F6F7FA; --panel:#FFFFFF; --raised:#EEF1F6; --hover:#E7ECF3;
+  --line:rgba(15,118,110,.28); --line2:rgba(15,23,42,.10);
+  --tx:#1B2433; --hd:#0F172A; --mu:#4B5563; --mu2:#6B7280;
+  --ac:#0F766E; --acbg:rgba(15,118,110,.10);
+  --ok:#15803D; --pe:#C2410C; --ne:#B91C1C; --cf:#B45309; --plano:#94A3B8; --dele:#C2410C;
+  --f-hd:'Outfit','Inter',system-ui,sans-serif; --f-tx:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --r:12px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#060610; --panel:#0B0B19; --raised:#12122A; --hover:#17173A;
+  --line:rgba(45,212,191,.18); --line2:rgba(255,255,255,.08);
+  --tx:#E6E6EE; --hd:#FAFAFA; --mu:#A0A0B8; --mu2:#73738C;
+  --ac:#2DD4BF; --acbg:rgba(20,184,166,.13);
+  --ok:#4ADE80; --pe:#FB923C; --ne:#F87171; --cf:#FBBF24; --plano:#64748B; --dele:#FB923C;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#060610; --panel:#0B0B19; --raised:#12122A; --hover:#17173A;
+  --line:rgba(45,212,191,.18); --line2:rgba(255,255,255,.08);
+  --tx:#E6E6EE; --hd:#FAFAFA; --mu:#A0A0B8; --mu2:#73738C;
+  --ac:#2DD4BF; --acbg:rgba(20,184,166,.13);
+  --ok:#4ADE80; --pe:#FB923C; --ne:#F87171; --cf:#FBBF24; --plano:#64748B; --dele:#FB923C;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{background:var(--bg)}
+body{background:var(--bg);color:var(--tx);font:14px/1.5 var(--f-tx);margin:0;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--ac);outline-offset:2px;border-radius:6px}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px 48px}
+header{display:flex;align-items:center;gap:10px 12px;padding:16px 0 10px;flex-wrap:wrap}
+header img{height:34px;width:auto}
+header h1{margin:0;font:600 20px/1.2 var(--f-hd);color:var(--hd)}
+header .sub{color:var(--mu);font-size:13px;overflow-wrap:anywhere}
+header .sp{flex:1}
+header .acts{display:flex;gap:8px;flex-wrap:wrap}
+@media (max-width:640px){header .sp{display:none}header .acts{width:100%}}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--panel);border:1px solid var(--line2);border-radius:10px;min-height:44px;padding:0 14px;cursor:pointer;font-size:14px;white-space:nowrap;max-width:100%}
+.btn:hover{border-color:var(--line);background:var(--hover)}
+.btn.pri{border-color:var(--ac);color:var(--ac);font-weight:600}
+.btn[disabled]{opacity:.45;cursor:default}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line2);margin:6px 0 16px}
+nav.tabs button{background:none;border:0;border-bottom:2px solid transparent;min-height:44px;padding:10px 14px;cursor:pointer;color:var(--mu);font-weight:500;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--hd);border-bottom-color:var(--ac)}
+nav.tabs .n{font-size:12px;color:var(--mu2);margin-left:4px}
+@media (max-width:640px){
+  nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:60;margin:0;gap:0;background:var(--panel);border-bottom:0;border-top:1px solid var(--line2);padding:0 0 env(safe-area-inset-bottom,0px);box-shadow:0 -2px 10px rgba(0,0,0,.06)}
+  nav.tabs button{flex:1 1 0;min-width:0;min-height:58px;padding:6px 2px;border-bottom:0;border-top:3px solid transparent;font-size:13px;white-space:normal;line-height:1.2}
+  nav.tabs button[aria-selected="true"]{border-top-color:var(--ac);border-bottom-color:transparent}
+  nav.tabs .n{display:block;margin:2px 0 0}
+  .wrap{padding-bottom:110px}
+}
+.card{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);padding:14px 16px;margin-bottom:12px;overflow-wrap:anywhere;min-width:0}
+.aviso{background:var(--acbg);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px;margin-bottom:14px;font-size:13.5px}
+.aviso b{color:var(--hd)}
+h2{font:600 16px var(--f-hd);color:var(--hd);margin:20px 0 8px}
+h3{font:600 15px var(--f-hd);color:var(--hd);margin:0}
+.hint{color:var(--mu);font-size:12.5px}
+.scroll-x{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--line2);border-radius:var(--r);background:var(--panel);max-width:100%}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 9px;border-bottom:1px solid var(--line2);text-align:left;vertical-align:top}
+th{position:sticky;top:0;background:var(--raised);font-weight:600;color:var(--hd);font-size:12px;white-space:nowrap;z-index:1}
+td.num,th.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+td.dt{white-space:nowrap}
+.cod{font-size:11.5px;color:var(--mu2);white-space:nowrap}
+.semnav{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 12px}
+.semnav .sem{font:600 15px var(--f-hd);color:var(--hd);text-align:center;flex:1 1 180px}
+.kpis{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
+.kpi{background:var(--raised);border:1px solid var(--line2);border-radius:10px;padding:8px 12px;min-width:110px;flex:1 1 110px}
+.kpi b{display:block;font:600 19px var(--f-hd);color:var(--hd)}
+.kpi span{font-size:12px;color:var(--mu)}
+#gate,#nome{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
+#gate .box,#nome .box{max-width:380px;width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px}
+#gate h2,#nome h2{margin:0;font:600 22px var(--f-hd)}
+#gate p,#nome p{margin:0;color:var(--mu);font-size:14px}
+#gate input,#nome input{min-height:44px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--raised);font:500 16px var(--f-tx)}
+#gate .err,#nome .err{color:var(--ne);font-size:13px;min-height:1em}
+.rot{font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--mu2);font-weight:600}
+.frase p{font-size:15.5px;line-height:1.55;color:var(--hd);margin:6px 0 0}
+.luzes{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:12px}
+.luzes .card{margin:0;border-left-width:6px}
+.luz-VERDE{border-left-color:var(--ok)!important}.luz-AMARELO{border-left-color:var(--cf)!important}
+.luz-VERMELHO{border-left-color:var(--ne)!important}.luz-SEM-BASE{border-left-color:var(--mu2)!important}
+.luz-cab{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:6px}
+.ind{display:flex;gap:8px;align-items:baseline;margin-top:6px;font-size:13.5px}
+.ind .p{font-size:11.5px;color:var(--mu2);min-width:26px}
+.lin{margin-top:5px;font-size:14px;line-height:1.45}
+.dec-item{padding:10px 0;border-top:1px solid var(--line2)}
+.dec-item:first-child{border-top:0;padding-top:2px}
+.vermelho{border-color:var(--ne);background:rgba(185,28,28,.06)}
+.vermelho h3,.vermelho .t{color:var(--ne)}
+.okbox{border-color:var(--ok)}
+.ev{padding:10px 0;border-top:1px solid var(--line2)}
+.ev:first-of-type{border-top:0}
+.ev ul,.qual ul,.plac ul{margin:6px 0 0;padding-left:20px}
+.ev li,.qual li,.plac li{margin:3px 0}
+.dias{display:flex;gap:3px;flex-wrap:nowrap}
+.dia{display:inline-flex;flex-direction:column;align-items:center;min-width:36px;padding:3px 4px;border-radius:6px;border:1px solid var(--line2);font-size:11px;line-height:1.2;color:var(--mu2)}
+.dia b{font-size:12.5px}
+.dia.andou{border-color:var(--ok);color:var(--ok)}.dia.parado{border-color:var(--ne);color:var(--ne)}.dia.entregue{border-color:var(--ac);color:var(--ac)}
+.dia.tardio{border-style:dashed}
+.mud{padding:10px 2px;border-bottom:1px solid var(--line2);font-size:13.5px}
+.mud .l2{font-size:12px;color:var(--mu2);margin-top:2px}
+.mud.banco{background:rgba(180,83,9,.08);border-left:3px solid var(--cf);padding-left:8px}
+.sqld{color:var(--cf);font-weight:700}
+.filtros{display:grid;gap:10px;margin-bottom:12px}
+.filtros .lin2{display:flex;gap:10px;flex-wrap:wrap}
+.filtros .lin2>div{flex:1 1 200px;min-width:0}
+.filtros input{display:block;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--raised);font-size:16px}
+.mudou{color:var(--cf);font-size:12px}
+.fraco{color:var(--mu2)}
+textarea.copia{display:block;width:100%;min-height:150px;margin-top:8px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--raised);font-size:14px}
+footer.rod{margin-top:28px;color:var(--mu2);font-size:12px}
+@media (max-width:640px){header h1{font-size:18px}.card{padding:12px}}
+</style>
+</head>
+<body>
+<div id="gate" hidden><div class="box">
+  <h2>Obra 342 · Ciclo</h2>
+  <p>Digite a sua chave pessoal. Quem já entrou no site principal neste aparelho entra direto.</p>
+  <input type="password" id="g-chave" placeholder="Chave de acesso" autocomplete="current-password" aria-label="Chave de acesso">
+  <button class="btn pri" id="g-ok" type="button">Entrar</button>
+  <div class="err" id="g-err" role="alert"></div>
+  <button class="btn" id="g-tentar" type="button" hidden>Tentar de novo</button>
+</div></div>
+
+<div id="nome" hidden><div class="box">
+  <h2>Seu nome</h2>
+  <p>Você entrou com a chave do site principal, que é de todos. Diga quem está usando: o nome vai no histórico de cada mudança.</p>
+  <input type="text" id="n-nome" maxlength="60" placeholder="Ex.: Felipe Nery" autocomplete="name" aria-label="Seu nome">
+  <button class="btn pri" id="n-ok" type="button">Continuar</button>
+  <div class="err" id="n-err" role="alert"></div>
+</div></div>
+
+<div class="wrap" id="app" hidden>
+<header>
+  <img src="data:image/webp;base64,/*LOGOCANTO*/" alt="TAF">
+  <div><h1>Obra 342 · Ciclo</h1><div class="sub"><span id="h-quem"></span> · <span id="h-papel"></span> · <span id="h-fila" aria-live="polite"></span></div></div>
+  <span class="sp"></span>
+  <div class="acts"><button class="btn pri" id="b-xlsx" type="button">Baixar .xlsx</button><button class="btn" id="b-sair" type="button">Sair</button></div>
+</header>
+<nav class="tabs" role="tablist" aria-label="Abas">
+  <button role="tab" type="button" data-t="sit" aria-selected="true">Situação<span class="n" id="n-sit"></span></button>
+  <button role="tab" type="button" data-t="dem" aria-selected="false">Demandas<span class="n" id="n-dem"></span></button>
+  <button role="tab" type="button" data-t="sem" aria-selected="false">Semana<span class="n" id="n-sem"></span></button>
+  <button role="tab" type="button" data-t="mud" aria-selected="false">Mudanças<span class="n" id="n-mud"></span></button>
+</nav>
+<div id="g-recusas"></div>
+
+<section id="p-sit" role="tabpanel" aria-label="Situação">
+  <div id="s-frase"></div>
+  <div id="s-luzes"></div>
+  <div class="card" id="s-dec-card"><h3>Para você decidir</h3><div id="s-dec-dem"></div><div id="s-dec-ac"></div><div id="s-dec-sem"></div></div>
+  <div id="s-ev"></div>
+  <div id="s-placar"></div>
+  <div id="s-qual"></div>
+  <div id="s-copiar"></div>
+</section>
+
+<section id="p-dem" role="tabpanel" aria-label="Demandas" hidden>
+  <div id="d-suas"></div>
+  <div id="d-donos"></div>
+  <h2>Todas as demandas</h2>
+  <div id="d-mod"></div>
+</section>
+
+<section id="p-sem" role="tabpanel" aria-label="Semana" hidden>
+  <div id="w-nav"></div>
+  <div id="w-cab"></div>
+  <h2>Compromissos: publicado e atual</h2>
+  <div id="w-comps"></div>
+  <h2>Programação e cobertura</h2>
+  <div id="w-prog"></div>
+  <h2>Não entra nesta semana (fora do PPC)</h2>
+  <div id="w-fora"></div>
+  <h2>Histórico das semanas</h2>
+  <div id="w-hist"></div>
+</section>
+
+<section id="p-mud" role="tabpanel" aria-label="Mudanças" hidden>
+  <div id="m-filtros"></div>
+  <div id="m-info"></div>
+  <div class="card" id="m-lista"></div>
+  <div id="m-mais"></div>
+</section>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">/*VERSAO*/</span></footer>
+</div>
+
+<script>/*CICLOCORE*/</script>
+<script>
+(function () {
+'use strict';
+var CC = window.CC, esc = CC.esc, $ = CC.$, D = document;
+var OBRA = '342';
+var K = { chave: '', origem: '' };          // a chave fica só aqui (nunca em window nem no console)
+var ABAS = ['sit', 'dem', 'sem', 'mud'];
+var S = {
+  aba: 'sit', seg: null, L: null, X: null, pronto: false,
+  ens: {}, lado: {}, ladoPend: {},
+  rev: {}, reab: null, dec: null, rec: {},
+  H: null, hChave: null, hErr: '', hCarregando: false, hLim: 300,
+  hf: { tab: '', ativ: '', item: '', pessoa: '' },
+  evTodos: false, copia: null, dmOk: false, relendo: null, denovo: false, tReler: null
+};
+var VIG = null;
+
+// ===================================================================== utilidades
+function quem() { return CC.ls.get('taf-quem') || ''; }
+function ator() { return (S.L && S.L.ator) || {}; }
+function papel() { return ator().papel || 'leitura'; }
+function pode(acao) { return CC.pode(papel(), acao); }
+function ou(v, vazio) { return v == null || v === '' ? '<span class="fraco">' + esc(vazio || 'não informado') + '</span>' : esc(v); }
+function plural(n, um, varios) { return n + ' ' + (n === 1 ? um : varios); }
+function lst(a) {
+  return (a || []).map(function (x) {
+    if (x == null) return '';
+    if (typeof x !== 'object') return String(x);
+    return x.cid || x.ativ || x.id || x.num || JSON.stringify(x);
+  }).filter(Boolean);
+}
+function nomeAtiv(id) {
+  var c = (S.L && S.L.crono) || [];
+  if (!S.L.__n) { S.L.__n = {}; c.forEach(function (x) { S.L.__n[x.id] = x; }); }
+  return (S.L.__n[id] || {}).nome || '';
+}
+function ativDe(id) { nomeAtiv(id); return S.L.__n[id] || null; }
+function tComNome(id) { var n = nomeAtiv(id); return '<b>' + esc(id) + '</b>' + (n ? ' <span class="fraco">' + esc(n) + '</span>' : ''); }
+function areaCurta(a) {
+  var l = (S.L && S.L.areas) || [];
+  for (var i = 0; i < l.length; i++) if (l[i].area === a) return (l[i].rotulo || a).split(':')[0];
+  return CC.rot('area', a);
+}
+function aberta(d) { return d && (d.situacao === 'aberta' || d.situacao === 'respondida'); }
+function chaveLabel(r) {
+  if (r.papel === 'banco') return 'SQL direto';
+  if (r.papel === 'carga') return 'carga';
+  return r.verificado ? 'chave pessoal' : 'chave geral';
+}
+function lsJson(k, p) { try { var v = JSON.parse(CC.ls.get(k) || 'null'); return v == null ? p : v; } catch (e) { return p; } }
+
+// redesenho por bloco: só troca o HTML que mudou e devolve o foco (campo e cursor)
+function guardarFoco(el) {
+  var a = D.activeElement;
+  if (!a || a === D.body || !el.contains(a)) return null;
+  return { k: a.getAttribute('data-k'), a: a.getAttribute('data-a'), v: a.getAttribute('data-v'), s: a.selectionStart, e: a.selectionEnd };
+}
+function voltarFoco(el, f) {
+  if (!f) return;
+  var sel = f.k ? '[data-k="' + f.k + '"]' : f.a ? '[data-a="' + f.a + '"]' + (f.v ? '[data-v="' + String(f.v).replace(/"/g, '') + '"]' : '') : null;
+  var x = sel ? el.querySelector(sel) : null;
+  if (!x) return;
+  try { x.focus({ preventScroll: true }); if (f.s != null && x.setSelectionRange) x.setSelectionRange(f.s, f.e); } catch (e) { /* ok */ }
+}
+function pinta(el, h) {
+  if (typeof el === 'string') el = $(el);
+  if (!el) return false;
+  if (el.__h === h) return false;          // o último HTML fica no próprio elemento
+  var f = guardarFoco(el);
+  el.innerHTML = h;
+  el.__h = h;
+  voltarFoco(el, f);
+  return true;
+}
+// lista por chave: cria, move, tira e redesenha só os itens que mudaram
+function lista(cont, itens, idDe, htmlDe, tag) {
+  if (!cont) return;
+  var ids = itens.map(idDe);
+  [].slice.call(cont.children).forEach(function (c) { if (ids.indexOf(c.id) < 0) cont.removeChild(c); });
+  var prev = null;
+  itens.forEach(function (x, i) {
+    var el = D.getElementById(ids[i]);
+    if (!el || el.parentNode !== cont) { el = D.createElement(tag || 'div'); el.id = ids[i]; }
+    var ref = prev ? prev.nextSibling : cont.firstChild;
+    if (el !== ref) cont.insertBefore(el, ref);
+    pinta(el, htmlDe(x));
+    prev = el;
+  });
+}
+function idSeguro(s) { return String(s).replace(/[^A-Za-z0-9_-]/g, '_'); }
+
+// ===================================================================== entrada (gate)
+function gate(msg, rede) {
+  $('app').hidden = true; $('nome').hidden = true; $('gate').hidden = false;
+  $('g-err').textContent = msg || '';
+  $('g-tentar').hidden = !rede;
+  setTimeout(function () { try { $('g-chave').focus(); } catch (e) { /* ok */ } }, 0);
+}
+function iniciar() {
+  var c = CC.ls.get('taf-ciclo-chave'), o = 'ciclo';
+  if (!c && CC.ls.get('taf-ciclo-sem-site') !== '1') { c = CC.ls.get('taf-chave'); o = 'site'; }
+  if (!c) { gate(''); return; }
+  entrar(c, o);
+}
+function entrar(chave, origem) {
+  K.chave = chave; K.origem = origem;
+  CC.init({ chave: chave, quem: quem(), onFila: onFila, onRecusa: onRecusa, onOk: onOk });
+  $('g-ok').disabled = true;
+  if (!$('gate').hidden) $('g-err').textContent = 'Entrando…';
+  carregar().then(function () {
+    $('g-ok').disabled = false;
+    if (origem === 'digitada') { CC.ls.set('taf-ciclo-chave', chave); CC.ls.del('taf-ciclo-sem-site'); K.origem = 'ciclo'; }
+    if (!ator().nome) { pedirNome(); return; }
+    mostrar();
+  }, function (e) {
+    $('g-ok').disabled = false;
+    var m = CC.erro(e);
+    K.chave = ''; CC.init({ chave: '' });
+    if (e && e.rede) { gate('Sem conexão com o banco (' + m + '). Confira o sinal e tente de novo.', true); return; }
+    if (/SEM ACESSO/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Esta chave não tem acesso à obra 342.'); return; }
+    if (/CHAVE/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Chave inválida.'); return; }
+    gate('Não consegui abrir: ' + m, true);
+  });
+}
+function pedirNome() {
+  $('gate').hidden = true; $('app').hidden = true; $('nome').hidden = false;
+  $('n-err').textContent = '';
+  setTimeout(function () { try { $('n-nome').focus(); } catch (e) { /* ok */ } }, 0);
+}
+$('g-ok').addEventListener('click', function () {
+  var c = $('g-chave').value.trim();
+  if (!c) { $('g-err').textContent = 'Digite a chave.'; return; }
+  $('g-chave').value = '';
+  entrar(c, 'digitada');
+});
+$('g-chave').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('g-ok').click(); });
+$('g-tentar').addEventListener('click', function () { $('g-tentar').hidden = true; iniciar(); });
+$('n-ok').addEventListener('click', function () {
+  var n = $('n-nome').value.trim().replace(/\s+/g, ' ');
+  if (n.length < 2) { $('n-err').textContent = 'Escreva seu nome (2 letras ou mais).'; return; }
+  CC.ls.set('taf-quem', n);
+  CC.init({ quem: n });
+  $('n-ok').disabled = true;
+  carregar().then(function () { $('n-ok').disabled = false; mostrar(); },
+    function (e) { $('n-ok').disabled = false; $('n-err').textContent = 'Não consegui abrir: ' + CC.erro(e); });
+});
+$('n-nome').addEventListener('keydown', function (e) { if (e.key === 'Enter') $('n-ok').click(); });
+$('b-sair').addEventListener('click', function () {
+  CC.ls.del('taf-ciclo-chave');
+  if (K.origem === 'site') CC.ls.set('taf-ciclo-sem-site', '1');   // não apaga a chave do site principal; só deixa de usá-la aqui
+  K.chave = '';
+  if (VIG) VIG();
+  location.reload();
+});
+
+// ===================================================================== leitura
+function carregar() {
+  return Promise.all([CC.ler(S.seg), CC.situacao()]).then(function (r) {
+    S.L = r[0]; S.X = r[1];
+    anotarEnsaio(S.L.seg, S.L.semana);
+    if (S.X && S.X.semana_ref) anotarEnsaio(S.X.semana_ref.seg, { estado: 'fechada', ensaio: S.X.semana_ref.ensaio });
+    return S.L;
+  });
+}
+function reler() {
+  if (S.relendo) { S.denovo = true; return S.relendo; }
+  S.relendo = carregar().then(function (L) {
+    desenhar();
+    if (S.aba === 'mud') carregarHist(true); else S.hVelho = true;
+    ensaioLateral();
+    return L;
+  }, function (e) {
+    CC.toast('Não consegui atualizar: ' + CC.erro(e));
+    return S.L;
+  }).then(function (L) {
+    S.relendo = null;
+    if (S.denovo) { S.denovo = false; reler(); }
+    return L;
+  });
+  return S.relendo;
+}
+function agendarReler() {
+  clearTimeout(S.tReler);
+  S.tReler = setTimeout(function () { if (!CC.estado().pendentes) reler(); }, 250);
+}
+// a semana de ensaio fica congelada na publicação: guarda por segunda (semanas[] não traz o campo)
+function anotarEnsaio(seg, s) {
+  if (!seg || !s || (s.estado !== 'publicada' && s.estado !== 'fechada') || typeof s.ensaio !== 'boolean') return;
+  if (S.ens[seg] === s.ensaio) return;
+  S.ens[seg] = s.ensaio;
+  CC.ls.set('taf-ciclo-ensaio', JSON.stringify(S.ens));
+}
+function lerLado(seg) {      // leitura de outra semana sem mexer na semana em foco
+  var c = S.lado[seg];
+  if (c && c.v === CC.versao) return Promise.resolve(c.L);
+  if (S.ladoPend[seg]) return S.ladoPend[seg];
+  var p = CC.rpc('taf_ciclo_ler', { p_chave: K.chave, p_obra: OBRA, p_seg: seg, p_quem: quem() || null }).then(function (L) {
+    delete S.ladoPend[seg];
+    S.lado[seg] = { v: CC.versao, L: L };
+    anotarEnsaio(seg, L && L.semana);
+    return L;
+  }, function (e) { delete S.ladoPend[seg]; throw e; });
+  S.ladoPend[seg] = p;
+  return p;
+}
+function fechadasDesc() {
+  return ((S.L && S.L.semanas) || []).filter(function (s) { return s.estado === 'fechada'; })
+    .sort(function (a, b) { return a.seg < b.seg ? 1 : -1; });
+}
+function ensaioLateral() {
+  var falta = [], achou = 0;
+  fechadasDesc().forEach(function (s) {
+    if (achou >= 4) return;
+    if (S.ens[s.seg] === undefined) falta.push(s.seg); else if (!S.ens[s.seg]) achou++;
+  });
+  (S.L.semanas || []).forEach(function (s) { if (s.estado === 'publicada' && S.ens[s.seg] === undefined && falta.length < 8) falta.push(s.seg); });
+  if (!falta.length) return;
+  Promise.all(falta.slice(0, 8).map(function (seg) { return lerLado(seg).catch(function () { return null; }); }))
+    .then(function () { if (S.pronto) { rPlacar(); rSemHist(); } });
+}
+function ppc4() {
+  var us = [], pend = false;
+  fechadasDesc().forEach(function (s) {
+    if (us.length >= 4 || pend) return;
+    var e = S.ens[s.seg];
+    if (e === undefined) { pend = true; return; }
+    if (!e && s.publicados != null) us.push(s);
+  });
+  if (pend && us.length < 4) return { pend: true };
+  var n = 0, m = 0;
+  us.forEach(function (s) { n += +s.cumpridos || 0; m += +s.publicados || 0; });
+  return { semanas: us, n: n, m: m, ppc: m ? Math.round(100 * n / m) : null };
+}
+
+// ===================================================================== fila: callbacks
+function onFila(e) {
+  var t = $('h-fila');
+  if (t) t.textContent = e.texto;
+  if (S.pronto) { rDecAcordos(); rDecSemana(); rSemCab(); rRecusasGerais(); }
+}
+function onOk(it, r) {
+  var m = it.meta || {};
+  if (m.mod === 'ciclo') {
+    if (m.tipo === 'acordo') { delete S.rev[m.replan]; CC.toast(m.acordo === 'ok' ? 'De acordo gravado (' + m.ativ + ').' : 'Pedido de revisão gravado (' + m.ativ + ').'); }
+    else if (m.tipo === 'reabrir') { S.reab = null; CC.toast('Semana ' + CC.semana(m.seg) + ' reaberta.'); }
+    else if (m.tipo === 'decisao') { CC.toast('Decisão da semana registrada' + (r && r.num ? ' (D' + r.num + ')' : '') + '.'); }
+  }
+  agendarReler();
+}
+function onRecusa(it, motivo) {
+  var m = it.meta || {};
+  if (m.mod === 'dem') { if (CC.mudouDepois(motivo)) agendarReler(); return; }   // o módulo de demandas mostra no cartão
+  S.rec[it.uid] = { motivo: motivo, item: it };
+  if (S.pronto) desenhar();
+  if (CC.mudouDepois(motivo)) agendarReler();
+}
+function recDe(fn) {     // recusas deste módulo que casam com fn(meta)
+  var out = [];
+  Object.keys(S.rec).forEach(function (u) { var r = S.rec[u], m = (r.item && r.item.meta) || {}; if (fn(m)) out.push({ uid: u, motivo: r.motivo, item: r.item }); });
+  return out;
+}
+function pendDe(fn) { return CC.fila.itens().filter(function (it) { return it.meta && it.meta.mod === 'ciclo' && fn(it.meta); }); }
+function pendTxt() { var e = CC.estado(); return e.erro || (navigator.onLine === false) ? 'Aguardando sinal' : 'Enviando'; }
+function pendHtml(l) { return l.map(function (it) { return '<div class="cc-pend">' + esc(pendTxt()) + ': ' + esc(it.meta.rotulo || it.acao) + '</div>'; }).join(''); }
+function recHtml(l) { return l.map(function (r) { return CC.htmlRecusa(r.motivo, r.uid, { semCorrigir: r.item && r.item.meta && r.item.meta.tipo === 'acordo' && r.item.meta.acordo === 'ok' }); }).join(''); }
+function recusaUsada(uid) {
+  return [].some.call(D.querySelectorAll('[data-cc-a][data-uid="' + String(uid).replace(/"/g, '') + '"]'), function (x) { return !x.closest('#g-recusas'); });
+}
+
+// ===================================================================== desenho geral
+function desenhar() {
+  if (!S.L) return;
+  var a = ator();
+  $('h-quem').textContent = (a.nome || 'sem nome') + (a.verificado ? '' : ' (chave geral)');
+  $('h-papel').textContent = CC.rot('papel', a.papel);
+  $('h-fila').textContent = CC.estado().texto;
+  abas();
+  rSit();
+  rDem();
+  rSem();
+  if (S.aba === 'mud') rMud();
+  rRecusasGerais();
+  contagens();
+}
+function abas() {
+  [].forEach.call(D.querySelectorAll('nav.tabs button'), function (b) { b.setAttribute('aria-selected', b.getAttribute('data-t') === S.aba ? 'true' : 'false'); });
+  ABAS.forEach(function (k) { $('p-' + k).hidden = k !== S.aba; });
+}
+function contagens() {
+  var X = S.X || {}, pd = X.para_decidir || {};
+  var nd = (pd.demandas || []).length + (pd.acordos || []).length;
+  $('n-sit').textContent = nd ? '(' + nd + ')' : '';
+  var ab = ((S.L && S.L.demandas) || []).filter(aberta).length;
+  $('n-dem').textContent = ab ? '(' + ab + ')' : '';
+  $('n-sem').textContent = S.L && S.L.seg ? CC.d(S.L.seg) : '';
+}
+function irAba(t) {
+  if (ABAS.indexOf(t) < 0) return;
+  S.aba = t; CC.ls.set('taf-ciclo-aba', t);
+  abas();
+  if (t === 'mud' && (!S.H || S.hVelho)) carregarHist(true);
+  if (t === 'mud') rMud();
+  window.scrollTo(0, 0);
+}
+[].forEach.call(D.querySelectorAll('nav.tabs button'), function (b) { b.addEventListener('click', function () { irAba(b.getAttribute('data-t')); }); });
+
+// recusas cujo cartão já não existe (ex.: o de acordo deixou de estar pendente)
+function rRecusasGerais() {
+  var h = '';
+  Object.keys(S.rec).forEach(function (u) {
+    if (recusaUsada(u)) return;
+    var r = S.rec[u], m = (r.item && r.item.meta) || {};
+    h += '<div class="card cc-vermelho">' + '<b>' + esc(m.rotulo || r.item.acao) + '</b>' + CC.htmlRecusa(r.motivo, u, { semCorrigir: true }) + '</div>';
+  });
+  pinta('g-recusas', h);
+}
+
+// ===================================================================== Situação
+function rSit() {
+  var X = S.X;
+  if (!X) { pinta('s-frase', '<div class="card fraco">Carregando…</div>'); return; }
+  rFrase(); rLuzes(); rDecDem(); rDecAcordos(); rDecSemana(); rEventos(); rPlacar(); rQual(); rCopiar();
+}
+function rFrase() {
+  var X = S.X;
+  pinta('s-frase', '<div class="card frase"><div class="rot">Resumo da obra · ' + esc(CC.quando(X.calculado_em)) + '</div>' +
+    '<p>' + ou(X.frase, 'sem semana fechada para resumir') + '</p></div>');
+}
+function corLuz(c) { return 'luz-' + String(c || 'SEM BASE').replace(/\s+/g, '-'); }
+function indicador(p, o) {
+  if (!o) return '';
+  return '<div class="ind"><span class="p">' + esc(p) + '</span>' + CC.seloDe('luz', o.cor) + '<span>' + ou(o.motivo) + '</span></div>';
+}
+function rLuzes() {
+  var z = S.X.luzes || {}, pr = z.producao || {}, pl = z.plano || {}, di = z.dinheiro || {};
+  var ens = z.ensaio ? CC.selo('ENSAIO', 'cf') : '';
+  function bloco(nome, o, inds) {
+    return '<div class="card ' + esc(corLuz(o.cor)) + '"><div class="luz-cab"><h3>' + esc(nome) + '</h3>' + CC.seloDe('luz', o.cor || 'SEM BASE') + ens + '</div>' + inds + '</div>';
+  }
+  pinta('s-luzes', '<div class="luzes">' +
+    bloco('PRODUÇÃO', pr, indicador('P2', pr.P2) + indicador('P3', pr.P3) + indicador('P4', pr.P4)) +
+    bloco('PLANO', pl, indicador('P6', pl.P6) + indicador('P8', pl.P8) + indicador('P10', pl.P10)) +
+    bloco('DINHEIRO', { cor: di.cor || 'SEM BASE' }, '<div class="ind"><span class="p">v2</span><span>' + ou(di.motivo) + '</span></div>') +
+    '</div>' + (z.ensaio ? '<div class="hint" style="margin:-4px 0 12px">Semana de ensaio: as luzes mostram o resultado, mas o PPC não entra na média.</div>' : ''));
+}
+function rDecDem() {
+  var l = ((S.X.para_decidir || {}).demandas) || [];
+  var h = l.length ? l.map(function (d) {
+    return '<div class="dec-item"><div class="cc-cab"><b>D' + esc(d.num) + '</b><span class="fraco">· ' + esc(areaCurta(d.area)) + '</span>' +
+      (d.alerta ? CC.selo(d.alerta, CC.COR.alerta[d.alerta] || 'mu') : '') + '</div>' +
+      '<div class="lin"><b>' + esc(d.oque) + '</b></div>' +
+      '<div class="lin fraco">' + esc(d.como === 'decide' ? 'você decide' : 'você é o responsável') +
+      (d.como === 'decide' ? ' · responsável ' + esc(d.resp) : '') + ' · precisa até ' + esc(CC.d(d.efetivo)) +
+      ((d.ativs || []).length ? ' · trava ' + esc(d.ativs.join(', ')) : '') + '</div>' +
+      '<div class="cc-acts"><button type="button" class="btn" data-a="ver-dem" data-v="' + esc(d.num) + '">Ver D' + esc(d.num) + ' em Demandas</button></div></div>';
+  }).join('') : '<div class="dec-item fraco">Nenhuma demanda com você.</div>';
+  pinta('s-dec-dem', '<div class="rot" style="margin-top:8px">Demandas</div>' + h);
+}
+function acordoInfo(a) {
+  var pa = ((S.L && S.L.pendencias && S.L.pendencias.acordo) || []).filter(function (x) { return +x.id === +a.replan; })[0] || {};
+  return { dispensa: pa.dispensa || [], resumo: pa.resumo || null };
+}
+function acordoCard(a) {
+  var id = a.replan, st = S.rev[id] || {}, info = acordoInfo(a);
+  var dd = CC.dif(a.fim_novo, a.fim_antes);
+  var meu = a.autor && a.autor === ator().nome;
+  var pend = pendDe(function (m) { return m.tipo === 'acordo' && +m.replan === +id; });
+  var rec = recDe(function (m) { return m.tipo === 'acordo' && +m.replan === +id; });
+  var h = '<div class="dec-item"><div class="cc-cab"><b>' + esc(a.ativ) + '</b><span class="fraco">' + esc(nomeAtiv(a.ativ)) + '</span>' +
+    CC.seloDe('acordo', 'pendente') + '<span class="cc-cinza">replanejamento #' + esc(id) + '</span></div>' +
+    '<div class="lin">' + esc(a.autor) + ' replanejou: término <b>' + esc(CC.d(a.fim_antes)) + ' → ' + esc(CC.d(a.fim_novo)) + '</b>' +
+    (dd != null ? ' (' + (dd >= 0 ? '+' : '') + dd + ' d)' : '') + ' · ' + esc(CC.rot('decisao', a.decisao)) + '</div>' +
+    '<div class="lin fraco">A sugestão mexia em ' + esc(plural(+a.n || 0, 'atividade', 'atividades')) + ', ' + esc(plural(+a.eventos || 0, 'EVENTO', 'EVENTOs')) +
+    (info.dispensa.length ? ' · ligações suspensas: ' + esc(info.dispensa.join(', ')) : '') + '</div>' +
+    (a.causa ? '<div class="lin"><span class="fraco">Causa:</span> ' + esc(a.causa) + (a.causa_det ? ' (' + esc(a.causa_det) + ')' : '') + '</div>' : '') +
+    (a.acao ? '<div class="lin"><span class="fraco">Providência:</span> ' + esc(a.acao) + (a.resp ? ' · <span class="fraco">responsável:</span> ' + esc(a.resp) : '') + '</div>' : '') +
+    (a.justif ? '<div class="lin"><span class="fraco">Justificativa:</span> ' + esc(a.justif) + '</div>' : '');
+  if (pode('acordo') && !meu && !pend.length) {
+    if (st.aberto) {
+      h += '<div class="cc-form"><div><label class="cc-rot" for="obs-' + esc(id) + '">O que precisa revisar? (5 letras ou mais)</label>' +
+        '<textarea data-k="obs-' + esc(id) + '" id="obs-' + esc(id) + '" data-replan="' + esc(id) + '" rows="3" maxlength="500" placeholder="Ex.: confirmar com a SANEAGO antes de suspender a ligação">' + esc(st.obs || '') + '</textarea></div>' +
+        '<div class="cc-erro" role="alert">' + esc(st.err || '') + '</div>' +
+        '<div class="cc-acts"><button type="button" class="cc-btn cc-cheio" data-escreve data-a="acordo-rev-enviar" data-v="' + esc(id) + '">Enviar pedido de revisão</button>' +
+        '<button type="button" class="cc-btn" data-a="acordo-voltar" data-v="' + esc(id) + '">Voltar</button></div></div>';
+    } else {
+      h += '<div class="cc-acts"><button type="button" class="cc-btn cc-cheio" data-escreve data-a="acordo-ok" data-v="' + esc(id) + '">De acordo</button>' +
+        '<button type="button" class="cc-btn" data-escreve data-a="acordo-rev" data-v="' + esc(id) + '">Pedir revisão</button></div>';
+    }
+  } else if (meu) h += '<div class="lin cc-cinza">Você replanejou: o de acordo é de outra pessoa.</div>';
+  return h + pendHtml(pend) + recHtml(rec) + '</div>';
+}
+function rDecAcordos() {
+  if (!S.X) return;
+  var l = ((S.X.para_decidir || {}).acordos) || [];
+  var c = $('s-dec-ac');
+  if (!c.firstChild || c.firstChild.id !== 's-ac-tit') { c.innerHTML = '<div class="rot" id="s-ac-tit" style="margin-top:14px">De acordo nos replanejamentos</div><div id="s-ac-lista"></div><div id="s-ac-vazio"></div>'; }
+  lista($('s-ac-lista'), l, function (a) { return 'ac-' + idSeguro(a.replan); }, acordoCard);
+  pinta('s-ac-vazio', l.length ? '' : '<div class="dec-item fraco">Nenhum de acordo pendente.</div>');
+}
+function rDecSemana() {
+  if (!S.X) return;
+  var feito = !!(S.X.para_decidir || {}).decisao_da_semana;
+  var pend = pendDe(function (m) { return m.tipo === 'decisao'; });
+  var rec = recDe(function (m) { return m.tipo === 'decisao'; });
+  var h = '<div class="rot" style="margin-top:14px">Decisão da semana</div>';
+  if (feito) h += '<div class="dec-item"><div class="cc-cab">' + CC.selo('REGISTRADA', 'ok') + '<span>Decisão da reunião de segunda já registrada nesta semana.</span></div></div>';
+  else {
+    h += '<div class="card vermelho" style="margin:8px 0 0"><div class="t"><b>Decisão da semana: ainda não registrada.</b></div>' +
+      '<div class="lin">Registre a decisão da reunião de segunda como demanda (origem: reunião de segunda).</div>' +
+      (pode('demanda') && !S.dec && !pend.length ? '<div class="cc-acts"><button type="button" class="cc-btn cc-pri" data-escreve data-a="decisao-abrir">Registrar decisão da semana</button></div>' : '') +
+      '<div id="s-dec-form"></div>' + pendHtml(pend) + recHtml(rec) + '</div>';
+  }
+  var c = $('s-dec-sem');
+  // o formulário (CC.demandas.formNova) vive dentro do bloco: não redesenha enquanto está aberto
+  if (S.dec && S.dec.el && c.contains(S.dec.el)) return;
+  pinta(c, h);
+}
+function abrirDecisao() {
+  var c = $('s-dec-form');
+  if (!c) return;
+  var bt = $('s-dec-sem').querySelector('[data-a="decisao-abrir"]');
+  if (bt) bt.parentNode.removeChild(bt);
+  var form = D.createElement('div');
+  c.innerHTML = '';
+  c.appendChild(form);
+  var fn = CC.demandas.formNova(form, S.L, {
+    titulo: 'Decisão da semana', botao: 'Registrar decisão',
+    preset: { origem: 'segunda', prazo: CC.mais(CC.seg(CC.hoje()), 4) },
+    onPronto: function (dados) {
+      var p = CC.enviar('demanda', dados, { mod: 'ciclo', tipo: 'decisao', rotulo: 'decisão da semana' });
+      p.catch(function () { /* recusa aparece no cartão */ });
+      fecharDecisao();
+    },
+    onVoltar: function () { fecharDecisao(); }
+  });
+  S.dec = { el: form, fn: fn };
+}
+function fecharDecisao() {
+  if (S.dec && S.dec.fn) S.dec.fn.fechar();
+  S.dec = null;
+  $('s-dec-sem').__h = null;
+  rDecSemana();
+}
+function nomeEvento(e) {
+  if (e.tipo === 'marco') return 'Marco';
+  return (e.tipo === 'evento_pct' ? 'EVENTO %' : 'EVENTO') + (e.ev ? ' ' + e.ev : '');
+}
+function rEventos() {
+  var l = S.X.eventos_risco || [], n = l.length, ver = S.evTodos ? l : l.slice(0, 5);
+  var h = '<div class="card"><h3>EVENTOs e marcos contratuais em risco' + (n ? ' (' + n + ')' : '') + '</h3>';
+  if (!n) h += '<div class="lin fraco">Nenhum EVENTO ou marco em risco.</div>';
+  ver.forEach(function (e) {
+    h += '<div class="ev"><div class="cc-cab">' + CC.seloDe('luz', e.nivel) + '<b>' + esc(nomeEvento(e)) + '</b><span class="cod">' + esc(e.id) + '</span>' +
+      '<span>' + esc(CC.d(e.data)) + '</span>' + (e.bm ? '<span class="fraco">· BM ' + esc(e.bm) + '</span>' : '') + '</div>' +
+      '<div class="lin fraco">' + esc(e.nome) + '</div>' +
+      ((e.motivos || []).length ? '<ul>' + e.motivos.map(function (m) { return '<li>' + esc(m) + '</li>'; }).join('') + '</ul>' : '') + '</div>';
+  });
+  if (n > 5) h += '<div class="cc-acts"><button type="button" class="btn" data-a="ev-todos" aria-expanded="' + (S.evTodos ? 'true' : 'false') + '">' +
+    (S.evTodos ? 'Ver só os 5 primeiros' : 'Ver todos (' + n + ')') + '</button></div>';
+  if (n > 5 && !S.evTodos) h += '<div class="lin cc-cinza">Os outros: ' + esc(l.slice(5).map(function (e) { return e.id; }).join(', ')) + '</div>';
+  pinta('s-ev', h + '</div>');
+}
+function contagem(o) {
+  var k = Object.keys(o || {});
+  if (!k.length) return '<span class="fraco">nenhuma</span>';
+  return k.sort(function (a, b) { return (o[b] || 0) - (o[a] || 0); }).map(function (c) { return esc(c) + ' ' + esc(o[c]); }).join(' · ');
+}
+function rPlacar() {
+  if (!S.X) return;
+  var sr = S.X.semana_ref, h = '<div class="card plac"><h3>Placar da última semana fechada</h3>';
+  if (!sr || !sr.resumo) { pinta('s-placar', h + '<div class="lin fraco">Nenhuma semana fechada ainda.</div></div>'); return; }
+  var r = sr.resumo, lib = r.liberacao || {}, qu = r.qtd_por_un || {};
+  h += '<div class="lin">Semana ' + esc(CC.semana(sr.seg)) + ' · fechada ' + esc(CC.quando(sr.fechada_em)) + (sr.fechada_por ? ' por ' + esc(sr.fechada_por) : '') +
+    ' ' + (sr.ensaio ? CC.selo('ENSAIO', 'cf') : '') + '</div>';
+  h += '<div class="kpis">' +
+    '<div class="kpi"><b>' + (r.ppc != null ? esc(r.ppc) + '%' : '<span class="fraco">não informado</span>') + '</b><span>PPC · ' + esc(r.cumpridos) + ' de ' + esc(r.publicados) + '</span></div>' +
+    '<div class="kpi"><b>' + esc(r.parciais) + '</b><span>parciais</span></div>' +
+    '<div class="kpi"><b>' + esc(r.nao) + '</b><span>não cumpridos</span></div>' +
+    '<div class="kpi"><b>' + esc(r.cancelados) + '</b><span>cancelados</span></div>' +
+    '<div class="kpi"><b>' + esc(r.extras) + '</b><span>extras (' + esc(r.extras_cumpridos || 0) + ' cumpridos, fora do PPC)</span></div></div>';
+  var qtxt = Object.keys(qu).map(function (u) { return CC.num(qu[u].realizada) + ' de ' + CC.num(qu[u].prometida) + ' ' + u; }).join(' · ');
+  var p4 = ppc4();
+  h += '<ul>' +
+    '<li>Com restrição: ' + esc(r.com_restricao) + ', cumpridos ' + esc(r.com_restricao_cumpridos) + '</li>' +
+    '<li>Liberação: no cronograma ' + ou(lib.no_cronograma) + ' × prontas ' + ou(lib.prontas) + ' × comprometidas ' + ou(lib.comprometidas) + '</li>' +
+    '<li>Quantidade: ' + (r.qtd_pct != null ? esc(r.qtd_pct) + '% do prometido' + (qtxt ? ' (' + esc(qtxt) + ')' : '') : '<span class="fraco">sem compromisso de quantidade</span>') + '</li>' +
+    '<li>Dias apontados: ' + ou(r.dias_apontados) + ' de ' + ou(r.dias_uteis) + ' dias úteis</li>' +
+    '<li>Tardios: ' + esc(r.tardios || 0) + ' · sem lastro: ' + (lst(r.sem_lastro).length ? esc(lst(r.sem_lastro).join(', ')) : '<span class="fraco">nenhum</span>') +
+    ' · reincidentes: ' + (lst(r.reincidentes).length ? esc(lst(r.reincidentes).join(', ')) : '<span class="fraco">nenhum</span>') + '</li>' +
+    '<li>Causas do fechamento: ' + contagem(r.por_causa) + '</li>' +
+    '<li>Paradas do apontamento (contadas à parte): ' + contagem(r.paradas_por_causa) + '</li>' +
+    '<li>Veio de compromisso com restrição: ' + contagem(r.por_causa_restricao) + '</li>' +
+    (r.por_resp ? '<li>Por responsável: ' + Object.keys(r.por_resp).map(function (k) { var x = r.por_resp[k]; return esc(k) + ' ' + esc(x.cumpr) + ' de ' + esc(x.pub); }).join(' · ') + '</li>' : '') +
+    '<li>PPC das 4 últimas semanas fechadas, sem as de ensaio: ' +
+    (p4.pend ? '<span class="fraco">calculando…</span>' : p4.semanas.length ? '<b>' + esc(p4.ppc) + '%</b> (' + esc(p4.n) + ' de ' + esc(p4.m) + ', ' + esc(plural(p4.semanas.length, 'semana', 'semanas')) + ')' :
+      '<span class="fraco">não informado: ainda não há semana fechada fora do ensaio</span>') + '</li>' +
+    '</ul><div class="hint" style="margin-top:8px">PPC não é avanço físico: mede quantas promessas da semana foram cumpridas, não quanto da obra andou.</div>';
+  pinta('s-placar', h + '</div>');
+}
+function listaT(ids) {
+  if (!ids || !ids.length) return '<span class="fraco">nenhuma</span>';
+  return ids.map(function (t) { return '<span title="' + esc(nomeAtiv(t)) + '">' + esc(t) + '</span>'; }).join(', ');
+}
+function rQual() {
+  var q = S.X.qualidade || {}, s = q.semana, h = '<div class="card qual"><h3>Qualidade do dado</h3><ul>';
+  if (s) {
+    h += '<li>Semana ' + esc(CC.d(s.seg)) + ': ' + ou(s.dias_apontados) + ' de ' + ou(s.dias_uteis) + ' dias apontados, ' + esc(plural(+s.tardios || 0, 'tardio', 'tardios')) +
+      ', ' + esc(CC.rot('status_pub', s.status_pub)) + ', ' + ou(s.cobertura) + (s.reaberta ? ', reaberta ' + esc(s.reaberta) + 'x' : '') +
+      (lst(s.sem_lastro).length ? ', sem lastro: ' + esc(lst(s.sem_lastro).join(', ')) : '') + '</li>';
+  } else h += '<li class="fraco">Sem semana fechada para conferir.</li>';
+  h += '<li>Vencidas sem data real: ' + listaT(q.vencidas_sem_real) + '</li>' +
+    '<li>Não começaram: ' + listaT(q.nao_comecaram) + '</li>' +
+    '<li>Áreas sem pessoa: ' + ((q.areas_sem_pessoa || []).length ? esc(q.areas_sem_pessoa.map(function (a) { return String(a).split(':')[0]; }).join(', ')) : '<span class="fraco">nenhuma</span>') + '</li>' +
+    '<li>Demandas sem dono: ' + esc(q.demandas_sem_dono || 0) + '</li>' +
+    '<li>Vencidas há mais de 7 dias: ' + esc(q.vencidas_7 || 0) + '</li>' +
+    '<li>Dono com mais de 8 abertas: ' + ((q.donos_mais_8 || []).length ? esc(lst(q.donos_mais_8).join(', ')) : '<span class="fraco">nenhum</span>') + '</li>' +
+    (q.base ? '<li><b>' + esc(q.base) + '</b></li>' : '') + '</ul></div>';
+  pinta('s-qual', h);
+}
+function rCopiar() {
+  var t = S.X.texto || '';
+  var h = '<div class="card"><h3>Resumo para a pauta de segunda</h3><div class="lin fraco">O mesmo texto da reunião: frase, luzes, o que decidir e o que está em risco.</div>' +
+    '<div class="cc-acts"><button type="button" class="btn pri" data-a="copiar-resumo"' + (t ? '' : ' disabled') + '>Copiar resumo</button></div>' +
+    (S.copia ? '<textarea class="copia" readonly aria-label="Texto do resumo" data-k="copia">' + esc(t) + '</textarea><div class="hint">Não consegui copiar sozinho: selecione o texto e copie.</div>' : '') + '</div>';
+  pinta('s-copiar', h);
+}
+
+// ===================================================================== Demandas
+function rDem() {
+  var L = S.L, a = ator(), nome = a.nome;
+  var ab = (L.demandas || []).filter(aberta);
+  var dec = ab.filter(function (d) { return nome && (d.decisores || []).indexOf(nome) >= 0; });
+  var resp = ab.filter(function (d) { return nome && d.resp === nome && dec.indexOf(d) < 0; });
+  var acs = ((S.X && S.X.para_decidir && S.X.para_decidir.acordos) || []);
+  function linha(d, como) {
+    return '<div class="dec-item"><div class="cc-cab"><b>D' + esc(d.num) + '</b><span class="fraco">· ' + esc(areaCurta(d.area)) + '</span>' +
+      (d.alerta ? CC.selo(d.alerta, CC.COR.alerta[d.alerta] || 'mu') : '') + '</div><div class="lin">' + esc(d.oque) + '</div>' +
+      '<div class="lin fraco">' + esc(como) + ' · precisa até ' + esc(CC.d(d.efetivo || d.prazo)) + (d.dias != null ? ' · ' + esc(d.dias < 0 ? 'venceu há ' + plural(-d.dias, 'dia', 'dias') : d.dias === 0 ? 'vence hoje' : 'faltam ' + plural(d.dias, 'dia', 'dias')) : '') + '</div>' +
+      '<div class="cc-acts"><button type="button" class="btn" data-a="ver-dem" data-v="' + esc(d.num) + '">Ver o cartão</button></div></div>';
+  }
+  var h = '<div class="card"><h3>Decisões que são suas</h3>';
+  if (!nome) h += '<div class="lin fraco">Sem nome: não dá para saber quais são suas.</div>';
+  else {
+    h += dec.map(function (d) { return linha(d, d.resp === nome ? 'você é o responsável e decide' : 'você decide (responsável ' + d.resp + ')'); }).join('') +
+      resp.map(function (d) { return linha(d, 'você é o responsável'); }).join('');
+    if (acs.length) h += '<div class="dec-item"><div class="lin">' + esc(plural(acs.length, 'de acordo pendente', 'de acordo pendentes')) + ' em replanejamento: ' +
+      esc(acs.map(function (x) { return x.ativ; }).join(', ')) + '</div><div class="cc-acts"><button type="button" class="btn" data-a="ir-sit">Ver na Situação</button></div></div>';
+    if (!dec.length && !resp.length && !acs.length) h += '<div class="lin fraco">Nenhuma decisão com você agora.</div>';
+  }
+  pinta('d-suas', h + '</div>');
+  var dn = L.donos || {}, ks = Object.keys(dn).sort(function (x, y) { return (dn[y].abertas || 0) - (dn[x].abertas || 0) || (x < y ? -1 : 1); });
+  var t = '<div class="card"><h3>Por dono</h3><div class="hint">Demandas abertas de cada responsável. Mais de 8 abertas é sinal de sobrecarga.</div></div>';
+  if (ks.length) {
+    t += '<div class="scroll-x" style="margin-bottom:12px"><table><thead><tr><th>Dono</th><th class="num">Abertas</th><th class="num">Vencidas</th><th>Mais de 8?</th></tr></thead><tbody>' +
+      ks.map(function (k) {
+        var o = dn[k];
+        return '<tr><td>' + (o.setor ? CC.selo('SEM DONO (' + k + ')', 'ne') + ' <span class="cc-cinza">falta pessoa</span>' : esc(k)) + '</td><td class="num">' + esc(o.abertas || 0) + '</td>' +
+          '<td class="num">' + (o.vencidas ? '<b style="color:var(--ne)">' + esc(o.vencidas) + '</b>' : '0') + '</td><td>' + (o.mais_de_8 ? CC.selo('MAIS DE 8', 'ne') : 'não') + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  } else t = '<div class="card"><h3>Por dono</h3><div class="lin fraco">Nenhuma demanda aberta.</div></div>';
+  pinta('d-donos', t);
+  if (!S.dmOk) {
+    CC.demandas.render($('d-mod'), L, { reler: function () { return reler(); }, onMudou: function () { agendarReler(); } });
+    S.dmOk = true;
+  } else CC.demandas.atualizar(L);
+}
+function verDemanda(num) {
+  irAba('dem');
+  var go = function () {
+    var el = D.getElementById('cc-dem-' + num);
+    if (!el && CC.demandas.filtro() !== 'todas') { CC.demandas.filtro('todas'); el = D.getElementById('cc-dem-' + num); }
+    if (el) { el.scrollIntoView({ block: 'start' }); el.classList.add('cc-on'); setTimeout(function () { el.classList.remove('cc-on'); }, 1600); }
+  };
+  setTimeout(go, 30);
+}
+
+// ===================================================================== Semana
+function rSem() { rSemNav(); rSemCab(); rSemComps(); rSemProg(); rSemFora(); rSemHist(); }
+function rSemNav() {
+  var L = S.L, s = L.semana || {};
+  pinta('w-nav', '<div class="semnav"><button class="btn" type="button" data-a="sem-ant" id="w-ant">‹ Anterior</button>' +
+    '<span class="sem">Semana ' + esc(CC.semana(L.seg)) + ' ' + CC.seloDe('semana', s.estado || 'nova') + '</span>' +
+    '<button class="btn" type="button" data-a="sem-prox" id="w-prox">Próxima ›</button>' +
+    '<button class="btn" type="button" data-a="sem-hoje" id="w-hoje"' + (S.seg ? '' : ' disabled') + '>Esta semana</button></div>');
+}
+function rSemCab() {
+  if (!S.L) return;
+  var L = S.L, s = L.semana, pl = L.placar || {}, h = '<div class="card">';
+  if (!s) { pinta('w-cab', h + '<div class="lin fraco">Semana sem compromisso: nada publicado nem em rascunho.</div></div>'); return; }
+  h += '<div class="cc-cab">' + CC.seloDe('semana', s.estado) + (s.status_pub ? CC.seloDe('status_pub', s.status_pub) : '') +
+    (s.cobertura ? CC.seloDe('cobertura', s.cobertura) : '') + (s.ensaio ? CC.selo('ENSAIO', 'cf') : '') +
+    (s.reaberta ? CC.selo('REABERTA ' + s.reaberta + 'x', 'cf') : '') + '</div>';
+  h += '<div class="lin">' + (s.publicada_em ? 'Publicada ' + esc(CC.quando(s.publicada_em)) + (s.publicada_por ? ' por ' + esc(s.publicada_por) : '') : '<span class="fraco">ainda não publicada</span>') +
+    (s.fechada_em ? ' · fechada ' + esc(CC.quando(s.fechada_em)) + (s.fechada_por ? ' por ' + esc(s.fechada_por) : '') : '') + '</div>';
+  var ppc = s.estado !== 'fechada' ? 'PPC: semana ainda não fechada' + (pl.publicados ? ' (' + plural(+pl.publicados, 'compromisso publicado', 'compromissos publicados') + ')' : '') :
+    pl.ppc != null ? 'PPC ' + pl.ppc + '% (' + pl.cumpridos + ' de ' + pl.publicados + ')' : 'PPC não informado';
+  var fe = s.estado === 'fechada';
+  h += '<div class="lin"><b>' + esc(ppc) + '</b>' + (fe && pl.parciais ? ' · ' + esc(plural(pl.parciais, 'parcial', 'parciais')) : '') +
+    (fe && pl.nao ? ' · ' + esc(pl.nao) + ' não cumprido(s)' : '') + (pl.cancelados ? ' · ' + esc(pl.cancelados) + ' cancelado(s)' : '') +
+    (pl.extras ? ' · ' + esc(plural(pl.extras, 'extra', 'extras')) : '') + (s.ensaio ? ' <span class="fraco">(ensaio: não entra na média)</span>' : '') + '</div>';
+  if (s.reaberta && s.estado !== 'fechada' && s.resumo && s.resumo.ppc != null) {
+    h += '<div class="lin fraco">No fechamento anterior: PPC ' + esc(s.resumo.ppc) + '% (' + esc(s.resumo.cumpridos) + ' de ' + esc(s.resumo.publicados) + '). O placar novo sai quando fechar de novo.</div>';
+  }
+  if (s.reaberta && s.estado === 'fechada' && s.resumo_atual && s.resumo && s.resumo.ppc != null && s.resumo_atual.ppc !== s.resumo.ppc) {
+    h += '<div class="lin fraco">1º fechamento: PPC ' + esc(s.resumo.ppc) + '% (' + esc(s.resumo.cumpridos) + ' de ' + esc(s.resumo.publicados) + ')</div>';
+  }
+  if (s.nota) h += '<div class="lin"><span class="fraco">Nota do fechamento:</span> ' + esc(s.nota) + '</div>';
+  if (s.estado === 'fechada' && pode('reabrir')) {
+    var st = S.reab && S.reab.seg === L.seg ? S.reab : null;
+    var pend = pendDe(function (m) { return m.tipo === 'reabrir' && m.seg === L.seg; });
+    var rec = recDe(function (m) { return m.tipo === 'reabrir' && m.seg === L.seg; });
+    if (st && st.aberto) {
+      h += '<div class="cc-form"><div><label class="cc-rot" for="w-reab-motivo">Por que reabrir? (10 letras ou mais)</label>' +
+        '<textarea id="w-reab-motivo" data-k="reab-motivo" rows="3" maxlength="300" placeholder="Ex.: C5 foi fechado com a quantidade errada">' + esc(st.motivo || '') + '</textarea></div>' +
+        '<div class="cc-erro" id="w-reab-err" role="alert">' + esc(st.err || '') + '</div>' +
+        '<div class="hint">A semana volta a ficar publicada; o engenheiro fecha de novo e o placar novo fica ao lado do primeiro.</div>' +
+        '<div class="cc-acts"><button type="button" class="cc-btn cc-cheio cc-perigo" data-escreve data-a="reabrir-enviar">Reabrir a semana</button>' +
+        '<button type="button" class="cc-btn" data-a="reabrir-voltar">Voltar</button></div></div>';
+    } else if (!pend.length) {
+      h += '<div class="cc-acts"><button type="button" class="cc-btn cc-perigo" data-escreve data-a="reabrir">Reabrir semana</button></div>';
+    }
+    h += pendHtml(pend) + recHtml(rec);
+  }
+  pinta('w-cab', h + '</div>');
+}
+function rotRes(c) {
+  if (c.cancelado_em) return CC.selo('CANCELADO', 'mu') + (c.cancel_motivo ? '<div class="cc-cinza">' + esc(c.cancel_motivo) + '</div>' : '');
+  if (!c.resultado) return '<span class="fraco">não fechado</span>';
+  var extra = '';
+  if (c.resultado === 'parcial') {
+    if (c.feito_pct != null) extra = ' (' + c.feito_pct + '%)';
+    else if (c.feito_qtd != null) extra = ' (' + CC.num(c.feito_qtd) + (c.qtd != null ? ' de ' + CC.num(c.qtd) : '') + (c.un ? ' ' + c.un : '') + ')';
+  }
+  return CC.seloDe('resultado', c.resultado) + esc(extra) + (c.fechado_em ? '<div class="cc-cinza">' + esc(CC.quando(c.fechado_em)) + '</div>' : '');
+}
+function qtdTxt(o) { return o && o.qtd != null ? CC.num(o.qtd) + (o.un ? ' ' + o.un : '') : ''; }
+function compAtual(c) {
+  var sel = (c.extra ? CC.selo('EXTRA', 'ac') + ' ' : '') + (c.com_restricao ? CC.selo('com restrição', 'cf') + ' ' : '') +
+    (c.origem === 'saldo' ? CC.selo('saldo', 'ac') + ' ' : '');
+  return '<div><b>' + esc(c.entrega) + '</b></div>' + (c.titulo ? '<div class="cc-cinza">' + esc(c.titulo) + '</div>' : '') +
+    (c.ativ_nome ? '<div class="cc-cinza">' + esc(c.ativ_nome) + '</div>' : '') +
+    '<div>' + esc(c.resp) + (qtdTxt(c) ? ' · ' + esc(qtdTxt(c)) : '') + ' · até ' + esc(CC.dd(c.prometido)) + '</div>' +
+    '<div>' + sel + '<span class="cc-cinza">versão ' + esc(c.versao) + '</span>' +
+    (c.origem_ref ? ' <span class="cc-cinza">· de ' + esc(String(c.origem_ref).split('|')[1] || '') + ' ' + esc(CC.d(String(c.origem_ref).split('|')[0])) + '</span>' : '') + '</div>' +
+    (c.com_restricao && c.justif_restricao ? '<div class="cc-cinza">restrição: ' + esc(c.justif_restricao) + '</div>' : '');
+}
+function compPub(c) {
+  var p = c.publicado;
+  if (!p) return c.extra ? '<span class="fraco">extra: entrou depois de publicar (fora do PPC)</span>' : '<span class="fraco">não publicado (rascunho)</span>';
+  var dif = [];
+  if (p.entrega !== c.entrega) dif.push('entrega');
+  if (p.resp !== c.resp) dif.push('responsável');
+  if ((p.qtd == null ? null : +p.qtd) !== (c.qtd == null ? null : +c.qtd) || (p.un || null) !== (c.un || null)) dif.push('quantidade');
+  if (p.prometido !== c.prometido) dif.push('data');
+  if (!!p.com_restricao !== !!c.com_restricao) dif.push('restrição');
+  return '<div>' + esc(p.entrega) + '</div><div>' + esc(p.resp) + (qtdTxt(p) ? ' · ' + esc(qtdTxt(p)) : '') + ' · até ' + esc(CC.dd(p.prometido)) + '</div>' +
+    '<div><span class="cc-cinza">versão ' + esc(p.versao) + '</span>' + (p.com_restricao ? ' ' + CC.selo('com restrição', 'cf') : '') + '</div>' +
+    (dif.length ? '<div class="mudou">mudou depois de publicar: ' + esc(dif.join(', ')) + '</div>' : '');
+}
+function diasUteis(L) {
+  var u = (L.prazos && L.prazos.uteis) || [];
+  if (u.length && CC.seg(u[0]) === L.seg) return u;
+  var o = []; for (var i = 0; i < 5; i++) o.push(CC.mais(L.seg, i));
+  return o;
+}
+function compDias(c, L) {
+  var ab = { andou: 'A', parado: 'P', entregue: 'E' };
+  var dias = diasUteis(L).slice(), ap = c.apont || [];
+  ap.forEach(function (a) { if (dias.indexOf(a.dia) < 0) dias.push(a.dia); });
+  dias.sort();
+  return '<div class="dias">' + dias.map(function (d) {
+    var a = ap.filter(function (x) { return x.dia === d; })[0];
+    if (!a) return '<span class="dia" title="' + esc(CC.dd(d)) + ': sem apontamento"><span>' + esc(CC.dow(d)) + '</span><b>–</b></span>';
+    var t = CC.dd(d) + ': ' + CC.rot('situacao', a.situacao) + (a.qtd != null ? ' · ' + CC.num(a.qtd) : '') + (a.causa ? ' · ' + a.causa : '') +
+      (a.causa_det ? ' (' + a.causa_det + ')' : '') + (a.demanda ? ' · D' + a.demanda : '') + (a.tardio ? ' · tardio' : '') + (a.lote ? ' · em lote' : '') +
+      (a.obs ? ' · ' + a.obs : '') + (a.quem ? ' · ' + a.quem : '');
+    return '<span class="dia ' + esc(a.situacao) + (a.tardio ? ' tardio' : '') + '" title="' + esc(t) + '"><span>' + esc(CC.dow(d)) + '</span><b>' + esc(ab[a.situacao] || '?') + '</b></span>';
+  }).join('') + '</div>' +
+    ap.filter(function (a) { return a.situacao === 'parado'; }).map(function (a) {
+      return '<div class="cc-cinza">' + esc(CC.dow(a.dia)) + ': parado, ' + esc(a.causa || 'sem causa') + (a.demanda ? ', D' + esc(a.demanda) : '') + '</div>';
+    }).join('');
+}
+function compCausa(c) {
+  if (!c.causa) return '<span class="fraco">' + (c.resultado === 'parcial' || c.resultado === 'nao' ? 'não informado' : 'não se aplica') + '</span>';
+  return esc(c.causa) + (c.causa_det ? '<div class="cc-cinza">' + esc(c.causa_det) + '</div>' : '') + (c.causa_txt ? '<div class="cc-cinza">' + esc(c.causa_txt) + '</div>' : '') +
+    (c.falta ? '<div class="cc-cinza">falta: ' + esc(c.falta) + '</div>' : '');
+}
+function compReplan(c) {
+  var r = c.replan;
+  if (!r) return '<span class="fraco">' + (c.resultado === 'parcial' || c.resultado === 'nao' ? 'sem replanejamento' : 'não se aplica') + '</span>';
+  return '#' + esc(r.id) + ' · até ' + esc(CC.d(r.fim_novo)) + '<div>' + esc(CC.rot('decisao', r.decisao)) + '</div>' + (r.acordo ? '<div>' + CC.seloDe('acordo', r.acordo) + '</div>' : '');
+}
+function compSaldo(c) {
+  if (c.saldo === 'aceito') return 'aceito' + (c.saldo_em ? '<div class="cc-cinza">' + esc(c.saldo_em.cid) + ' na semana ' + esc(CC.d(c.saldo_em.seg)) + '</div>' : '');
+  if (c.saldo === 'descartado') return 'descartado' + (c.saldo_motivo ? '<div class="cc-cinza">' + esc(c.saldo_motivo) + '</div>' : '');
+  if (c.resultado === 'parcial' || c.resultado === 'nao') return '<span class="fraco">a decidir</span>';
+  return '<span class="fraco">não se aplica</span>';
+}
+// "Compras e custo" da tarefa do compromisso: o módulo CC.erp preenche com o que o ERP tem ligado; mostra "sem compra ligada" quando há demanda de compra aberta
+function compErp(c, L) {
+  if (!c.ativ || !/^T\d{1,4}$/.test(c.ativ)) return '';
+  var ds = (L.demandas || []).filter(function (d) { return aberta(d) && (d.ativs || []).indexOf(c.ativ) >= 0 && (d.area === 'SUPRIMENTOS' || d.item === 'material'); });
+  return '<div data-cc-erp-ativ="' + esc(c.ativ) + '"' + (ds.length ? ' data-vazio="1"' : '') + (ds.length === 1 ? ' data-link-demanda="' + esc(ds[0].num) + '"' : '') + '></div>';
+}
+function rSemComps() {
+  var L = S.L, cs = ((L.semana && L.semana.comps) || []).slice().sort(function (a, b) { return (+String(a.cid).slice(1)) - (+String(b.cid).slice(1)); });
+  var w = $('w-comps');
+  if (!cs.length) { pinta(w, '<div class="card fraco">Sem compromisso nesta semana.</div>'); return; }
+  if (!$('w-comps-tb')) {
+    w.innerHTML = '<div class="scroll-x"><table><thead><tr><th>Nº</th><th>Atual</th><th>Publicado</th><th>Dias</th><th>Resultado</th><th>Causa</th><th>Replanejamento</th><th>Saldo</th><th></th></tr></thead><tbody id="w-comps-tb"></tbody></table></div>' +
+      '<div class="hint" style="margin-top:6px">Dias: A andou · P parado · E entregue · – sem apontamento (toque no dia para ver o detalhe). Borda tracejada: apontado depois do prazo.</div>';
+    w.__h = null;
+  }
+  lista($('w-comps-tb'), cs, function (c) { return 'wc-' + idSeguro(L.seg + '-' + c.cid); }, function (c) {
+    return '<td><b>' + esc(c.cid) + '</b>' + (c.ativ ? '<div class="cod">' + esc(c.ativ) + '</div>' : c.frente ? '<div class="cod">' + esc(c.frente) + '</div>' : '') + '</td>' +
+      '<td style="min-width:220px">' + compAtual(c) + compErp(c, L) + '</td><td style="min-width:200px">' + compPub(c) + '</td><td>' + compDias(c, L) + '</td>' +
+      '<td style="min-width:110px">' + rotRes(c) + '</td><td style="min-width:120px">' + compCausa(c) + '</td><td style="min-width:130px">' + compReplan(c) + '</td><td style="min-width:110px">' + compSaldo(c) + '</td>' +
+      '<td><button type="button" class="btn" data-a="mud-comp" data-v="' + esc(L.seg + '|' + c.cid) + '" title="Ver as mudanças deste compromisso">Mudanças</button></td>';
+  }, 'tr');
+}
+function rSemProg() {
+  var L = S.L, p = L.programacao || {}, at = p.ativs || [];
+  var h = '<div class="card"><div class="cc-cab">' + (p.cobertura ? CC.seloDe('cobertura', p.cobertura) : '<span class="fraco">cobertura não informada</span>') +
+    '<span>' + esc(plural(+p.total || 0, 'atividade do cronograma na semana', 'atividades do cronograma na semana')) + ' · ' + esc(p.sem_justificativa || 0) + ' sem compromisso e sem justificativa</span></div>';
+  var jp = L.janela_publicada && L.janela_publicada.programacao;
+  if (jp && jp.cobertura && jp.cobertura !== p.cobertura) h += '<div class="lin cc-cinza">Na publicação: ' + esc(jp.cobertura) + ' (' + esc(jp.total) + ' atividades)</div>';
+  h += '</div>';
+  if (at.length) {
+    h += '<div class="scroll-x" style="margin-bottom:12px"><table><thead><tr><th>Atividade</th><th>Na semana</th><th>Compromisso</th><th>Se não entra, por quê</th></tr></thead><tbody>' +
+      at.map(function (a) {
+        return '<tr><td>' + tComNome(a.id) + '</td><td class="dt">' + esc(CC.d(a.ini)) + ' a ' + esc(CC.d(a.fim)) + '</td>' +
+          '<td>' + ((a.cids || []).length ? esc(a.cids.join(', ')) : '<span class="fraco">sem compromisso</span>') + '</td>' +
+          '<td>' + (a.fora ? esc(CC.rot('nao_entra', a.fora)) + (a.fora_txt ? '<div class="cc-cinza">' + esc(a.fora_txt) + '</div>' : '') :
+            (a.cids || []).length ? '<span class="fraco">não se aplica</span>' : CC.selo('SEM JUSTIFICATIVA', 'ne')) + '</td></tr>';
+      }).join('') + '</tbody></table></div>';
+  }
+  pinta('w-prog', h);
+}
+function rSemFora() {
+  var l = S.L.fora || [];
+  if (!l.length) { pinta('w-fora', '<div class="card fraco">Nenhuma atividade marcada como "não entra" nesta semana.</div>'); return; }
+  pinta('w-fora', '<div class="card">' + l.map(function (f) {
+    return '<div class="dec-item"><div>' + tComNome(f.ativ) + '</div><div class="lin">' + esc(CC.rot('nao_entra', f.motivo)) + (f.txt ? ': ' + esc(f.txt) : '') + '</div>' +
+      '<div class="cc-cinza">' + esc(f.quem || '') + (f.em ? ' · ' + esc(CC.quando(f.em)) : '') + '</div></div>';
+  }).join('') + '</div>');
+}
+function rSemHist() {
+  if (!S.L) return;
+  var l = (S.L.semanas || []).slice().sort(function (a, b) { return a.seg < b.seg ? 1 : -1; });
+  if (!l.length) { pinta('w-hist', '<div class="card fraco">Nenhuma semana ainda.</div>'); return; }
+  pinta('w-hist', '<div class="scroll-x"><table><thead><tr><th>Semana</th><th>Estado</th><th class="num">PPC</th><th class="num">1º fechamento</th><th>Publicação</th><th>Cobertura</th><th>Ensaio</th><th class="num">Reaberta</th><th class="num">Dias apontados</th><th>Nota</th></tr></thead><tbody>' +
+    l.map(function (s) {
+      var e = S.ens[s.seg];
+      return '<tr><td class="dt"><button type="button" class="btn" data-a="sem-ir" data-v="' + esc(s.seg) + '">' + esc(CC.semana(s.seg)) + '</button></td>' +
+        '<td>' + CC.seloDe('semana', s.estado) + '</td>' +
+        '<td class="num">' + (s.ppc != null ? esc(s.ppc) + '% <span class="cc-cinza">(' + esc(s.cumpridos) + ' de ' + esc(s.publicados) + ')</span>' : '<span class="fraco">não fechada</span>') + '</td>' +
+        '<td class="num">' + (s.ppc_1o != null && s.ppc_1o !== s.ppc ? esc(s.ppc_1o) + '%' : '<span class="fraco">igual</span>') + '</td>' +
+        '<td>' + (s.status_pub ? CC.seloDe('status_pub', s.status_pub) : '<span class="fraco">não publicada</span>') + '</td>' +
+        '<td>' + (s.cobertura ? CC.seloDe('cobertura', s.cobertura) : '<span class="fraco">não informado</span>') + '</td>' +
+        '<td>' + (s.estado !== 'publicada' && s.estado !== 'fechada' ? '<span class="fraco">não publicada</span>' : e === undefined ? '<span class="fraco">não informado</span>' : e ? CC.selo('ENSAIO', 'cf') : 'não') + '</td>' +
+        '<td class="num">' + (s.reaberta ? esc(s.reaberta) + 'x' : '0') + '</td>' +
+        '<td class="num">' + (s.dias_apontados_obra != null ? esc(s.dias_apontados_obra) : '<span class="fraco">não informado</span>') + '</td>' +
+        '<td>' + (s.nota ? esc(s.nota) : '') + '</td></tr>';
+    }).join('') + '</tbody></table></div>');
+}
+function irSemana(seg) {
+  S.seg = seg && seg !== CC.seg(CC.hoje()) ? seg : null;
+  var sp = $('w-nav').querySelector('.sem');
+  if (sp) sp.setAttribute('aria-busy', 'true');
+  CC.ler(S.seg).then(function (L) {
+    S.L = L; anotarEnsaio(L.seg, L.semana);
+    desenhar();
+  }, function (e) { CC.toast('Não consegui ler a semana: ' + CC.erro(e)); });
+}
+
+// ===================================================================== Mudanças
+var TABS = [
+  { v: '', r: 'Tudo' }, { v: 'comp', r: 'Compromissos' }, { v: 'apont', r: 'Apontamentos' }, { v: 'demanda', r: 'Demandas' },
+  { v: 'replan', r: 'Replanejamentos' }, { v: 'ativ', r: 'Atividades' }, { v: 'semana', r: 'Semanas' }, { v: 'preparo', r: 'Preparação' },
+  { v: 'fora', r: 'Não entra' }
+];
+var ROT_TAB = { comp: 'compromisso', apont: 'apontamento', demanda: 'demanda', replan: 'replanejamento', ativ: 'atividade', semana: 'semana', preparo: 'preparação', fora: 'não entra', area: 'área', obra: 'obra', chave: 'chave', feriado: 'feriado' };
+function anoDe(d, m, y) {
+  d = +d; m = +m;
+  if (y) { y = +y; if (y < 100) y += 2000; return y + '-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2); }
+  var h = CC.hoje(), a = +h.slice(0, 4), iso = function (yy) { return yy + '-' + ('0' + m).slice(-2) + '-' + ('0' + d).slice(-2); };
+  var x = iso(a), df = CC.dif(x, h);
+  if (df > 183) x = iso(a - 1); else if (df < -183) x = iso(a + 1);
+  return x;
+}
+function itemDe(txt) {
+  var t = String(txt || '').trim(), u = t.toUpperCase(), m;
+  if (!t) return null;
+  if ((m = /^D\s*(\d+)$/.exec(u))) return { tabela: 'demanda', item: String(+m[1]), rot: 'demanda D' + (+m[1]) };
+  if ((m = /^#\s*(\d+)$/.exec(u))) return { tabela: 'replan', item: String(+m[1]), rot: 'replanejamento #' + (+m[1]) };
+  if ((m = /^C\s*(\d+)(?:\s+(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?)?$/.exec(u))) {
+    var dt = m[2] ? anoDe(m[2], m[3], m[4]) : S.L.seg;
+    if (!CC.ehData(dt)) return { erro: 'Data inválida.' };
+    var sg = CC.seg(dt);
+    return { tabela: 'comp', item: sg + '|C' + (+m[1]), rot: 'compromisso C' + (+m[1]) + ' da semana ' + CC.semana(sg) };
+  }
+  if ((m = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/.exec(u))) {
+    var d2 = anoDe(m[1], m[2], m[3]);
+    if (!CC.ehData(d2)) return { erro: 'Data inválida.' };
+    return { tabela: 'semana', item: CC.seg(d2), rot: 'semana ' + CC.semana(CC.seg(d2)) };
+  }
+  if (/^T\d+$/.test(u)) return { ativ: u, rot: 'atividade ' + u };
+  return { item: t, rot: 'chave "' + t + '"' };
+}
+function filtroServidor() {
+  var it = itemDe(S.hf.item), f = { tabela: S.hf.tab || null, item: null, ativ: null, rot: '', erro: '' };
+  var at = String(S.hf.ativ || '').trim().toUpperCase();
+  if (at) f.ativ = at;
+  if (it) {
+    if (it.erro) f.erro = it.erro;
+    if (it.tabela) f.tabela = it.tabela;
+    if (it.item) f.item = it.item;
+    if (it.ativ) f.ativ = it.ativ;
+    f.rot = it.rot || '';
+  }
+  return f;
+}
+function carregarHist(forcar) {
+  var f = filtroServidor(), k = JSON.stringify([f.tabela, f.item, f.ativ, S.hLim]);
+  if (f.erro) { S.hErr = f.erro; rMud(); return; }
+  if (!forcar && k === S.hChave && S.H) { rMud(); return; }
+  S.hCarregando = true; S.hErr = ''; rMud();
+  var meu = k;
+  S.hPedido = meu;
+  CC.historico({ tabela: f.tabela, item: f.item, ativ: f.ativ, limite: S.hLim }).then(function (rows) {
+    if (S.hPedido !== meu) return;
+    S.H = Array.isArray(rows) ? rows : []; S.hChave = k; S.hVelho = false;
+  }, function (e) { if (S.hPedido === meu) S.hErr = CC.erro(e); }).then(function () {
+    if (S.hPedido !== meu) return;
+    S.hCarregando = false; rMud();
+  });
+}
+var CAMPO = {
+  entrega: 'entrega', resp: 'responsável', qtd: 'quantidade', un: 'unidade', prometido: 'prometido para', titulo: 'título', frente: 'frente',
+  local: 'local', entrega_tipo: 'tipo de entrega', com_restricao: 'com restrição', justif_restricao: 'justificativa da restrição',
+  resultado: 'resultado', feito_pct: '% feito', feito_qtd: 'quantidade feita', causa: 'causa', causa_det: 'detalhe da causa', causa_txt: 'texto da causa',
+  falta: 'o que falta', saldo: 'saldo', saldo_motivo: 'motivo do saldo', cancel_motivo: 'motivo do cancelamento', publicado: 'publicado',
+  situacao: 'situação', obs: 'nota', link: 'link', demanda: 'demanda', tardio: 'tardio', lote: 'em lote',
+  area: 'área', oque: 'o que é preciso', prazo: 'precisa até', nova_data: 'nova data', vezes: 'vezes', decisores: 'quem decide', contraparte: 'contraparte',
+  ativs: 'trava', sem_ativ: 'não trava atividade', tarefa_id: 'Rxx do site', ref_ext: 'protocolo', resposta: 'resposta', resolvida_em: 'resolvida em',
+  impacto: 'impacto', cobrancas: 'cobranças', item: 'item', estado: 'estado', nota: 'nota', ensaio: 'ensaio', cobertura: 'cobertura', status_pub: 'prazo da publicação',
+  reaberta: 'reaberta', fim_real: 'término real', ini_real: 'início real', prev_fim: 'término previsto', prev_ini: 'início previsto', prev_replan: 'replanejamento',
+  real_origem: 'origem da data real', decisao: 'decisão', acordo: 'de acordo', acordo_obs: 'observação do de acordo', dispensa: 'ligações suspensas',
+  fim_novo: 'novo término', ini_novo: 'novo início', justif: 'justificativa', acao: 'ação', dono: 'dono', motivo: 'motivo', txt: 'texto'
+};
+var NAO_MOSTRA = { em: 1, quem: 1, obra: 1, criada_em: 1, criada_por: 1, fechado_em: 1, fechado_por: 1, publicada_em: 1, publicada_por: 1, fechada_em: 1, fechada_por: 1,
+  acordo_em: 1, acordo_por: 1, decidido_em: 1, respondida_em: 1, respondida_por: 1, resolvida_por: 1, cancelado_em: 1, sugestao: 1, atualizado_em: 1, atualizado_por: 1, janela: 1, resumo: 1, resumo_atual: 1, liberacao: 1 };
+function valTxt(k, v) {
+  if (v == null || v === '') return 'vazio';
+  if (typeof v === 'boolean') return v ? 'sim' : 'não';
+  if (Array.isArray(v)) return v.length ? v.map(function (x) { return typeof x === 'object' ? JSON.stringify(x) : String(x); }).join(', ') : 'nenhum';
+  if (typeof v === 'object') return k === 'impacto' ? 'recalculado' : k === 'publicado' ? 'publicado' : '…';
+  var s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return CC.d(s);
+  if (/^\d{4}-\d{2}-\d{2}T/.test(s)) return CC.quando(s);
+  if (k === 'resultado') return CC.rot('resultado', s).toLowerCase();
+  if (k === 'decisao') return CC.rot('decisao', s);
+  if (k === 'acordo') return CC.rot('acordo', s);
+  if (k === 'estado' || k === 'situacao') return s;
+  return CC.curto(s, 80);
+}
+function difTxt(a, d) {
+  a = a || {}; d = d || {};
+  var ks = Object.keys(d).filter(function (k) { return !NAO_MOSTRA[k] && JSON.stringify(a[k]) !== JSON.stringify(d[k]); });
+  if (!ks.length) return '';
+  return ks.map(function (k) { return (CAMPO[k] || k.replace(/_/g, ' ')) + ': ' + valTxt(k, a[k]) + ' → ' + valTxt(k, d[k]); }).join('; ');
+}
+function fechTxt(d, sg, cid) {
+  var r = d.resultado, t;
+  if (r === 'cumprido') t = 'resultado cumprido';
+  else if (r === 'parcial') {
+    var un = '', c = (S.L && S.L.seg === sg && S.L.semana) ? (S.L.semana.comps || []).filter(function (x) { return x.cid === cid; })[0] : null;
+    if (c && c.un) un = ' ' + c.un;
+    t = 'resultado parcial (' + (d.feito_pct != null ? d.feito_pct + '%' : d.feito_qtd != null ? CC.num(d.feito_qtd) + un : 'sem quantidade') + ')';
+  } else if (r === 'nao') t = 'resultado não cumprido';
+  else t = 'resultado tirado';
+  if (d.causa) t += ', ' + d.causa;
+  return t;
+}
+function traduz(r) {
+  var tab = String(r.tabela || '').replace(/^taf_ciclo_/, ''), ch = String(r.chave || ''), p = ch.split('|');
+  var a = r.antes, d = r.depois, ac = r.acao, o = { item: '', txt: '', l2: '' };
+  var at = r.ativ ? ' ' + r.ativ : '';
+  if (ac === 'CARGA') {
+    o.item = tab === 'ativ' ? ch : (ROT_TAB[tab] || tab) + ' ' + ch;
+    if (tab === 'ativ' && d) o.txt = 'base ' + CC.d(d.ini_base) + ' a ' + CC.d(d.fim_base) + (d.frente_cod ? ' (frente ' + d.frente_cod + ')' : '');
+    else if (tab === 'area' && d) o.txt = 'dono: ' + (d.dono || 'falta pessoa');
+    else o.txt = 'carga inicial';
+    return o;
+  }
+  if (tab === 'comp') {
+    o.item = (p[1] || ch) + at; o.l2 = 'semana ' + CC.semana(p[0]);
+    if (ac === 'fechar_item' && d) o.txt = fechTxt(d, p[0], p[1]);
+    else if (ac === 'publicar') o.txt = 'publicado' + (d && d.publicado ? ': ' + d.publicado.entrega + ' (até ' + CC.dd(d.publicado.prometido) + ')' : '');
+    else if (ac === 'comp_tirar') o.txt = 'tirado do rascunho' + (a && a.entrega ? ': ' + a.entrega : '');
+    else if (ac === 'comp_cancelar') o.txt = 'cancelado' + (d && d.cancel_motivo ? ': ' + d.cancel_motivo : '');
+    else if (!a && d) o.txt = (d.origem === 'saldo' ? 'compromisso de saldo criado' + (d.origem_ref ? ' (de ' + String(d.origem_ref).split('|')[1] + ' ' + CC.d(String(d.origem_ref).split('|')[0]) + ')' : '') : d.extra ? 'extra criado' : 'compromisso criado') + ': ' + d.entrega;
+    else if (ac === 'saldo' && d && 'saldo' in d) o.txt = d.saldo === 'aceito' ? 'saldo aceito' : d.saldo === 'descartado' ? 'saldo descartado' + (d.saldo_motivo ? ': ' + d.saldo_motivo : '') : 'saldo volta a decidir';
+    else o.txt = difTxt(a, d) || ac;
+  } else if (tab === 'apont') {
+    o.item = (p[1] || '') + at + (p[2] ? ' ' + CC.dd(p[2]) : ''); o.l2 = 'semana ' + CC.semana(p[0]);
+    if (ac === 'apont_apagar' || !d) o.txt = 'apontamento apagado';
+    else o.txt = CC.rot('situacao', d.situacao) + (d.qtd != null ? ' ' + CC.num(d.qtd) : '') + (d.causa ? ', ' + d.causa : '') + (d.causa_det ? ' (' + d.causa_det + ')' : '') +
+      (d.demanda ? ', D' + d.demanda : '') + (d.lote ? ', em lote' : '') + (d.tardio ? ', tardio' : '') + (a ? ' (mudou)' : '');
+  } else if (tab === 'demanda') {
+    o.item = 'D' + ch;
+    if (!a && d) o.txt = 'demanda criada' + (d.origem && d.origem !== 'manual' ? ' ' + CC.rot('origem_demanda', d.origem) : '') + ': ' + d.oque + ' (' + d.resp + ', precisa até ' + CC.d(d.prazo) + ')';
+    else if (ac === 'cobrar' && d && d.cobrancas) { var u = d.cobrancas[d.cobrancas.length - 1] || {}; o.txt = 'cobrada por ' + CC.rot('canal', u.canal) + ' (' + d.cobrancas.length + 'ª vez)'; }
+    else if (ac === 'impacto') o.txt = 'impacto recalculado';
+    else if (ac === 'demanda_resp' && d) o.txt = (d.situacao === 'resolvida' ? 'resolvida' : 'respondida') + (d.resposta ? ': ' + CC.curto(d.resposta, 120) : '');
+    else if (d && 'nova_data' in d && a && a.nova_data !== d.nova_data) o.txt = 'nova data ' + CC.d(d.nova_data) + (d.vezes ? ' (' + d.vezes + 'ª vez)' : '') + (r.motivo ? ': ' + r.motivo : '');
+    else if (d && d.situacao === 'cancelada') o.txt = 'cancelada' + (r.motivo ? ': ' + r.motivo : '');
+    else if (d && d.situacao === 'aberta' && a && a.situacao && a.situacao !== 'aberta') o.txt = 'reaberta' + (r.motivo ? ': ' + r.motivo : '');
+    else o.txt = difTxt(a, d) || ac;
+  } else if (tab === 'replan') {
+    o.item = '#' + ch + at;
+    if (!a && d) o.txt = 'replanejamento aberto ' + CC.rot('origem_replan', d.origem) + ': término ' + CC.d(d.fim_antes) + ' → ' + CC.d(d.fim_novo) + (d.causa ? ', ' + d.causa : '');
+    else if (ac === 'acordo' && d) o.txt = d.acordo === 'ok' ? 'de acordo de ' + (d.acordo_por || r.quem) : 'pediu revisão' + (d.acordo_obs ? ': ' + d.acordo_obs : '');
+    else if (d && d.decisao && (!a || a.decisao !== d.decisao)) {
+      o.txt = 'decisão: ' + CC.rot('decisao', d.decisao);
+      if (d.sugestao && d.sugestao.resumo) o.txt += ' (sugestão de ' + d.sugestao.resumo.n + ')';
+      if ((d.dispensa || []).length) o.txt += '; ligações ' + d.dispensa.join(', ') + ' suspensas';
+      if (d.acordo === 'pendente') o.txt += '; aguarda de acordo';
+      if (d.justif) o.l2 = 'justificativa: ' + d.justif;
+    } else o.txt = difTxt(a, d) || ac;
+  } else if (tab === 'ativ') {
+    o.item = ch;
+    if (d && ('ini_real' in d || 'fim_real' in d)) {
+      var ps = [];
+      if ('ini_real' in d) ps.push(d.ini_real ? 'início real ' + CC.d(d.ini_real) : 'início real tirado');
+      if ('fim_real' in d) ps.push(d.fim_real ? 'término real ' + CC.d(d.fim_real) : 'término real tirado');
+      o.txt = ps.join(', ') + (d.real_origem ? ' (' + (d.real_origem === 'apontamento' ? 'do apontamento' : d.real_origem === 'manual' ? 'informado à mão' : d.real_origem) + ')' : '');
+    } else if (d && ('prev_fim' in d || 'prev_ini' in d)) o.txt = d.prev_fim ? 'previsão ' + CC.d(d.prev_ini) + ' a ' + CC.d(d.prev_fim) + (d.prev_replan ? ' (replanejamento #' + d.prev_replan + ')' : '') : 'previsão tirada';
+    else o.txt = difTxt(a, d) || ac;
+  } else if (tab === 'semana') {
+    o.item = 'semana ' + CC.d(ch);
+    if (ac === 'publicar' && d && d.estado === 'publicada') o.txt = 'publicada (' + CC.rot('status_pub', d.status_pub) + ', ' + (d.cobertura || 'cobertura não informada') + ')' + (d.ensaio ? ', ensaio' : '');
+    else if (ac === 'fechar_semana' && d) o.txt = 'fechada' + (d.nota ? ': ' + d.nota : '');
+    else if (ac === 'reabrir') o.txt = 'reaberta' + (r.motivo ? ': ' + r.motivo : '');
+    else if (!a && d) o.txt = 'semana aberta (rascunho)';
+    else o.txt = difTxt(a, d) || ac;
+  } else if (tab === 'preparo') {
+    o.item = (p[0] || '') + ' ' + CC.rot('item', p[1]).toLowerCase();
+    if (!d) o.txt = 'conferência apagada';
+    else o.txt = CC.rot('item', d.item || p[1]) + ': ' + CC.rot('item_estado', d.estado) + (d.demanda ? ' (D' + d.demanda + ')' : '') + (d.lote ? ', em lote' : '') + (d.obs ? ': ' + d.obs : '');
+  } else if (tab === 'fora') {
+    o.item = (p[1] || ch); o.l2 = 'semana ' + CC.semana(p[0]);
+    o.txt = d ? 'não entra: ' + CC.rot('nao_entra', d.motivo) + (d.txt ? ': ' + d.txt : '') : 'volta a entrar na semana';
+  } else {
+    o.item = (ROT_TAB[tab] || tab) + ' ' + ch;
+    o.txt = difTxt(a, d) || ac;
+  }
+  if (r.motivo && o.txt.indexOf(r.motivo) < 0 && !/^Replanejamento #/.test(r.motivo)) o.l2 = (o.l2 ? o.l2 + ' · ' : '') + 'motivo: ' + r.motivo;
+  return o;
+}
+var HORA_NEG = ['fechado_em', 'fechada_em', 'decidido_em', 'acordo_em', 'publicada_em', 'respondida_em', 'cancelado_em'];
+function horaDe(r) {      // hora do ato (a do servidor que gravou o campo); senão a do log
+  var d = r.depois;
+  if (r.papel !== 'banco' && d && typeof d === 'object') {
+    for (var i = 0; i < HORA_NEG.length; i++) if (d[HORA_NEG[i]]) return d[HORA_NEG[i]];
+    if (r.acao === 'cobrar' && d.cobrancas && d.cobrancas.length) return d.cobrancas[d.cobrancas.length - 1].em || r.em;
+    if (r.acao === 'impacto' && d.impacto && d.impacto.calculado_em) return d.impacto.calculado_em;
+  }
+  return r.em;
+}
+function quemHtml(r) {
+  if (r.papel === 'banco') return '<span class="sqld">' + esc(r.quem || 'SQL direto') + '</span>';
+  return esc(r.quem || 'sem nome') + ' (' + esc(chaveLabel(r)) + ')';
+}
+function linhaMud(r) {
+  var t = traduz(r), l2 = [];
+  if (r.papel === 'banco') l2.push('gravado direto no banco, fora do site');
+  if (t.l2) l2.push(t.l2);
+  return '<div class="mud' + (r.papel === 'banco' ? ' banco' : '') + '" data-log="' + esc(r.id) + '"><div class="l1">' + esc(CC.quando(horaDe(r))) + ' · ' + quemHtml(r) + ' · <b>' + esc(t.item) + '</b>: ' + esc(t.txt) + '</div>' +
+    (l2.length ? '<div class="l2">' + esc(l2.join(' · ')) + '</div>' : '') + '</div>';
+}
+function rMud() {
+  if (!S.L) return;
+  var f = filtroServidor();
+  var pessoas = [];
+  (S.H || []).forEach(function (r) { if (r.quem && pessoas.indexOf(r.quem) < 0) pessoas.push(r.quem); });
+  if (S.hf.pessoa && pessoas.indexOf(S.hf.pessoa) < 0) pessoas.push(S.hf.pessoa);
+  var fh = '<div class="card filtros"><div><span class="cc-rot">Tabela</span>' + CC.chips(TABS, S.hf.tab, 'hf-tab', { rotulo: 'Tabela' }) + '</div>' +
+    '<div class="lin2"><div><label class="cc-rot" for="m-ativ">Atividade</label><input type="search" id="m-ativ" data-k="m-ativ" placeholder="Ex.: T18" value="' + esc(S.hf.ativ) + '" autocapitalize="characters"></div>' +
+    '<div><label class="cc-rot" for="m-item">Item</label><input type="search" id="m-item" data-k="m-item" placeholder="Ex.: C3 26/10, D6, #3, 26/10" value="' + esc(S.hf.item) + '"></div></div>' +
+    '<div><span class="cc-rot">Pessoa <span class="cc-cinza">(filtra no aparelho)</span></span>' + CC.chips([{ v: '', r: 'Todas' }].concat(pessoas.map(function (p) { return { v: p, r: p }; })), S.hf.pessoa, 'hf-pessoa', { rotulo: 'Pessoa' }) + '</div></div>';
+  pinta('m-filtros', fh);
+  var rows = (S.H || []).filter(function (r) { return !S.hf.pessoa || r.quem === S.hf.pessoa; });
+  var info = S.hErr ? '<div class="cc-recusa" role="alert">' + esc(S.hErr) + '</div>' :
+    '<div class="hint" style="margin-bottom:8px">' + (S.hCarregando ? 'Carregando…' : esc(plural(rows.length, 'mudança', 'mudanças')) + (S.H && S.H.length >= S.hLim ? ' (as ' + S.hLim + ' mais recentes)' : '')) +
+    (f.rot ? ' · filtro: ' + esc(f.rot) : '') + '</div>';
+  pinta('m-info', info);
+  pinta('m-lista', rows.length ? rows.map(linhaMud).join('') : '<div class="fraco">' + (S.hCarregando ? 'Carregando…' : 'Nenhuma mudança com esse filtro.') + '</div>');
+  pinta('m-mais', S.H && S.H.length >= S.hLim && S.hLim < 1000 ? '<button type="button" class="btn" data-a="mud-mais">Carregar mais</button>' : '');
+}
+var tFiltro = null;
+$('m-filtros').addEventListener('input', function (e) {
+  var k = e.target.getAttribute('data-k');
+  if (k === 'm-ativ') S.hf.ativ = e.target.value;
+  else if (k === 'm-item') S.hf.item = e.target.value;
+  else return;
+  clearTimeout(tFiltro);
+  tFiltro = setTimeout(function () { S.hLim = 300; carregarHist(false); }, 450);
+});
+
+// ===================================================================== cliques
+D.addEventListener('click', function (e) {
+  var b = e.target.closest('button');
+  if (!b || $('app').hidden) return;
+  if (b.closest('#d-mod') || b.closest('[data-cc-fn]')) return;      // o módulo de demandas cuida dos seus botões
+  var ca = b.getAttribute('data-cc-a'), uid = b.getAttribute('data-uid');
+  if (ca === 'descartar' && uid) { CC.descartarRecusa(uid); delete S.rec[uid]; desenhar(); return; }
+  if (ca === 'corrigir' && uid) { corrigir(uid); return; }
+  var tab = b.getAttribute('data-hf-tab'), pes = b.getAttribute('data-hf-pessoa');
+  if (tab != null) { S.hf.tab = tab; S.hLim = 300; carregarHist(false); return; }
+  if (pes != null) { S.hf.pessoa = pes; rMud(); return; }
+  var a = b.getAttribute('data-a'), v = b.getAttribute('data-v');
+  if (!a) return;
+  if (a === 'ver-dem') { verDemanda(+v); return; }
+  if (a === 'ir-sit') { irAba('sit'); return; }
+  if (a === 'ev-todos') { S.evTodos = !S.evTodos; rEventos(); return; }
+  if (a === 'copiar-resumo') { copiarResumo(); return; }
+  if (a === 'acordo-ok') { enviarAcordo(+v, 'ok', ''); return; }
+  if (a === 'acordo-rev') { S.rev[+v] = { aberto: true, obs: (S.rev[+v] || {}).obs || '' }; rDecAcordos(); focar('[data-k="obs-' + (+v) + '"]'); return; }
+  if (a === 'acordo-voltar') { delete S.rev[+v]; rDecAcordos(); return; }
+  if (a === 'acordo-rev-enviar') {
+    var st = S.rev[+v] || {}, obs = String(st.obs || '').trim();
+    if (obs.length < 5) { st.err = 'Escreva o que precisa revisar (5 letras ou mais).'; S.rev[+v] = st; rDecAcordos(); return; }
+    enviarAcordo(+v, 'revisar', obs); return;
+  }
+  if (a === 'decisao-abrir') { if (!S.dec) abrirDecisao(); return; }
+  if (a === 'reabrir') { S.reab = { seg: S.L.seg, aberto: true, motivo: '' }; rSemCab(); focar('#w-reab-motivo'); return; }
+  if (a === 'reabrir-voltar') { S.reab = null; rSemCab(); return; }
+  if (a === 'reabrir-enviar') { enviarReabrir(); return; }
+  if (a === 'sem-ant') { irSemana(CC.mais(S.L.seg, -7)); return; }
+  if (a === 'sem-prox') { irSemana(CC.mais(S.L.seg, 7)); return; }
+  if (a === 'sem-hoje') { irSemana(null); return; }
+  if (a === 'sem-ir') { irSemana(v); return; }
+  if (a === 'mud-comp') { S.hf = { tab: '', ativ: '', item: v.split('|')[1] + ' ' + CC.d(v.split('|')[0]), pessoa: '' }; S.hLim = 300; S.hChave = null; irAba('mud'); carregarHist(true); return; }
+  if (a === 'mud-mais') { S.hLim = Math.min(1000, S.hLim + 300); carregarHist(true); return; }
+});
+D.addEventListener('input', function (e) {
+  var t = e.target;
+  if (t.matches && t.matches('textarea[data-replan]')) { var id = +t.getAttribute('data-replan'); S.rev[id] = S.rev[id] || { aberto: true }; S.rev[id].obs = t.value; S.rev[id].err = ''; return; }
+  if (t.id === 'w-reab-motivo' && S.reab) { S.reab.motivo = t.value; S.reab.err = ''; }
+});
+function focar(sel) { setTimeout(function () { var x = D.querySelector(sel); if (x) try { x.focus(); } catch (e) { /* ok */ } }, 0); }
+function enviarAcordo(id, ac, obs) {
+  var a = (((S.X || {}).para_decidir || {}).acordos || []).filter(function (x) { return +x.replan === id; })[0] || {};
+  var dados = { replan: id, acordo: ac };
+  if (obs) { dados.obs = obs; dados.motivo = obs; }
+  var p = CC.enviar('acordo', dados, { mod: 'ciclo', tipo: 'acordo', replan: id, ativ: a.ativ || '', acordo: ac, obs: obs, rotulo: (ac === 'ok' ? 'de acordo' : 'pedido de revisão') + (a.ativ ? ' (' + a.ativ + ')' : '') });
+  p.catch(function () { /* a recusa vai para o cartão */ });
+  if (S.rev[id]) S.rev[id].aberto = false;
+  rDecAcordos();
+}
+function enviarReabrir() {
+  var st = S.reab;
+  if (!st) return;
+  var m = String(st.motivo || '').trim();
+  if (m.length < 10) { st.err = 'Escreva o motivo (10 letras ou mais).'; rSemCab(); focar('#w-reab-motivo'); return; }
+  var p = CC.enviar('reabrir', { seg: st.seg, motivo: m }, { mod: 'ciclo', tipo: 'reabrir', seg: st.seg, motivo: m, rotulo: 'reabrir a semana ' + CC.d(st.seg) });
+  p.catch(function () { /* a recusa vai para o cartão */ });
+  st.aberto = false;
+  rSemCab();
+}
+function corrigir(uid) {
+  var r = S.rec[uid], m = (r && r.item && r.item.meta) || {};
+  CC.descartarRecusa(uid); delete S.rec[uid];
+  if (m.tipo === 'acordo') S.rev[m.replan] = { aberto: true, obs: m.obs || '' };
+  else if (m.tipo === 'reabrir') { S.reab = { seg: m.seg, aberto: true, motivo: m.motivo || '' }; if (S.L.seg !== m.seg) { irAba('sem'); irSemana(m.seg); } }
+  else if (m.tipo === 'decisao') { desenhar(); abrirDecisao(); return; }
+  desenhar();
+}
+function copiarResumo() {
+  var t = (S.X && S.X.texto) || '';
+  CC.copiar(t).then(function (ok) {
+    if (ok) { S.copia = null; CC.toast('Resumo copiado.'); }
+    else S.copia = true;
+    rCopiar();
+  });
+}
+
+// ===================================================================== planilha (.xlsx)
+function dUTC(iso) { var p = String(iso || '').slice(0, 10).split('-'); return p.length === 3 ? new Date(Date.UTC(+p[0], +p[1] - 1, +p[2], 12)) : ''; }
+function folha(rows, larg) {
+  var ws = XLSX.utils.aoa_to_sheet(rows, { cellDates: true, dateNF: 'dd/mm/yyyy' });
+  ws['!cols'] = larg.map(function (w) { return { wch: w }; });
+  if (rows.length > 1) ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { c: 0, r: 0 }, e: { c: rows[0].length - 1, r: rows.length - 1 } }) };
+  return ws;
+}
+var H05A = ['Semana (sexta)', 'Obra', 'Nº', 'Frente / evento (código)', 'Tarefa: o que fica pronto até sexta', 'Quantidade prometida', 'Un',
+  'Encarregado responsável', 'Restrição aberta na frente? (05C)', 'Confirmada pelo engenheiro (SIM só com a coluna I = NÃO)',
+  'Quantidade apontada na semana (05B)', '% apontado', 'Cumprida (digitar na sexta)', 'Cumprida considerada', 'Causa, se não cumpriu'];
+var H05B = ['Data', 'Obra', 'Frente / evento (código)', 'Encarregado ou equipe', 'Serviço executado', 'Quantidade', 'Un', 'Pessoas presentes',
+  'Horas trabalhadas', 'Terreno / clima', 'Parou?', 'Motivo da parada', 'Horas paradas', 'Observação / foto', 'Dia útil?', 'Semana (sexta)',
+  'Trechos ou eventos fechados hoje (nº)', 'Nº do compromisso', 'Atividade', 'Situação do dia', 'Tardio?', 'Demanda', 'Quem apontou', 'Em lote?'];
+function frenteDe(c, L) {
+  if (c.frente) return c.frente;
+  var a = c.ativ ? ((L.crono || []).filter(function (x) { return x.id === c.ativ; })[0] || null) : null;
+  return (a && a.frente_cod) || '';
+}
+function linhas05A(L) {
+  var s = L.semana;
+  if (!s || (s.estado !== 'publicada' && s.estado !== 'fechada')) return [];
+  var sexta = dUTC(s.sexta || CC.mais(L.seg, 4));
+  return (s.comps || []).filter(function (c) { return c.publicado || c.extra; })
+    .sort(function (a, b) { return (+String(a.cid).slice(1)) - (+String(b.cid).slice(1)); })
+    .map(function (c) {
+      var p = c.publicado || c, k = null, F = p.qtd != null ? +p.qtd : '';
+      (c.apont || []).forEach(function (a) { if (a.qtd != null) k = (k || 0) + (+a.qtd); });
+      var M = c.cancelado_em ? 'NÃO' : c.resultado === 'cumprido' ? 'SIM' : (c.resultado === 'parcial' || c.resultado === 'nao') ? 'NÃO' : '';
+      return [sexta, OBRA, +String(c.cid).slice(1), frenteDe(c, L), (c.extra ? 'EXTRA: ' : '') + (p.entrega || c.entrega) + (c.ativ ? ' (' + c.ativ + ')' : ''),
+        F, p.un || '', p.resp || c.resp || '', (p.com_restricao ? 'SIM' : 'NÃO'), c.publicado ? 'SIM' : 'NÃO',
+        k == null ? '' : k, (k != null && F) ? k / F : '', M, M, M === 'NÃO' ? (c.causa || '') : ''];
+    });
+}
+function linhas05B(L) {
+  var s = L.semana, out = [];
+  if (!s) return out;
+  var uteis = diasUteis(L), sexta = dUTC(s.sexta || CC.mais(L.seg, 4));
+  (s.comps || []).forEach(function (c) {
+    var p = c.publicado || c, andamento = CC.UNIDADES_ANDAMENTO.indexOf(p.un) >= 0;
+    (c.apont || []).forEach(function (a) {
+      var q = a.qtd == null ? '' : +a.qtd;
+      out.push([dUTC(a.dia), OBRA, frenteDe(c, L), c.resp || '', (c.entrega || '') + (c.ativ ? ' (' + c.ativ + ')' : ''),
+        andamento ? '' : q, andamento ? '' : (q === '' ? '' : (p.un || '')), '', '', '', a.situacao === 'parado' ? 'SIM' : 'NÃO',
+        a.situacao === 'parado' ? (a.causa || '') + (a.causa_det ? ' (' + a.causa_det + ')' : '') : '', '',
+        [a.obs, a.link].filter(Boolean).join(' · '), uteis.indexOf(a.dia) >= 0 ? 'SIM' : 'NÃO', sexta, andamento ? q : '',
+        c.cid, c.ativ || '', CC.rot('situacao', a.situacao), a.tardio ? 'SIM' : 'NÃO', a.demanda ? 'D' + a.demanda : '', a.quem || '', a.lote ? 'SIM' : 'NÃO']);
+    });
+  });
+  return out.sort(function (a, b) { return a[0] - b[0]; });
+}
+function semanasXlsx() {
+  var segs = ((S.L.semanas || []).filter(function (s) { return s.estado === 'publicada' || s.estado === 'fechada'; }).map(function (s) { return s.seg; })).sort().slice(-8);
+  var sf = S.L.semana;
+  if (sf && (sf.estado === 'publicada' || sf.estado === 'fechada') && segs.indexOf(S.L.seg) < 0) segs.push(S.L.seg);
+  segs.sort();
+  return Promise.all(segs.map(function (seg) { return seg === S.L.seg ? S.L : lerLado(seg); }));
+}
+function baixar() {
+  if (!window.XLSX) { CC.toast('A planilha ainda está carregando. Tente de novo em instantes.'); return; }
+  var b = $('b-xlsx');
+  b.disabled = true; b.textContent = 'Gerando…';
+  Promise.all([semanasXlsx(), CC.historico({ limite: 1000 })]).then(function (r) { montarXlsx(r[0], Array.isArray(r[1]) ? r[1] : []); })
+    .catch(function (e) { CC.toast('Não consegui gerar a planilha: ' + CC.erro(e)); })
+    .then(function () { b.disabled = false; b.textContent = 'Baixar .xlsx'; });
+}
+function montarXlsx(lers, H) {
+  var L = S.L, wb = XLSX.utils.book_new();
+  var a = [H05A], bb = [H05B];
+  lers.forEach(function (x) { if (x) { a = a.concat(linhas05A(x)); bb = bb.concat(linhas05B(x)); } });
+  var wa = folha(a, [12, 6, 5, 14, 60, 12, 6, 22, 14, 18, 14, 10, 14, 14, 20]);
+  for (var i = 1; i < a.length; i++) { var c = wa[XLSX.utils.encode_cell({ r: i, c: 11 })]; if (c && typeof c.v === 'number') c.z = '0%'; }
+  XLSX.utils.book_append_sheet(wb, wa, '05A COMPROMISSO');
+  XLSX.utils.book_append_sheet(wb, folha(bb, [12, 6, 14, 20, 50, 10, 6, 10, 10, 12, 8, 28, 10, 30, 8, 12, 12, 8, 9, 12, 8, 9, 18, 8]), '05B APONTAMENTO');
+  var rp = [['Nº', 'Atividade', 'Nome da atividade', 'Semana', 'Compromisso', 'Origem', 'Causa', 'Detalhe da causa', 'Início antes', 'Término antes', 'Novo início', 'Novo término',
+    'Ação', 'Responsável', 'Decisão', 'Atividades na sugestão', 'EVENTOs na sugestão', 'Muda BM?', 'Mexe no fim da obra?', 'Ligações suspensas', 'Justificativa',
+    'De acordo', 'De acordo por', 'De acordo em', 'Observação do de acordo', 'Autor', 'Decidido em']];
+  (L.replans || []).forEach(function (r) {
+    var z = r.resumo || {};
+    rp.push(['#' + r.id, r.ativ, nomeAtiv(r.ativ), r.seg ? dUTC(r.seg) : '', r.cid || '', CC.rot('origem_replan', r.origem), r.causa || '', r.causa_det || '',
+      r.ini_antes ? dUTC(r.ini_antes) : '', r.fim_antes ? dUTC(r.fim_antes) : '', r.ini_novo ? dUTC(r.ini_novo) : '', r.fim_novo ? dUTC(r.fim_novo) : '',
+      r.acao || '', r.resp || '', CC.rot('decisao', r.decisao), z.n != null ? z.n : '', z.eventos != null ? z.eventos : '', z.bm_muda ? 'SIM' : 'NÃO', z.fim_obra ? 'SIM' : 'NÃO',
+      (r.dispensa || []).join(', '), r.justif || '', r.acordo ? CC.rot('acordo', r.acordo) : 'não precisa', r.acordo_por || '', r.acordo_em ? CC.quando(r.acordo_em) : '',
+      r.acordo_obs || '', r.autor || '', r.decidido_em ? CC.quando(r.decidido_em) : '']);
+  });
+  XLSX.utils.book_append_sheet(wb, folha(rp, [6, 9, 40, 12, 8, 16, 18, 18, 12, 12, 12, 12, 40, 18, 18, 10, 10, 9, 9, 22, 50, 18, 16, 16, 30, 16, 16]), 'REPLANEJAMENTO');
+  var dm = [['Nº', 'Área', 'O que é preciso', 'Responsável', 'Quem decide', 'Contraparte', 'Precisa até', 'Nova data', 'Vezes replanejada', 'Data em vigor', 'Dias',
+    'Alerta', 'Situação', 'Trava', 'Resposta', 'Respondida por', 'Resolvida em', 'Cobranças', 'Última cobrança', 'Origem', 'Rxx do site', 'Protocolo', 'Aberta por', 'Aberta em']];
+  (L.demandas || []).slice().sort(function (x, y) { return x.num - y.num; }).forEach(function (d) {
+    var cb = d.cobrancas || [], u = cb[cb.length - 1];
+    dm.push(['D' + d.num, areaCurta(d.area), d.oque, d.resp, (d.decisores || []).join(', '), d.contraparte || '', d.prazo ? dUTC(d.prazo) : '', d.nova_data ? dUTC(d.nova_data) : '',
+      d.vezes || 0, d.efetivo ? dUTC(d.efetivo) : '', aberta(d) && d.dias != null ? d.dias : '', aberta(d) ? (d.alerta || '') : '', CC.rot('demanda', d.situacao),
+      (d.ativs || []).join(', '), d.resposta || '', d.respondida_por || '', d.resolvida_em ? dUTC(d.resolvida_em) : '', cb.length,
+      u ? CC.quando(u.em) + ' (' + (u.quem || '') + ', ' + CC.rot('canal', u.canal) + ')' : '', CC.rot('origem_demanda', d.origem), d.tarefa_id || '', d.ref_ext || '',
+      d.criada_por || '', d.criada_em ? CC.quando(d.criada_em) : '']);
+  });
+  XLSX.utils.book_append_sheet(wb, folha(dm, [5, 14, 50, 18, 18, 22, 12, 12, 8, 12, 6, 18, 12, 14, 40, 16, 12, 9, 30, 20, 9, 18, 16, 16]), 'DEMANDAS');
+  var md = [['Quando', 'Quem', 'Chave', 'Papel', 'Tabela', 'Item', 'Atividade', 'O que mudou', 'Detalhe', 'Ação (técnico)']];
+  H.forEach(function (r) {
+    var t = traduz(r), tab = String(r.tabela || '').replace(/^taf_ciclo_/, '');
+    md.push([CC.quando(horaDe(r)), r.quem || '', chaveLabel(r), r.papel === 'banco' ? 'banco' : r.papel === 'carga' ? 'carga' : CC.rot('papel', r.papel),
+      ROT_TAB[tab] || tab, t.item, r.ativ || '', t.txt, t.l2 || '', r.acao || '']);
+  });
+  XLSX.utils.book_append_sheet(wb, folha(md, [16, 22, 14, 11, 16, 20, 9, 70, 50, 14]), 'MUDANÇAS');
+  var nome = 'TAF 342 - CICLO - ' + CC.hoje() + '.xlsx';
+  try { XLSX.writeFile(wb, nome, { compression: true, cellDates: true }); CC.toast('Baixado: ' + nome); }
+  catch (e) { CC.toast('Não consegui gerar a planilha.'); }
+}
+$('b-xlsx').addEventListener('click', baixar);
+
+// ===================================================================== início
+function digitando() {
+  if (CC.digitando()) return true;
+  if (CC.demandas.digitando && CC.demandas.digitando()) return true;
+  if (S.dec) return true;
+  if (S.reab && S.reab.aberto && String(S.reab.motivo || '').trim()) return true;
+  return Object.keys(S.rev).some(function (k) { return S.rev[k] && S.rev[k].aberto && String(S.rev[k].obs || '').trim(); });
+}
+function mostrar() {
+  $('gate').hidden = true; $('nome').hidden = true; $('app').hidden = false;
+  if (!S.pronto) {
+    S.pronto = true;
+    var a0 = CC.ls.get('taf-ciclo-aba');
+    if (ABAS.indexOf(a0) >= 0) S.aba = a0;
+    CC.recusas().forEach(function (r) { if (r.meta && r.meta.mod === 'ciclo') S.rec[r.uid] = { motivo: r.motivo, item: r }; });
+    VIG = CC.vigiar(function () { reler(); }, digitando, 30000);
+  }
+  desenhar();
+  if (S.aba === 'mud') carregarHist(true);
+  ensaioLateral();
+  if (!S.linkFeito) {     // link do /erp ou do /marko: /ciclo?demanda=3 abre o cartão da demanda
+    S.linkFeito = true;
+    var qd = /[?&]demanda=(\d+)/.exec(window.location.search);
+    if (qd) verDemanda(+qd[1]);
+  }
+}
+S.ens = lsJson('taf-ciclo-ensaio', {});
+if (typeof S.ens !== 'object' || Array.isArray(S.ens)) S.ens = {};
+window.CICLO = {
+  checar: function () { if (VIG && VIG.checar) VIG.checar(); },
+  reler: function () { return reler().then(function () { return true; }); },
+  aba: function (t) { irAba(t); }
+};
+iniciar();
+}());
+</script>
+</body>
+</html>

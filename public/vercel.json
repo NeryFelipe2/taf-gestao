@@ -22,6 +22,10 @@
     {
       "source": "/ciclo",
       "destination": "/ciclo.html"
+    },
+    {
+      "source": "/erp",
+      "destination": "/erp.html"
     }
   ]
 }
