@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="taf-versao" content="82f993f909">
+<meta name="taf-versao" content="0ade7b1c45">
 <title>Obra 342 · Ciclo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
@@ -222,7 +222,7 @@ html.emb body{background:transparent;background-image:none}
   <div class="card" id="m-lista"></div>
   <div id="m-mais"></div>
 </section>
-<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">82f993f909</span></footer>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">0ade7b1c45</span></footer>
 </div>
 
 <script>/* ciclo-core.js · núcleo comum do /marko (engenheiro) e do /ciclo (gestor), obra 342.
@@ -2114,7 +2114,7 @@ if (D.body) iniciar(); else D.addEventListener('DOMContentLoaded', iniciar);
       var h = D.body ? D.body.scrollHeight : 0;
       if (h && Math.abs(h - ult) > 4) { ult = h; envia({ altura: h + 8 }); }
     };
-    var liga = function () { new W.ResizeObserver(mede).observe(D.body); mede(); };
+    var liga = function () { new W.ResizeObserver(mede).observe(D.body); mede(); W.setInterval(mede, 1500); };   // o intervalo cobre navegador em segundo plano
     if (D.body) liga(); else D.addEventListener('DOMContentLoaded', liga);
   }
 }());

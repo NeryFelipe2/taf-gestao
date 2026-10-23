@@ -35,7 +35,7 @@
       var h = D.body ? D.body.scrollHeight : 0;
       if (h && Math.abs(h - ult) > 4) { ult = h; envia({ altura: h + 8 }); }
     };
-    var liga = function () { new W.ResizeObserver(mede).observe(D.body); mede(); };
+    var liga = function () { new W.ResizeObserver(mede).observe(D.body); mede(); W.setInterval(mede, 1500); };   // o intervalo cobre navegador em segundo plano
     if (D.body) liga(); else D.addEventListener('DOMContentLoaded', liga);
   }
 }());
