@@ -1,0 +1,69 @@
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#050506"><meta name="robots" content="noindex"><title>TAF · Gestão das obras</title>
+<link rel="stylesheet" href="centro/noema.css">
+<style>
+@font-face{font-family:"Instrument Serif";font-weight:400;font-display:swap;src:url(centro/instrument-serif-400.woff2) format("woff2")}@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:swap;src:url(centro/instrument-serif-400-italic.woff2) format("woff2")}
+:root{--electric:#3D7BFF;--signal:#9DBEFF;--no:#F87171;--am:#FBBF24;--ok:#4ADE80;--sb:#7d8190}
+a:hover{color:var(--signal)}
+.manifesto__line:nth-child(2),.chapter h2 i,.velocity__row i,.thesis__copy h2 i,.cta h2 span,.field__title span:last-child,.no-formula__statement h2 i,.text-river__line:nth-child(3){font-family:"Instrument Serif",Georgia,serif}
+.global-progress span{box-shadow:0 0 14px rgba(157,190,255,.7)}
+.hero__halo{border-color:rgba(157,190,255,.7);box-shadow:inset 0 0 0 10px rgba(61,123,255,.03),0 0 70px rgba(61,123,255,.16)}.hero__halo::before,.hero__halo::after{background:rgba(157,190,255,.45)}
+.hero__topo{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero__ghost{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:74% 55%;opacity:.07;pointer-events:none}
+.hero__image--human{background:#000}.hero__image--human img{width:100%;height:100%;object-fit:contain;object-position:72% 52%}
+.menu__image{background:#050506;display:grid;place-items:center}.menu__image img{object-fit:contain;filter:none;opacity:.8;height:90%}
+.chapter__media{background:#08090c}.chapter__media img{object-fit:contain;opacity:.22;padding:4%}
+.ob-facts{position:absolute;inset:0;z-index:2;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}.ob-facts>div{display:flex;flex-direction:column;justify-content:space-between;padding:clamp(1rem,2vw,1.8rem);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.ob-facts>div:nth-child(2n){border-right:0}.ob-facts>div:nth-child(n+3){border-bottom:0}
+.ob-facts small{font-family:"Courier New",monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(241,240,234,.7)}.ob-facts b{font-size:clamp(2.6rem,5.2vw,6rem);font-weight:500;letter-spacing:-.08em;line-height:.8;font-variant-numeric:tabular-nums}.ob-facts em{font-style:normal;font-size:.8rem;color:rgba(241,240,234,.6);margin-top:.6rem;display:block}
+.neg{color:var(--no)}.sb{color:var(--sb)!important;font-size:clamp(1.4rem,2.4vw,2.4rem)!important;letter-spacing:-.03em!important}
+.lz{display:flex;gap:1rem}.lz span{display:flex;align-items:center;gap:.45rem}.lz i{width:.45rem;height:.45rem;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c)}.lz i.o{background:none;border:1px solid var(--sb);box-shadow:none}.chapter__tag.lzt::before{display:none}
+.capabilities__viewer{background:#08090c}.capabilities__viewer img{object-fit:contain;opacity:.16}
+.viewer__txt{position:absolute;left:1rem;right:1rem;top:50%;transform:translateY(-50%);margin:0;max-width:24ch;font-size:clamp(1.3rem,2.3vw,2.4rem);letter-spacing:-.035em;line-height:1.15;text-wrap:pretty}
+.viewer__meta{display:flex;gap:1.2rem;margin-top:1.4rem;font-family:"Courier New",monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--signal)}
+.field__image{background:#d3d1ca;display:flex;align-items:flex-end;padding:0 0 3% 0}.field__image svg{width:100%;height:78%;display:block;overflow:visible}.field__image .ax{font:400 13px "Courier New",monospace;fill:rgba(5,5,6,.6);letter-spacing:.06em;text-transform:uppercase}
+.field__card strong.neg{color:#c62f2f}
+.no-formula__statement h2{font-size:clamp(2.6rem,5.2vw,5.6rem);line-height:.9;text-wrap:balance}.no-formula__mark{font-size:clamp(14rem,34vw,36rem)}
+.cta h2 a{color:inherit}.cta h2 a:hover{color:inherit}.cta h2 a:hover span{-webkit-text-stroke-color:#fff}
+.cta__contact a:hover{color:#fff;border-color:#fff}
+</style></head>
+<body class="loading">
+<div class="preloader" aria-label="Carregando"><div class="preloader__mark">TAF</div><div class="preloader__foot"><span>Lendo a rev6<br><b id="pl-corte" style="font-weight:400">—</b></span><span class="preloader__percent">00</span></div></div>
+<div class="noise" aria-hidden="true"></div><div class="global-progress" aria-hidden="true"><span></span></div><div class="cursor" aria-hidden="true"></div><div class="cursor-ring" aria-hidden="true"></div>
+<nav class="nav" aria-label="Navegação"><a class="nav__brand" href="#top">TAF®</a><span class="nav__status" id="nv-corte">Corte —</span><button class="menu-button magnetic" aria-label="Abrir menu" aria-expanded="false"><span></span><span></span></button></nav>
+<div class="menu" aria-hidden="true"><div class="menu__image"><canvas id="mn-topo" style="width:100%;height:100%;display:block"></canvas></div><div class="menu__panel"><small>TAF / Gestão das obras</small><div class="menu__links"><a href="#semana">Semana <span>01</span></a><a href="#obras">Obras <span>02</span></a><a href="#donos">Responsáveis <span>03</span></a><a href="#caixa">Caixa <span>04</span></a><a href="#decisoes">Decisões <span>05</span></a><a href="/">Painel <span>↗</span></a></div><div class="menu__meta"><span>TAF Equipamentos</span><span id="mn-sem">—</span></div></div></div>
+<main>
+<section class="hero" id="top">
+<div class="hero__visual" aria-label="Passe o mouse para ver o projeto sobre o terreno"><canvas class="hero__topo" id="topo"></canvas><img class="hero__ghost" src="centro/proj-a.png" alt=""><div class="hero__image hero__image--human"><img src="centro/proj-a.png" alt="Desenho do tanque de contato"></div><div class="hero__halo" aria-hidden="true"></div></div>
+<div class="hero__copy"><span class="eyebrow">TAF Equipamentos · Centro de gestão</span><h1>Gestão <span class="outline">das obras</span></h1><div class="hero__sub"><span class="scroll-cue">Role para ver a semana</span><p>Três obras, um corte por semana. Todo número aqui sai da planilha rev6. Onde falta dado, aparece SEM BASE.</p></div></div>
+<div class="hero__coordinates" aria-hidden="true"><span>OBRAS / 342 · 343 · 281</span><span>CAMADA / <b data-state="">TERRENO</b></span><span>X <b data-x="">068.0</b> / Y <b data-y="">044.0</b></span></div>
+<div class="hero__mode">Passe o mouse <b>terreno → projeto</b></div>
+</section>
+<div class="signal-strip" aria-hidden="true"><div class="signal-strip__track" id="strip"></div></div>
+<section class="manifesto" id="semana"><span class="manifesto__index">01 / A semana</span>
+<h2 class="manifesto__statement"><span class="manifesto__line"><span>Três obras.</span></span><span class="manifesto__line"><span id="mf-cart">R$ — em carteira.</span></span><span class="manifesto__line"><span id="mf-venc">— vencidas.</span></span><span class="manifesto__line"><span id="mf-cx">O caixa aperta em —.</span></span></h2>
+<div class="manifesto__foot"><small id="mf-sem">Semana<br>—</small><p id="mf-p">—</p></div><div class="manifesto__orb" aria-hidden="true"></div></section>
+<section class="metrics" aria-label="A semana em números">
+<article class="metric metric__feature"><small>Master check</small><strong id="mt-master">—</strong><p>Estado da planilha nesta semana (13. CHECKS!C3).</p></article>
+<article class="metric"><small>Vencidas</small><strong data-c="0" id="mt-venc">00</strong><p>Restrições com prazo passado, somando as três obras.</p></article>
+<article class="metric"><small>Vencem na semana</small><strong data-c="0" id="mt-sem">00</strong><p>O que precisa andar até sexta para não virar atraso.</p></article>
+<article class="metric"><small>Restrições abertas</small><strong data-c="0" id="mt-ab">00</strong><p>Tudo que ainda não foi resolvido, em todas as obras.</p></article>
+</section>
+<section class="protocol" id="obras"><div class="protocol__stage"><div class="protocol__header"><span>02 / Obras</span><span>Produção · Dinheiro · Plano</span></div><div class="protocol__progress" aria-hidden="true"><span></span></div><div id="chapters"></div></div></section>
+<section class="velocity" aria-label="As três luzes"><div class="velocity__row">Produção <i>dinheiro</i> plano — Produção <i>dinheiro</i> plano —</div><div class="velocity__row">Sem dado, <i>sem</i> luz — Sem dado, <i>sem</i> luz —</div>
+<div class="velocity__note"><small>Como ler as luzes</small><p>Cada obra acende três luzes. Sem apontamento de campo, a luz fica SEM BASE. Não estimamos o que não foi medido.</p></div></section>
+<section class="capabilities" id="donos"><div class="capabilities__top"><span>03 / Quem está com a bola</span><span>Passe o mouse em um nome</span></div>
+<div class="capabilities__grid"><div class="capabilities__list" id="caps"></div>
+<div class="capabilities__viewer"><p class="viewer__txt" id="vw-txt">—</p><div class="viewer__hud"><div class="viewer__hud-top"><span>Restrições abertas</span><span id="vw-who">—</span></div><div class="viewer__hud-bottom"><span class="viewer__index" id="vw-n">00</span><span id="vw-lbl">—</span></div></div></div></div></section>
+<section class="field" id="caixa"><div class="field__pin"><div class="field__image" id="cx"></div><div class="field__veil" aria-hidden="true"></div>
+<div class="field__top"><span>04 / Caixa da empresa</span><span>10. CAIXA · saldo previsto mês a mês</span></div>
+<h2 class="field__title"><span>O caixa</span><span>aperta.</span></h2>
+<div class="field__card"><strong class="neg" id="fc-v">—</strong><p id="fc-p">—</p></div></div></section>
+<section class="no-formula" id="decisoes"><div class="no-formula__pin"><div class="no-formula__top"><span>05 / Decisões da semana</span><span id="nf-top">—</span></div><div class="no-formula__mark" aria-hidden="true" id="nf-mark">00</div><div class="no-formula__statements" id="nf"></div><div class="no-formula__rail" aria-hidden="true"><span></span></div></div></section>
+<section class="thesis"><div class="thesis__axis-x" aria-hidden="true"></div><div class="thesis__axis-y" aria-hidden="true"></div><div class="thesis__rings" aria-hidden="true"></div>
+<div class="thesis__copy"><small>O método</small><h2>Todo número vem da rev6. <i>Falta dado</i> é SEM BASE.</h2><p>Nada aqui é digitado à mão. Se a planilha não tem a informação, o painel mostra o buraco em vez de preencher.</p></div></section>
+<section class="cta" id="contato"><div class="cta__top"><span>O resto está lá dentro</span><span id="ct-corte">Corte —</span></div>
+<h2><a href="/">Abrir o <span>painel.</span></a></h2>
+<div class="cta__contact"><a class="magnetic" href="/">Painel completo, oito abas ↗</a><div><span>342</span><span>343</span><span>281</span></div></div>
+<div class="footer-code" aria-hidden="true" id="ft-code">TAF / GESTÃO DAS OBRAS / REV6</div></section>
+</main>
+<script src="centro/centro-dados.js"></script><script src="centro/gsap.min.js"></script><script src="centro/ScrollTrigger.min.js"></script><script src="centro/taf-noema.js"></script>
+</body></html>

@@ -490,7 +490,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
     <p id="sub"></p>
   </div>
   <div class="selo"><span id="selo-corte"></span><br><b id="selo-master"></b>
-    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><label class="btn" for="b-tema" style="gap:6px">Estilo <select id="b-tema" aria-label="Estilo do site" style="background:transparent;border:0;color:inherit;font:inherit;cursor:pointer"><option value="claro">Claro (TAF)</option><option value="masterclass">Masterclass (escuro)</option><option value="moveflux">Moveflux</option><option value="noema">NØEMA</option><option value="ix7">ix7 Mission</option><option value="grotesk">Grotesk Zero</option></select></label></div>
+    <div class="btns"><a class="btn" href="/centro.html">Centro</a><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><label class="btn" for="b-tema" style="gap:6px">Estilo <select id="b-tema" aria-label="Estilo do site" style="background:transparent;border:0;color:inherit;font:inherit;cursor:pointer"><option value="claro">Claro (TAF)</option><option value="masterclass">Masterclass (escuro)</option><option value="moveflux">Moveflux</option><option value="noema">NØEMA</option><option value="ix7">ix7 Mission</option><option value="grotesk">Grotesk Zero</option></select></label></div>
   </div>
 </header>
 
@@ -666,7 +666,7 @@ async function entrar(){
   try{var r=await TAF.rpc('taf_ler',{p_chave:TAF.chave});
     if(!r||!r.snap){$('gate').hidden=false;$('g-msg').textContent='Chave certa. O banco ainda não tem a planilha: escolha a rev6.';$('g-chave').hidden=true;$('g-nome').hidden=true;$('g-ok').hidden=true;$('g-revl').hidden=false;return}
     $('gate').hidden=true;D=r.snap;W=(r.wa&&r.wa.acoes)?r.wa:{acoes:[]};FONTE=(r.fonte||'rev6')+', salva em '+new Date(r.snap_em).toLocaleDateString('pt-BR');
-    var m={},q={};(r.edicoes||[]).forEach(function(x){m[x.id]=x.dados;q[x.id]={quem:x.quem,em:x.em}});window.__REM=m;window.__REMQ=q;window.__iniciar()}
+    var m={},q={};(r.edicoes||[]).forEach(function(x){m[x.id]=x.dados;q[x.id]={quem:x.quem,em:x.em}});window.__REM=m;window.__REMQ=q;if(new URLSearchParams(location.search).get('volta')==='centro'){location.replace('/centro.html');return}window.__iniciar()}
   catch(e){if(/CHAVE/.test(e.message)){ls.d('taf-chave');TAF.chave='';gate('Digite a chave de acesso.','Chave inválida.')}else gate('Sem conexão com o banco.','Erro: '+e.message)}}
 $('g-ok').onclick=function(){var c=$('g-chave').value.trim(),n=$('g-nome').value.trim();if(!c){$('g-err').textContent='Digite a chave.';return}
   TAF.chave=c;ls.s('taf-chave',c);if(n)ls.s('taf-quem',n);entrar()};
@@ -1227,7 +1227,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='a81e548f32',VK='taf-recarga';
+var BUILD='612cb64567',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
