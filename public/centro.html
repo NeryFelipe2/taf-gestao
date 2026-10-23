@@ -4,6 +4,8 @@
 @font-face{font-family:"Instrument Serif";font-weight:400;font-display:swap;src:url(centro/instrument-serif-400.woff2) format("woff2")}@font-face{font-family:"Instrument Serif";font-style:italic;font-weight:400;font-display:swap;src:url(centro/instrument-serif-400-italic.woff2) format("woff2")}
 :root{--electric:#3D7BFF;--signal:#9DBEFF;--no:#F87171;--am:#FBBF24;--ok:#4ADE80;--sb:#7d8190}
 a:hover{color:var(--signal)}
+.thesis__copy h2 i{letter-spacing:0;word-spacing:.12em;padding-right:.08em}
+.manifesto__line:nth-child(2),.chapter h2 i,.velocity__row i,.cta h2 span,.field__title span:last-child,.no-formula__statement h2 i,.text-river__line:nth-child(3){letter-spacing:-.01em;word-spacing:.12em}
 .manifesto__line:nth-child(2),.chapter h2 i,.velocity__row i,.thesis__copy h2 i,.cta h2 span,.field__title span:last-child,.no-formula__statement h2 i,.text-river__line:nth-child(3){font-family:"Instrument Serif",Georgia,serif}
 .global-progress span{box-shadow:0 0 14px rgba(157,190,255,.7)}
 .hero__halo{border-color:rgba(157,190,255,.7);box-shadow:inset 0 0 0 10px rgba(61,123,255,.03),0 0 70px rgba(61,123,255,.16)}.hero__halo::before,.hero__halo::after{background:rgba(157,190,255,.45)}
@@ -26,14 +28,14 @@ a:hover{color:var(--signal)}
 .cta__contact a:hover{color:#fff;border-color:#fff}
 </style></head>
 <body class="loading">
-<div class="preloader" aria-label="Carregando"><div class="preloader__mark">TAF</div><div class="preloader__foot"><span>Lendo a rev6<br><b id="pl-corte" style="font-weight:400">—</b></span><span class="preloader__percent">00</span></div></div>
+<div class="preloader" aria-label="Carregando"><div class="preloader__mark">TAF</div><div class="preloader__foot"><span>Lendo a planilha de gestão<br><b id="pl-corte" style="font-weight:400">—</b></span><span class="preloader__percent">00</span></div></div>
 <div class="noise" aria-hidden="true"></div><div class="global-progress" aria-hidden="true"><span></span></div><div class="cursor" aria-hidden="true"></div><div class="cursor-ring" aria-hidden="true"></div>
 <nav class="nav" aria-label="Navegação"><a class="nav__brand" href="#top">TAF®</a><span class="nav__status" id="nv-corte">Corte —</span><button class="menu-button magnetic" aria-label="Abrir menu" aria-expanded="false"><span></span><span></span></button></nav>
 <div class="menu" aria-hidden="true"><div class="menu__image"><canvas id="mn-topo" style="width:100%;height:100%;display:block"></canvas></div><div class="menu__panel"><small>TAF / Gestão das obras</small><div class="menu__links"><a href="#semana">Semana <span>01</span></a><a href="#obras">Obras <span>02</span></a><a href="#donos">Responsáveis <span>03</span></a><a href="#caixa">Caixa <span>04</span></a><a href="#decisoes">Decisões <span>05</span></a><a href="/">Painel <span>↗</span></a></div><div class="menu__meta"><span>TAF Equipamentos</span><span id="mn-sem">—</span></div></div></div>
 <main>
 <section class="hero" id="top">
 <div class="hero__visual" aria-label="Passe o mouse para ver o projeto sobre o terreno"><canvas class="hero__topo" id="topo"></canvas><img class="hero__ghost" src="centro/proj-a.png" alt=""><div class="hero__image hero__image--human"><img src="centro/proj-a.png" alt="Desenho do tanque de contato"></div><div class="hero__halo" aria-hidden="true"></div></div>
-<div class="hero__copy"><span class="eyebrow">TAF Equipamentos · Centro de gestão</span><h1>Gestão <span class="outline">das obras</span></h1><div class="hero__sub"><span class="scroll-cue">Role para ver a semana</span><p>Três obras, um corte por semana. Todo número aqui sai da planilha rev6. Onde falta dado, aparece SEM BASE.</p></div></div>
+<div class="hero__copy"><span class="eyebrow">TAF Equipamentos · Centro de gestão</span><h1>Gestão <span class="outline">das obras</span></h1><div class="hero__sub"><span class="scroll-cue">Role para ver a semana</span><p>Três obras, um corte por semana. Todo número aqui sai da planilha de gestão da TAF. Onde falta dado, aparece SEM BASE.</p></div></div>
 <div class="hero__coordinates" aria-hidden="true"><span>OBRAS / 342 · 343 · 281</span><span>CAMADA / <b data-state="">TERRENO</b></span><span>X <b data-x="">068.0</b> / Y <b data-y="">044.0</b></span></div>
 <div class="hero__mode">Passe o mouse <b>terreno → projeto</b></div>
 </section>
@@ -59,7 +61,7 @@ a:hover{color:var(--signal)}
 <div class="field__card"><strong class="neg" id="fc-v">—</strong><p id="fc-p">—</p></div></div></section>
 <section class="no-formula" id="decisoes"><div class="no-formula__pin"><div class="no-formula__top"><span>05 / Decisões da semana</span><span id="nf-top">—</span></div><div class="no-formula__mark" aria-hidden="true" id="nf-mark">00</div><div class="no-formula__statements" id="nf"></div><div class="no-formula__rail" aria-hidden="true"><span></span></div></div></section>
 <section class="thesis"><div class="thesis__axis-x" aria-hidden="true"></div><div class="thesis__axis-y" aria-hidden="true"></div><div class="thesis__rings" aria-hidden="true"></div>
-<div class="thesis__copy"><small>O método</small><h2>Todo número vem da rev6. <i>Falta dado</i> é SEM BASE.</h2><p>Nada aqui é digitado à mão. Se a planilha não tem a informação, o painel mostra o buraco em vez de preencher.</p></div></section>
+<div class="thesis__copy"><small>O método</small><h2>Todo número vem da planilha de gestão. <i>Falta dado</i> é SEM BASE.</h2><p>Nada aqui é digitado à mão. Se a planilha não tem a informação, o painel mostra o buraco em vez de preencher.</p></div></section>
 <section class="cta" id="contato"><div class="cta__top"><span>O resto está lá dentro</span><span id="ct-corte">Corte —</span></div>
 <h2><a href="/">Abrir o <span>painel.</span></a></h2>
 <div class="cta__contact"><a class="magnetic" href="/">Painel completo, oito abas ↗</a><div><span>342</span><span>343</span><span>281</span></div></div>

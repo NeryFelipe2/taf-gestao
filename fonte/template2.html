@@ -44,7 +44,7 @@
     <p id="sub"></p>
   </div>
   <div class="selo"><span id="selo-corte"></span><br><b id="selo-master"></b>
-    <div class="btns"><a class="btn" href="/centro.html">Centro</a><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><label class="btn" for="b-tema" style="gap:6px">Estilo <select id="b-tema" aria-label="Estilo do site" style="background:transparent;border:0;color:inherit;font:inherit;cursor:pointer"><option value="claro">Claro (TAF)</option><option value="masterclass">Masterclass (escuro)</option><option value="moveflux">Moveflux</option><option value="noema">NØEMA</option><option value="ix7">ix7 Mission</option><option value="grotesk">Grotesk Zero</option></select></label></div>
+    <div class="btns"><a class="btn" href="/centro.html">Centro</a><label class="btn" for="upl" title="Escolha a planilha de gestão atualizada; o painel relê as mesmas células">Atualizar planilha</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><label class="btn" for="b-tema" style="gap:6px">Estilo <select id="b-tema" aria-label="Estilo do site" style="background:transparent;border:0;color:inherit;font:inherit;cursor:pointer"><option value="claro">Claro (TAF)</option><option value="masterclass">Masterclass (escuro)</option><option value="moveflux">Moveflux</option><option value="noema">NØEMA</option><option value="ix7">ix7 Mission</option><option value="grotesk">Grotesk Zero</option></select></label></div>
   </div>
 </header>
 
@@ -112,10 +112,10 @@
   </section>
 
   <section role="tabpanel" id="p-tarefas" aria-labelledby="t-tarefas" hidden>
-    <div class="tk-hero"><span class="eyebrow">Gestão de tarefas · TAF</span><h2 class="tk-h2">Lista de Tarefas</h2><p>As restrições da 05C da rev6, por obra ou por pessoa. Mude a data de hoje, o limite de atraso, o prazo, o dono ou a situação de qualquer linha e os números, os gráficos e a lista refazem na hora.</p></div>
+    <div class="tk-hero"><span class="eyebrow">Gestão de tarefas · TAF</span><h2 class="tk-h2">Lista de Tarefas</h2><p>As pendências da planilha de gestão, por obra ou por pessoa. Mude a data de hoje, o limite de atraso, o prazo, o dono ou a situação de qualquer linha e os números, os gráficos e a lista refazem na hora.</p></div>
     <p class="hint" id="tk-upd" style="margin:0 0 12px"></p>
-    <div class="card" id="ed-bar"><div class="ed-h"><h3>Editar tarefas e parâmetros</h3><span class="sim" id="ed-sim" hidden>Mudanças do site ainda fora da planilha rev6</span></div>
-      <p class="hint">Sem edição, tudo é a rev6. Cada mudança é salva no banco e todos veem. Para levar à planilha, use “Baixar planilha (xlsx)”.</p>
+    <div class="card" id="ed-bar"><div class="ed-h"><h3>Editar tarefas e parâmetros</h3><span class="sim" id="ed-sim" hidden>Mudanças do site ainda fora da planilha de gestão</span></div>
+      <p class="hint">Sem edição, tudo é a planilha de gestão. Cada mudança é salva no banco e todos veem. Para levar à planilha, use “Baixar planilha (xlsx)”.</p>
       <div class="row ed-row">
         <label class="field" style="gap:8px"><span class="lbl">Hoje</span><input type="date" id="ed-hoje" aria-label="Data de hoje"></label>
         <label class="field" style="gap:8px"><span class="lbl">Atrasada após</span><input type="range" min="0" max="30" id="ed-atr-r" aria-label="Dias de atraso (deslize)"><input type="number" min="0" max="365" id="ed-atr" style="width:3.4em" aria-label="Dias de atraso"><span class="lbl">dias</span></label>
@@ -191,7 +191,7 @@
   </section>
 
   <section role="tabpanel" id="p-historico" aria-labelledby="t-historico" hidden>
-    <div class="card"><div class="ph"><h3>Revisões da planilha de gestão</h3><span class="cnt">15. CHANGELOG da rev6</span></div></div>
+    <div class="card"><div class="ph"><h3>Revisões da planilha de gestão</h3><span class="cnt">aba 15. CHANGELOG</span></div></div>
     <div class="dia" id="l-hi"></div>
   </section>
   <p class="nota" id="nota"></p>
@@ -536,7 +536,7 @@ function mudancas(){
   return Object.keys(by).map(function(k){return by[k]}).sort(function(a,b){return Date.parse(b.em)-Date.parse(a.em)})}
 function rMud(){
   var L=mudancas(),u=L[0];
-  $('l-mud').innerHTML=L.slice(0,8).map(function(x){var n=x.it.length;return '<li><b>'+esc(x.quem)+'</b> · '+qdt(x.em)+' · '+n+(n===1?' mudança':' mudanças')+'<br><span class="hint">'+x.it.slice(0,4).map(esc).join('; ')+(n>4?'; e mais '+(n-4):'')+'</span></li>'}).join('')||'<li>Nenhuma edição ainda: tudo é a rev6.</li>';
+  $('l-mud').innerHTML=L.slice(0,8).map(function(x){var n=x.it.length;return '<li><b>'+esc(x.quem)+'</b> · '+qdt(x.em)+' · '+n+(n===1?' mudança':' mudanças')+'<br><span class="hint">'+x.it.slice(0,4).map(esc).join('; ')+(n>4?'; e mais '+(n-4):'')+'</span></li>'}).join('')||'<li>Nenhuma edição ainda: tudo é a planilha de gestão.</li>';
   $('tk-upd').textContent='Lista da '+FONTE+' (corte '+dt(corte())+') · hoje '+dt(hojeEf())+' · última edição: '+(u?u.quem+', '+qdt(u.em):'nenhuma')+'.'}
 function rTa(){
   var all=tF(true),pes={},tot={},nm=function(r){return r.dono||'SEM DONO'};
@@ -558,7 +558,7 @@ function rTa(){
   $('ed-modo').setAttribute('aria-pressed',String(EM));$('ed-nova').hidden=!EM;tkSim();
   var ref=function(x){return sim?'':x};
   kpis('k-ta',[{k:TKN.ab,v:String(sn.ab),s:'ABERTA ou MONITORAR',ref:'05C coluna H',dest:true},{k:TKN.at,v:String(sn.at),s:(hoje===corte()?'prazo antes do corte':'prazo antes de '+dt(hoje))+(atr?' + '+dTxt(atr):''),ref:'05C coluna L',bad:sn.at>0},{k:TKN.wk,v:String(sn.wk),s:'até 7 dias depois de '+(hoje===corte()?'o corte':dt(hoje)),ref:'05C coluna L'},{k:TKN.sd,v:String(sn.sd),s:'falta pessoa',ref:'05C coluna G',bad:sn.sd>0},{k:TKN.re,v:String(sn.re),s:'situação RESOLVIDA',ref:'05C coluna H'},{k:TKN.pe,v:String(sn.pe),s:'com tarefa aberta'}]);
-  if(sim)document.querySelectorAll('#k-ta .kpi').forEach(function(k){k.title='Mudanças do site ainda fora da planilha rev6'});
+  if(sim)document.querySelectorAll('#k-ta .kpi').forEach(function(k){k.title='Mudanças do site ainda fora da planilha de gestão'});
   $('t-res').innerHTML='<b>'+rs.length+'</b> tarefas'+(S.pes?' de <b>'+esc(S.pes)+'</b>':'');
   var gk=function(r){return S.grp==='obra'?nObra(r.obra):nm(r)},g={};rs.forEach(function(r){var k=gk(r);(g[k]=g[k]||[]).push(r)});
   gObr(tarAll().filter(function(r){return okQ([r.n,r.frente,r.txt,r.dono,r.resposta])&&(!S.pes||nm(r)===S.pes)}));
@@ -574,7 +574,7 @@ function rTa(){
   tkPos(rs,g);
   return tkRes(rs.length);
 }
-function tkRes(n){if(n==null)n=sortT(tF(false)).filter(function(r){return (!S.al||r.alerta===S.al)&&(!S.atr||r.alerta==='VENCIDA')}).length;return n+' tarefas'+(edVazio()?' (rev6)':' (simulação local)')}
+function tkRes(n){if(n==null)n=sortT(tF(false)).filter(function(r){return (!S.al||r.alerta===S.al)&&(!S.atr||r.alerta==='VENCIDA')}).length;return n+' tarefas'+(edVazio()?' (planilha)':' (simulação local)')}
 function msgPes(p,L){var A=L.filter(aberT);if(!A.length)return '';return '*'+p+'* · tarefas abertas ('+'data '+dt(hojeEf())+')'+'\n'+A.map(function(r){return '- '+r.n+' ('+(S.grp==='obra'?(r.dono||'SEM DONO'):r.obra)+'): '+r.txt+' · '+(r.nova?'nova data '+dt(r.nova):r.prazo?'até '+dt(r.prazo):'sem prazo')+(r.alerta==='VENCIDA'?' · VENCIDA':'')}).join('\n')}
 /* edição: tudo vira simulação local por cima da rev6 (localStorage) */
 function setCampo(id,c,v){
@@ -603,7 +603,7 @@ function baixarPlanilha(){
   var A1=[['Nº','Obra','Frente / evento','Tarefa','Dono','Situação','Precisa até','Dias até o prazo (hoje '+dt(hoje)+')','Alerta','Resposta','Mudou no site','Quem mudou','Quando','ID no site']];
   tarAll().forEach(function(t){var m=q[t.id]||{};
     A1.push([t.novo?'NOVA '+('0'+(++nn)).slice(-2):t.n,vz(t.obra),vz(t.frente),vz(t.txt),vz(t.dono),vz(t.sit),xDia(t.prazo),t.prazo?-t.atraso:null,vz(t.alerta),vz(t.resposta),t.novo?'Nova':t.edit?'Sim':null,vz(m.quem),m.em?xQuando(m.em):null,t.id])});
-  var A2=[['Nº','Obra','Restrição na rev6','O que mudou','Na rev6','Agora no site','Linha da 05C','Coluna da 05C','Quem','Quando']],
+  var A2=[['Nº','Obra','Restrição na planilha','O que mudou','Na planilha','Agora no site','Linha da 05C','Coluna da 05C','Quem','Quando']],
     fv=function(c,v){return c==='prazo'?dt(v):v==null?'':String(v)};
   Object.keys(rem).filter(function(id){return byN[id]}).sort(function(a,b){return byN[a].row-byN[b].row}).forEach(function(id){
     var d=rem[id]||{},r=byN[id],m=q[id]||{},base=[id,vz(r.obra),vz(r.txt)],qm=[vz(m.quem),m.em?xQuando(m.em):null];
@@ -654,7 +654,7 @@ function tkInit(){
       Object.keys(j.del).forEach(function(k){if(j.del[k])N.del[k]=1});
       j.add.forEach(function(a){if(!a||!/^N\d+$/.test(a.id))return;N.add.push({id:a.id,obra:st(a.obra)||OB[0],frente:st(a.frente),txt:st(a.txt)||'Tarefa',dono:st(a.dono),sit:SITS.indexOf(a.sit)>=0?a.sit:'ABERTA',prazo:iso.test(a.prazo||'')?a.prazo:'',resposta:st(a.resposta)});N.nid=Math.max(N.nid,+a.id.slice(1)+1)});
       N.nid=Math.max(N.nid,+j.nid||1);baixarPlanilha();ED=N;TKW='Importado de '+f.name;edAplica();toast('Simulação importada')}catch(er){toast('Arquivo inválido')}},function(){toast('Não consegui ler o arquivo')})});
-  $('ed-rest').addEventListener('click',function(e){dois(e.currentTarget,'Confirmar: apagar edições',function(){ED=null;TKW='Restaurado à rev6';edSave();render();toast('Dados originais da rev6 restaurados')})});
+  $('ed-rest').addEventListener('click',function(e){dois(e.currentTarget,'Confirmar: apagar edições',function(){ED=null;TKW='Restaurado à planilha de gestão';edSave();render();toast('Dados originais da planilha de gestão restaurados')})});
   var Ls=$('l-ta');
   Ls.addEventListener('change',function(e){var c=e.target.dataset.ef,row=e.target.closest('[data-k]');if(!c||!row)return;var id=row.dataset.k,v=e.target.value;
     if((c==='txt')&&!v.trim()){render();return}
@@ -686,7 +686,7 @@ var WTG={'sp':['Sem prazo informado',WSP],'in':['Com [INFERÊNCIA] ou [?]',funct
 function waF(ign){return W.acoes.filter(function(a){return okO(a.obra)&&okQ([a.id,a.oque,a.quem,a.porque,a.frente])&&(ign||(!S.wp||new RegExp(WP.filter(function(p){return p[0]===S.wp})[0][1]).test(a.quem))&&(!S.wt||WTG[S.wt][1](a)))})}
 var tagP=function(t){return pill('['+t+']',t==='DECISÃO'?'--s-ex':t==='PEND'?'--s-cf':'--s-pe')};
 function rWa(){
-  $('wa-fonte').innerHTML='Fonte: <b>'+esc(W.fonte)+'</b>, corte '+esc(W.corte)+'. Não vem da rev6 e <b>não entra nas luzes nem nos números</b> dos outros painéis. Cada item mantém o grupo e a linha do chat. Prazo "não informado" = ninguém falou data.';
+  $('wa-fonte').innerHTML='Fonte: <b>'+esc(W.fonte)+'</b>, corte '+esc(W.corte)+'. Não vem da planilha de gestão e <b>não entra nas luzes nem nos números</b> dos outros painéis. Cada item mantém o grupo e a linha do chat. Prazo "não informado" = ninguém falou data.';
   var base=waF(true),cnt={};WP.forEach(function(p){var re=new RegExp(p[1]);cnt[p[0]]=base.filter(function(a){return re.test(a.quem)}).length});
   $('w-pes').innerHTML='<button type="button" class="chip" data-p="" aria-pressed="'+(!S.wp)+'">Todas <span class="c">'+base.length+'</span></button>'+WP.filter(function(p){return cnt[p[0]]}).map(function(p){return '<button type="button" class="chip" data-p="'+p[0]+'" aria-pressed="'+(S.wp===p[0])+'">'+p[0]+' <span class="c">'+cnt[p[0]]+'</span></button>'}).join('');
   $('w-tag').innerHTML=Object.keys(WTG).map(function(k){return '<button type="button" class="chip" data-t="'+k+'" aria-pressed="'+(S.wt===k)+'">'+WTG[k][0]+' <span class="c">'+base.filter(WTG[k][1]).length+'</span></button>'}).join('');
@@ -737,7 +737,7 @@ function cab(){
   $('f-obras').innerHTML=OB.map(function(o){var x=D.obras[o],w=['PRODUCAO','DINHEIRO','PLANO'].map(function(k){return x.luz[k].v}),c=w.indexOf('VERMELHO')>=0?'--s-ne':w.indexOf('AMARELO')>=0?'--s-cf':w.indexOf('VERDE')>=0?'--s-ex':'--s-si';return '<button type="button" class="chip" data-o="'+o+'" aria-pressed="'+(S.obras.indexOf(o)>=0)+'"><span class="dot" style="background:'+cv(c)+'"></span>'+esc(NOME[o])+'</button>'}).join('');
   $('f-obras').querySelectorAll('[data-o]').forEach(function(b){b.onclick=function(){OBRA_FORCE='';var o=b.dataset.o,i=S.obras.indexOf(o);if(i>=0)S.obras.splice(i,1);else S.obras.push(o);render()}});
   $('n-ap').textContent=D.apont.length;$('n-me').textContent=D.bms.length;$('n-ta').textContent=tarAll().filter(aberT).length;$('n-co').textContent=D.decisoes.filter(decAb).length;$('n-hi').textContent=D.changelog.length;$('n-wa').textContent=W.acoes.length;
-  $('nota').innerHTML='<b>Como ler.</b> Tudo vem da '+esc(FONTE)+'; nada é digitado no painel. Para atualizar, clique em "Atualizar com a rev6" e escolha o arquivo: o painel relê as mesmas células. Luzes (01A): Produção = P2 a P4, Dinheiro = P1, P5, P7 e P9, Plano = P6, P8 e P10; a pior cor manda. Carteira da TAF (08B B9): 342 e 343 a 100%, 281 a 50% (03 F22, a confirmar com Thadeu). Pior caixa (10 C15): 342 + 343 com juro; a 281 entra quando tiver plano de custo. Restrição vencida = prazo antes do corte e ainda aberta (05C); nova data só quando o dono replanejou (coluna U). Curva S (12. EVM): medido = BM aprovado (06). SEM BASE = falta dado, não é zero.';
+  $('nota').innerHTML='<b>Como ler.</b> Tudo vem da '+esc(FONTE)+'; nada é digitado no painel. Para atualizar, clique em "Atualizar planilha" e escolha o arquivo: o painel relê as mesmas células. Luzes (01A): Produção = P2 a P4, Dinheiro = P1, P5, P7 e P9, Plano = P6, P8 e P10; a pior cor manda. Carteira da TAF (08B B9): 342 e 343 a 100%, 281 a 50% (03 F22, a confirmar com Thadeu). Pior caixa (10 C15): 342 + 343 com juro; a 281 entra quando tiver plano de custo. Restrição vencida = prazo antes do corte e ainda aberta (05C); nova data só quando o dono replanejou (coluna U). Curva S (12. EVM): medido = BM aprovado (06). SEM BASE = falta dado, não é zero.';
 }
 function render(){
   cab();
@@ -768,7 +768,7 @@ $('b-copiar').onclick=function(){var L=[];
   else L=sortR(restF(false).filter(aberta)).map(function(r){return [r.n,r.obra,r.frente,r.txt,r.dono||'SEM DONO',dt(r.ate),dt(r.nova),r.alerta].join('\t')});
   copiar(L.join('\n'),L.length+' linhas copiadas')};
 $('upl').onchange=function(e){var f=e.target.files[0];if(!f)return;if(typeof XLSX==='undefined'){toast('Leitor de planilha não carregou');return}
-  var rd=new FileReader();rd.onload=function(){try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});if(!wb.Sheets['01A. GESTÃO DA SEMANA']||!wb.Sheets['05C. RESTRIÇÕES'])throw 0;D=extractRev6(wb);FONTE=f.name+', lido agora';var sem=ED?Object.keys(ED.ov).filter(function(k){return !D.restricoes.some(function(r){return r.n===k})}).length:0;TKPREV=null;TKPP=null;render();toast('Painel relido de '+f.name+(edVazio()?'':'. Suas edições locais continuam por cima'+(sem?' ('+sem+' sem linha na nova leitura foram ignoradas)':'')))}catch(err){toast('Esse arquivo não tem as abas da rev6 (01A, 05C)')}};rd.readAsArrayBuffer(f)};
+  var rd=new FileReader();rd.onload=function(){try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});if(!wb.Sheets['01A. GESTÃO DA SEMANA']||!wb.Sheets['05C. RESTRIÇÕES'])throw 0;D=extractRev6(wb);FONTE=f.name+', lido agora';var sem=ED?Object.keys(ED.ov).filter(function(k){return !D.restricoes.some(function(r){return r.n===k})}).length:0;TKPREV=null;TKPP=null;render();toast('Painel relido de '+f.name+(edVazio()?'':'. Suas edições locais continuam por cima'+(sem?' ('+sem+' sem linha na nova leitura foram ignoradas)':'')))}catch(err){toast('Esse arquivo não tem as abas da planilha de gestão (01A, 05C)')}};rd.readAsArrayBuffer(f)};
 
 /* ---------- telas do ciclo, do engenheiro e do ERP dentro do Centro ---------- */
 /* [chave, nome, tela, parâmetros]; tela 'nat' = o que o Centro já tinha (planilha rev6). As demais abrem a mesma obra, no mesmo banco. */
@@ -815,7 +815,7 @@ function telas(){
   Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=x!==f});
   var av=box.querySelector(':scope>.aviso');
   var okObra=(mod==='erp'?ERP_OBRAS:CARREGADAS).indexOf(ob)>=0;
-  if(!okObra){if(!av){av=document.createElement('div');av.className='aviso';box.insertBefore(av,box.firstChild)}av.textContent=mod==='erp'?'A obra '+ob+' ainda não tem ERP carregado no banco; a planilha rev6 continua valendo para ela.':'A obra '+ob+' ainda não tem cronograma semanal no banco (só o ERP: custo, compras, notas e BM); a planilha rev6 continua valendo para o resto. Escolha a 342 (ou deixe só uma obra marcada) para usar esta tela.'}
+  if(!okObra){if(!av){av=document.createElement('div');av.className='aviso';box.insertBefore(av,box.firstChild)}av.textContent=mod==='erp'?'A obra '+ob+' ainda não tem ERP carregado no banco; a planilha de gestão continua valendo para ela.':'A obra '+ob+' ainda não tem cronograma semanal no banco (só o ERP: custo, compras, notas e BM); a planilha de gestão continua valendo para o resto. Escolha a 342 (ou deixe só uma obra marcada) para usar esta tela.'}
   else if(av)av.remove();
 }
 function rota(h){

@@ -4,7 +4,7 @@
   <input type="password" id="g-chave" placeholder="Chave de acesso" autocomplete="current-password">
   <input type="text" id="g-nome" placeholder="Seu nome (aparece em quem editou)" autocomplete="name">
   <button class="btn pri" id="g-ok" type="button">Entrar</button>
-  <label class="btn" for="g-rev" id="g-revl" hidden>Banco sem planilha: escolher a rev6 (.xlsx)</label><input type="file" id="g-rev" accept=".xlsx,.xlsm" hidden>
+  <label class="btn" for="g-rev" id="g-revl" hidden>Banco sem planilha: escolher a planilha de gestão (.xlsx)</label><input type="file" id="g-rev" accept=".xlsx,.xlsm" hidden>
   <div class="err" id="g-err"></div>
 </div></div>
 <script>
@@ -20,14 +20,14 @@ window.TAF={chave:ls.g('taf-chave')||'',
 function gate(msg,err){$('gate').hidden=false;$('g-msg').textContent=msg||'Digite a chave de acesso.';$('g-err').textContent=err||'';$('g-nome').value=ls.g('taf-quem')||''}
 async function entrar(){
   try{var r=await TAF.rpc('taf_ler',{p_chave:TAF.chave});
-    if(!r||!r.snap){$('gate').hidden=false;$('g-msg').textContent='Chave certa. O banco ainda não tem a planilha: escolha a rev6.';$('g-chave').hidden=true;$('g-nome').hidden=true;$('g-ok').hidden=true;$('g-revl').hidden=false;return}
-    $('gate').hidden=true;D=r.snap;W=(r.wa&&r.wa.acoes)?r.wa:{acoes:[]};FONTE=(r.fonte||'rev6')+', salva em '+new Date(r.snap_em).toLocaleDateString('pt-BR');
+    if(!r||!r.snap){$('gate').hidden=false;$('g-msg').textContent='Chave certa. O banco ainda não tem a planilha: escolha a planilha de gestão.';$('g-chave').hidden=true;$('g-nome').hidden=true;$('g-ok').hidden=true;$('g-revl').hidden=false;return}
+    $('gate').hidden=true;D=r.snap;W=(r.wa&&r.wa.acoes)?r.wa:{acoes:[]};FONTE=(r.fonte||'planilha de gestão')+', salva em '+new Date(r.snap_em).toLocaleDateString('pt-BR');
     var m={},q={};(r.edicoes||[]).forEach(function(x){m[x.id]=x.dados;q[x.id]={quem:x.quem,em:x.em}});window.__REM=m;window.__REMQ=q;if(new URLSearchParams(location.search).get('volta')==='centro'){location.replace('/centro.html');return}window.__iniciar()}
   catch(e){if(/CHAVE/.test(e.message)){ls.d('taf-chave');TAF.chave='';gate('Digite a chave de acesso.','Chave inválida.')}else gate('Sem conexão com o banco.','Erro: '+e.message)}}
 $('g-ok').onclick=function(){var c=$('g-chave').value.trim(),n=$('g-nome').value.trim();if(!c){$('g-err').textContent='Digite a chave.';return}
   TAF.chave=c;ls.s('taf-chave',c);if(n)ls.s('taf-quem',n);entrar()};
 $('g-chave').addEventListener('keydown',function(e){if(e.key==='Enter')$('g-ok').click()});
-$('g-rev').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});if(!wb.Sheets['01A. GESTÃO DA SEMANA']||!wb.Sheets['05C. RESTRIÇÕES'])throw new Error('Esse arquivo não tem as abas da rev6.');
+$('g-rev').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});if(!wb.Sheets['01A. GESTÃO DA SEMANA']||!wb.Sheets['05C. RESTRIÇÕES'])throw new Error('Esse arquivo não tem as abas da planilha de gestão.');
   TAF.rpc('taf_snap_salvar',{p_chave:TAF.chave,p_snap:extractRev6(wb),p_fonte:f.name,p_quem:TAF.quem()}).then(function(){location.reload()},function(er){$('g-err').textContent='Não salvou: '+er.message})}catch(er){$('g-err').textContent=er.message}};rd.readAsArrayBuffer(f)};
 if(TAF.chave)entrar();else gate();
 })();

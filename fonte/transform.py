@@ -21,7 +21,7 @@ def sub(old,new,cnt=1):
 sub('var D=/*SNAP*/;\nvar W=/*WA*/;','var D=null,W={acoes:[]};')
 sub('(function(){\n"use strict";','window.__iniciar=function(){\n"use strict";')
 sub('tkInit();\nrender();\n})();','tkInit();\nrender();\npollIni();\nverIni();\n};')
-sub("var FONTE='rev6 do projeto, lida em 19/10/2026';","var FONTE='rev6';")
+sub("var FONTE='rev6 do projeto, lida em 19/10/2026';","var FONTE='planilha de gestão';")
 # edicoes compartilhadas
 old=t[t.index("try{var _e=JSON.parse(localStorage.getItem(EK)"):t.index("var edVazio=")]
 new="""var HK='taf-tarefas-param-v1',REM=window.__REM||{},REMQ=window.__REMQ||{};
@@ -60,14 +60,14 @@ sub("var o=ED.ov[id]=ED.ov[id]||{}","var o=ED.ov[id]=ED.ov[id]||{}")  # sanity
 sub("var id='N'+(ED.nid++);","var id='N'+Date.now();")
 sub("if(ED)ED.add.forEach(function(a){var t={id:a.id,n:'NOVA '+a.id.slice(1),","if(ED)ED.add.forEach(function(a,ix){var t={id:a.id,n:'NOVA '+(ix+1),")
 # restaurar = apaga edicoes de todos
-sub("'Confirmar: apagar edições',function(){ED=null;TKW='Restaurado à rev6';edSave();render();toast('Dados originais da rev6 restaurados')}",
-    "'Confirmar: apagar edições de todos',function(){baixarPlanilha();ens();ED.ov={};ED.add=[];ED.del={};ED.hoje=null;ED.atr=0;TKW='Restaurado à rev6';edSave();render();toast('Dados originais da rev6 restaurados')}")
+sub("'Confirmar: apagar edições',function(){ED=null;TKW='Restaurado à planilha de gestão';edSave();render();toast('Dados originais da planilha de gestão restaurados')}",
+    "'Confirmar: apagar edições de todos',function(){baixarPlanilha();ens();ED.ov={};ED.add=[];ED.del={};ED.hoje=null;ED.atr=0;TKW='Restaurado à planilha de gestão';edSave();render();toast('Dados originais da planilha de gestão restaurados')}")
 # textos
-t=t.replace('Simulação local, não altera a rev6','Edição compartilhada, não altera a planilha rev6').replace('Tarefa nova (simulação local)','Tarefa nova (edição compartilhada)').replace("' (simulação local)'","' (com edições)'").replace('simulação local','edição compartilhada')
+t=t.replace('Simulação local, não altera a rev6','Edição compartilhada, não altera a planilha de gestão').replace('Tarefa nova (simulação local)','Tarefa nova (edição compartilhada)').replace("' (simulação local)'","' (com edições)'").replace('simulação local','edição compartilhada')
 t=t.replace("sim=!edVazio()","sim=!semEdicao()") if "sim=!edVazio()" in t else t
 sub("function tkSim(){var s=$('ed-sim');if(s)s.hidden=edVazio()}","function tkSim(){var s=$('ed-sim');if(s)s.hidden=semEdicao()}")
 # upload da rev6 salva para todos
-sub("D=extractRev6(wb);FONTE=f.name+', lido agora';","D=extractRev6(wb);FONTE=f.name+', lido agora';TAF.rpc('taf_snap_salvar',{p_chave:TAF.chave,p_snap:D,p_fonte:f.name,p_quem:TAF.quem()}).then(function(){toast('rev6 salva para todos')},function(){toast('Li a rev6 aqui, mas não consegui salvar no banco')});")
+sub("D=extractRev6(wb);FONTE=f.name+', lido agora';","D=extractRev6(wb);FONTE=f.name+', lido agora';TAF.rpc('taf_snap_salvar',{p_chave:TAF.chave,p_snap:D,p_fonte:f.name,p_quem:TAF.quem()}).then(function(){toast('Planilha de gestão salva para todos')},function(){toast('Li a planilha aqui, mas não consegui salvar no banco')});")
 # aba WhatsApp some se vazia
 sub("$('n-wa').textContent=W.acoes.length;","$('n-wa').textContent=W.acoes.length;$('t-whatsapp').hidden=!W.acoes.length;")
 sub("if(TABS.indexOf(h0[0])>=0){S.tab=h0[0];if(h0[1])S.sub[h0[0]]=h0[1]}","if(TABS.indexOf(h0[0])>=0){S.tab=h0[0];if(h0[1])S.sub[h0[0]]=h0[1]}if(S.tab==='whatsapp'&&!W.acoes.length)S.tab='painel';")
