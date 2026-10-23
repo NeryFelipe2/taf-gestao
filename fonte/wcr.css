@@ -420,3 +420,13 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
   --f-hd:'Rajdhani','Arial Narrow',sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace; --r:2px;
 }
 :root[data-estilo="noema"] body,:root[data-estilo="ix7"] body,:root[data-estilo="moveflux"] body{background-image:none}
+:root[data-estilo="grotesk"]{
+  --bg:#F4F1EA; --panel:#FAF8F3; --raised:#EAE6DC; --hover:#DEDACF;
+  --line:rgba(12,11,10,.28); --line2:rgba(12,11,10,.12);
+  --tx:#161513; --hd:#0C0B0A; --mu:#4A4743; --mu2:#5E5B55;
+  --ac:#D43D17; --ac2:#B2310F; --acbg:rgba(212,61,23,.10);
+  --thbg:rgba(12,11,10,.04); --selac:rgba(212,61,23,.08);
+  --f-hd:'Archivo',system-ui,sans-serif; --f-tx:'Archivo',system-ui,sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace; --r:0px;
+}
+:root[data-estilo="grotesk"] body{background-image:none}
+:root[data-estilo="grotesk"] h1,:root[data-estilo="grotesk"] h2{font-weight:800;letter-spacing:-.02em;text-transform:uppercase}

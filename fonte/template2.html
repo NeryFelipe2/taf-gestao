@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Archivo:wght@400;500;600;700;800&family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 /*WCRCSS*/
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){color-scheme:dark}}
@@ -44,7 +44,7 @@
     <p id="sub"></p>
   </div>
   <div class="selo"><span id="selo-corte"></span><br><b id="selo-master"></b>
-    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><label class="btn" for="b-tema" style="gap:6px">Estilo <select id="b-tema" aria-label="Estilo do site" style="background:transparent;border:0;color:inherit;font:inherit;cursor:pointer"><option value="claro">Claro (TAF)</option><option value="masterclass">Masterclass (escuro)</option><option value="moveflux">Moveflux</option><option value="noema">NØEMA</option><option value="ix7">ix7 Mission</option></select></label></div>
+    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><label class="btn" for="b-tema" style="gap:6px">Estilo <select id="b-tema" aria-label="Estilo do site" style="background:transparent;border:0;color:inherit;font:inherit;cursor:pointer"><option value="claro">Claro (TAF)</option><option value="masterclass">Masterclass (escuro)</option><option value="moveflux">Moveflux</option><option value="noema">NØEMA</option><option value="ix7">ix7 Mission</option><option value="grotesk">Grotesk Zero</option></select></label></div>
   </div>
 </header>
 
@@ -241,7 +241,7 @@ function toast(t){var el=$('toast');el.textContent=t;el.hidden=false;clearTimeou
 function copiar(t,msg){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast(msg)},function(){toast('Não deu para copiar aqui')})}else toast('Não deu para copiar aqui')}
 // tema
 var TK='taf-tema';
-var ESTILOS={claro:'light',masterclass:'dark',moveflux:'light',noema:'dark',ix7:'dark'};
+var ESTILOS={claro:'light',masterclass:'dark',moveflux:'light',noema:'dark',ix7:'dark',grotesk:'light'};
 function tema(e){if(!ESTILOS[e])e=e==='dark'?'masterclass':'claro';var t=ESTILOS[e],r=document.documentElement;r.setAttribute('data-theme',t);if(e==='claro'||e==='masterclass')r.removeAttribute('data-estilo');else r.setAttribute('data-estilo',e);emitir({tema:t});$('b-tema').value=e}
 try{tema(localStorage.getItem(TK)||'claro')}catch(e){tema('claro')}
 $('b-tema').onchange=function(){tema(this.value);try{localStorage.setItem(TK,this.value)}catch(e){}};
