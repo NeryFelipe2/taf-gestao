@@ -8,7 +8,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
 /* Layout: painel de consulta. Cabeçalho com o resumo, barra de filtros fixa, três abas (Apontamentos, Medição, Cobranças).
    Resumo antes do detalhe: números, gráfico clicável, lista por dia ou por OS. Tema claro por padrão, com botão para o escuro. */
@@ -406,6 +406,33 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
 .mk:focus-visible{outline:2px solid var(--ac2);outline-offset:2px}
 #tip{max-width:min(320px,calc(100vw - 16px))}
 
+/* estilos escolhidos no seletor (design systems Moveflux, NØEMA e ix7) */
+:root[data-estilo="moveflux"]{
+  --bg:#F5F5F4; --panel:#FFFFFF; --raised:#F5F5F4; --hover:#E7E5E4;
+  --line:rgba(28,25,23,.22); --line2:rgba(28,25,23,.10);
+  --tx:#1C1917; --hd:#0C0A09; --mu:#57534E; --mu2:#6B635D;
+  --ac:#1C1917; --ac2:#B45309; --acbg:rgba(245,158,11,.14);
+  --thbg:rgba(28,25,23,.03); --selac:rgba(245,158,11,.10);
+  --f-hd:'Inter',system-ui,sans-serif; --f-mono:'Inter',system-ui,sans-serif; --r:18px;
+}
+:root[data-estilo="noema"]{
+  --bg:#050506; --panel:#0B0B0D; --raised:#141417; --hover:#1C1C21;
+  --line:rgba(207,206,200,.20); --line2:rgba(207,206,200,.09);
+  --tx:#CFCEC8; --hd:#F1F0EA; --mu:#A9A7A0; --mu2:#8F8D87;
+  --ac:#A9A5FF; --ac2:#A9A5FF; --acbg:rgba(108,99,255,.16); --s-ex:#7BFF82;
+  --tipbg:#141417; --selac:rgba(108,99,255,.12);
+  --f-hd:'Inter',system-ui,sans-serif; --r:4px;
+}
+:root[data-estilo="ix7"]{
+  --bg:#151410; --panel:#1D1B17; --raised:#26231E; --hover:#2E2A24;
+  --line:rgba(225,216,203,.27); --line2:rgba(225,216,203,.14);
+  --tx:#D8CFC2; --hd:#EFE7DB; --mu:#B3AA9D; --mu2:#9A9184;
+  --ac:#8BB9A4; --ac2:#8BB9A4; --acbg:rgba(139,185,164,.14);
+  --tipbg:#26231E; --selac:rgba(139,185,164,.12);
+  --f-hd:'Rajdhani','Arial Narrow',sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace; --r:2px;
+}
+:root[data-estilo="noema"] body,:root[data-estilo="ix7"] body,:root[data-estilo="moveflux"] body{background-image:none}
+
 #gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
 #gate[hidden]{display:none}
 #gate .box{max-width:380px;width:100%;background:var(--panel);border:1px solid var(--line2);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px}
@@ -453,7 +480,7 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
     <p id="sub"></p>
   </div>
   <div class="selo"><span id="selo-corte"></span><br><b id="selo-master"></b>
-    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><button class="btn" id="b-tema" type="button" aria-pressed="false">Tema escuro</button></div>
+    <div class="btns"><label class="btn" for="upl" title="Escolha a rev6 atualizada; o painel relê as mesmas células">Atualizar com a rev6</label><input type="file" id="upl" accept=".xlsx,.xlsm"><button class="btn" id="b-xlsx" type="button" title="Baixa as tarefas com todas as edições do site (xlsx)">Baixar planilha</button><label class="btn" for="b-tema" style="gap:6px">Estilo <select id="b-tema" aria-label="Estilo do site" style="background:transparent;border:0;color:inherit;font:inherit;cursor:pointer"><option value="claro">Claro (TAF)</option><option value="masterclass">Masterclass (escuro)</option><option value="moveflux">Moveflux</option><option value="noema">NØEMA</option><option value="ix7">ix7 Mission</option></select></label></div>
   </div>
 </header>
 
@@ -786,9 +813,10 @@ function toast(t){var el=$('toast');el.textContent=t;el.hidden=false;clearTimeou
 function copiar(t,msg){if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(t).then(function(){toast(msg)},function(){toast('Não deu para copiar aqui')})}else toast('Não deu para copiar aqui')}
 // tema
 var TK='taf-tema';
-function tema(t){document.documentElement.setAttribute('data-theme',t);emitir({tema:t});var b=$('b-tema');b.textContent=t==='light'?'Tema escuro':'Tema claro';b.setAttribute('aria-pressed',String(t==='dark'))}
-try{tema(localStorage.getItem(TK)==='dark'?'dark':'light')}catch(e){tema('light')}
-$('b-tema').onclick=function(){var t=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';tema(t);try{localStorage.setItem(TK,t)}catch(e){}};
+var ESTILOS={claro:'light',masterclass:'dark',moveflux:'light',noema:'dark',ix7:'dark'};
+function tema(e){if(!ESTILOS[e])e=e==='dark'?'masterclass':'claro';var t=ESTILOS[e],r=document.documentElement;r.setAttribute('data-theme',t);if(e==='claro'||e==='masterclass')r.removeAttribute('data-estilo');else r.setAttribute('data-estilo',e);emitir({tema:t});$('b-tema').value=e}
+try{tema(localStorage.getItem(TK)||'claro')}catch(e){tema('claro')}
+$('b-tema').onchange=function(){tema(this.value);try{localStorage.setItem(TK,this.value)}catch(e){}};
 // tooltip
 var tip=$('tip');
 function tipAt(t,x,y){tip.innerHTML=t.getAttribute('data-tip');tip.hidden=false;var w=tip.offsetWidth,h=tip.offsetHeight;x=Math.max(8,Math.min(x,innerWidth-w-8));if(y+h+8>innerHeight)y=Math.max(8,y-h-28);tip.style.left=x+'px';tip.style.top=y+'px'}
@@ -1189,7 +1217,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='d8df88293c',VK='taf-recarga';
+var BUILD='1414e933bc',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){

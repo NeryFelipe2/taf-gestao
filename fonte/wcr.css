@@ -393,3 +393,30 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
 }
 .mk:focus-visible{outline:2px solid var(--ac2);outline-offset:2px}
 #tip{max-width:min(320px,calc(100vw - 16px))}
+
+/* estilos escolhidos no seletor (design systems Moveflux, NØEMA e ix7) */
+:root[data-estilo="moveflux"]{
+  --bg:#F5F5F4; --panel:#FFFFFF; --raised:#F5F5F4; --hover:#E7E5E4;
+  --line:rgba(28,25,23,.22); --line2:rgba(28,25,23,.10);
+  --tx:#1C1917; --hd:#0C0A09; --mu:#57534E; --mu2:#6B635D;
+  --ac:#1C1917; --ac2:#B45309; --acbg:rgba(245,158,11,.14);
+  --thbg:rgba(28,25,23,.03); --selac:rgba(245,158,11,.10);
+  --f-hd:'Inter',system-ui,sans-serif; --f-mono:'Inter',system-ui,sans-serif; --r:18px;
+}
+:root[data-estilo="noema"]{
+  --bg:#050506; --panel:#0B0B0D; --raised:#141417; --hover:#1C1C21;
+  --line:rgba(207,206,200,.20); --line2:rgba(207,206,200,.09);
+  --tx:#CFCEC8; --hd:#F1F0EA; --mu:#A9A7A0; --mu2:#8F8D87;
+  --ac:#A9A5FF; --ac2:#A9A5FF; --acbg:rgba(108,99,255,.16); --s-ex:#7BFF82;
+  --tipbg:#141417; --selac:rgba(108,99,255,.12);
+  --f-hd:'Inter',system-ui,sans-serif; --r:4px;
+}
+:root[data-estilo="ix7"]{
+  --bg:#151410; --panel:#1D1B17; --raised:#26231E; --hover:#2E2A24;
+  --line:rgba(225,216,203,.27); --line2:rgba(225,216,203,.14);
+  --tx:#D8CFC2; --hd:#EFE7DB; --mu:#B3AA9D; --mu2:#9A9184;
+  --ac:#8BB9A4; --ac2:#8BB9A4; --acbg:rgba(139,185,164,.14);
+  --tipbg:#26231E; --selac:rgba(139,185,164,.12);
+  --f-hd:'Rajdhani','Arial Narrow',sans-serif; --f-mono:'IBM Plex Mono',ui-monospace,monospace; --r:2px;
+}
+:root[data-estilo="noema"] body,:root[data-estilo="ix7"] body,:root[data-estilo="moveflux"] body{background-image:none}
