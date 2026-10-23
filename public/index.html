@@ -824,7 +824,7 @@ function copiar(t,msg){if(navigator.clipboard&&navigator.clipboard.writeText){na
 // tema
 var TK='taf-tema';
 var ESTILOS={claro:'light',masterclass:'dark',moveflux:'light',noema:'dark',ix7:'dark',grotesk:'light'};
-function tema(e){if(!ESTILOS[e])e=e==='dark'?'masterclass':'claro';var t=ESTILOS[e],r=document.documentElement;r.setAttribute('data-theme',t);if(e==='claro'||e==='masterclass')r.removeAttribute('data-estilo');else r.setAttribute('data-estilo',e);emitir({tema:t});$('b-tema').value=e}
+function tema(e){if(!ESTILOS[e])e=e==='dark'?'masterclass':'claro';var t=ESTILOS[e],r=document.documentElement;r.setAttribute('data-theme',t);if(e==='claro'||e==='masterclass')r.removeAttribute('data-estilo');else r.setAttribute('data-estilo',e);emitir({tema:t,vars:visual()});$('b-tema').value=e}
 try{tema(localStorage.getItem(TK)||'claro')}catch(e){tema('claro')}
 $('b-tema').onchange=function(){tema(this.value);try{localStorage.setItem(TK,this.value)}catch(e){}};
 // tooltip
@@ -1227,7 +1227,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='612cb64567',VK='taf-recarga';
+var BUILD='e59098863e',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
@@ -1398,6 +1398,7 @@ function obraEmb(){if(OBRA_FORCE)return OBRA_FORCE;var o=QS.get('obra');if(/^\d{
 function srcDe(mod,par){var q=['embed=1','obra='+obraEmb()];Object.keys(par||{}).forEach(function(k){q.push(k+'='+encodeURIComponent(par[k]))});return '/'+mod+'?'+q.join('&')}
 function emitir(m){m.taf=1;Object.keys(EF).forEach(function(k){var f=EF[k];if(f&&f.dataset.pronto==='1'){try{f.contentWindow.postMessage(m,location.origin)}catch(e){}}})}
 function temaAtual(){return document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'}
+function visual(){var cs=getComputedStyle(document.documentElement),v={};['--bg','--panel','--raised','--hover','--line','--line2','--tx','--hd','--mu','--mu2','--ac','--ac2','--acbg','--f-hd','--f-tx','--f-mono','--r'].forEach(function(k){var x=cs.getPropertyValue(k).trim();if(x)v[k]=x});return v}
 function monta(t){var p=$('p-'+t),nat=null;
   if(p.childNodes.length){nat=document.createElement('div');nat.className='nat';while(p.firstChild)nat.appendChild(p.firstChild)}
   var nav=document.createElement('div');nav.className='subnav';nav.id='sn-'+t;
@@ -1437,7 +1438,8 @@ function rota(h){
 window.addEventListener('message',function(e){
   if(e.origin!==location.origin||!e.data||!e.data.taf)return;
   var f=null;Object.keys(EF).forEach(function(k){if(EF[k].contentWindow===e.source)f=EF[k]});
-  if(e.data.pronto){if(f){f.dataset.pronto='1';f.contentWindow.postMessage({taf:1,tema:temaAtual()},location.origin);if(f._pend){f.contentWindow.postMessage({taf:1,ir:f._pend},location.origin);f._pend=null}}return}
+  if(e.data.pronto){if(f){f.dataset.pronto='1';f.contentWindow.postMessage({taf:1,tema:temaAtual(),vars:visual()},location.origin);if(f._pend){f.contentWindow.postMessage({taf:1,ir:f._pend},location.origin);f._pend=null}}return}
+  if(e.data.altura){if(f)f.style.height=Math.max(320,Math.ceil(e.data.altura))+'px';return}
   if(e.data.ir){var r=rota(e.data.ir);if(!r)return;if(r.obra&&r.obra!==obraEmb())OBRA_FORCE=r.obra;ir(r.tab,r.sub,r.par)}
 });
 /* rotina: o caminho da obra, sempre visível */

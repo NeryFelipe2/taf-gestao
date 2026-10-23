@@ -117,6 +117,7 @@ td.dt{white-space:nowrap}
 .mud.banco{background:rgba(180,83,9,.08);border-left:3px solid var(--cf);padding-left:8px}
 .sqld{color:var(--cf);font-weight:700}
 .filtros{display:grid;gap:10px;margin-bottom:12px}
+.filtros:not([open]){padding-block:10px}
 .filtros .lin2{display:flex;gap:10px;flex-wrap:wrap}
 .filtros .lin2>div{flex:1 1 200px;min-width:0}
 .filtros input{display:block;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line2);border-radius:8px;background:var(--raised);font-size:16px}
@@ -1231,16 +1232,19 @@ function linhaMud(r) {
   return '<div class="mud' + (r.papel === 'banco' ? ' banco' : '') + '" data-log="' + esc(r.id) + '"><div class="l1">' + esc(CC.quando(horaDe(r))) + ' · ' + quemHtml(r) + ' · <b>' + esc(t.item) + '</b>: ' + esc(t.txt) + '</div>' +
     (l2.length ? '<div class="l2">' + esc(l2.join(' · ')) + '</div>' : '') + '</div>';
 }
+document.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'm-fd') S.hfAberto = e.target.open; }, true);   // filtros recolhidos: lembra se a pessoa abriu
 function rMud() {
   if (!S.L) return;
   var f = filtroServidor();
   var pessoas = [];
   (S.H || []).forEach(function (r) { var q = CC.quemTxt(r); if (q && pessoas.indexOf(q) < 0) pessoas.push(q); });
   if (S.hf.pessoa && pessoas.indexOf(S.hf.pessoa) < 0) pessoas.push(S.hf.pessoa);
-  var fh = '<div class="card filtros"><div><span class="cc-rot">Tabela</span>' + CC.chips(TABS, S.hf.tab, 'hf-tab', { rotulo: 'Tabela' }) + '</div>' +
+  var tabR = (TABS.filter(function (x) { return x.v === S.hf.tab; })[0] || {}).r;
+  var resumo = [S.hf.tab ? tabR : '', S.hf.ativ, S.hf.item, S.hf.pessoa].filter(Boolean).join(' · ');
+  var fh = '<details class="card filtros" id="m-fd"' + (S.hfAberto ? ' open' : '') + '><summary class="cc-rot" style="cursor:pointer">Filtros' + (resumo ? ': ' + esc(resumo) : ' (mostrando tudo)') + '</summary><div><span class="cc-rot">Tabela</span>' + CC.chips(TABS, S.hf.tab, 'hf-tab', { rotulo: 'Tabela' }) + '</div>' +
     '<div class="lin2"><div><label class="cc-rot" for="m-ativ">Atividade</label><input type="search" id="m-ativ" data-k="m-ativ" placeholder="Ex.: T18" value="' + esc(S.hf.ativ) + '" autocapitalize="characters"></div>' +
     '<div><label class="cc-rot" for="m-item">Item</label><input type="search" id="m-item" data-k="m-item" placeholder="Ex.: C3 26/10, D6, #3, 26/10" value="' + esc(S.hf.item) + '"></div></div>' +
-    '<div><span class="cc-rot">Pessoa <span class="cc-cinza">(filtra no aparelho)</span></span>' + CC.chips([{ v: '', r: 'Todas' }].concat(pessoas.map(function (p) { return { v: p, r: p }; })), S.hf.pessoa, 'hf-pessoa', { rotulo: 'Pessoa' }) + '</div></div>';
+    '<div><span class="cc-rot">Pessoa <span class="cc-cinza">(filtra no aparelho)</span></span>' + CC.chips([{ v: '', r: 'Todas' }].concat(pessoas.map(function (p) { return { v: p, r: p }; })), S.hf.pessoa, 'hf-pessoa', { rotulo: 'Pessoa' }) + '</div></details>';
   pinta('m-filtros', fh);
   var rows = (S.H || []).filter(function (r) { return !S.hf.pessoa || CC.quemTxt(r) === S.hf.pessoa; });
   var info = S.hErr ? '<div class="cc-recusa" role="alert">' + esc(S.hErr) + '</div>' :

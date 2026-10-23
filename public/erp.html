@@ -315,9 +315,18 @@ html.emb a.btn[href="/"]{display:none}
     if (e.origin !== W.location.origin || !e.data || !e.data.taf) return;
     var m = e.data;
     if (m.tema) D.documentElement.setAttribute('data-theme', m.tema);
+    if (m.vars) Object.keys(m.vars).forEach(function (k) { D.documentElement.style.setProperty(k, m.vars[k]); });
     ouv.forEach(function (f) { try { f(m); } catch (x) {} });
   });
   envia({ pronto: 1, pagina: P });
+  if (P !== '/erp' && W.ResizeObserver) {
+    var ult = 0, mede = function () {   // altura do conteúdo (body), nunca a da janela, para não crescer sem parar
+      var h = D.body ? D.body.scrollHeight : 0;
+      if (h && Math.abs(h - ult) > 4) { ult = h; envia({ altura: h + 8 }); }
+    };
+    var liga = function () { new W.ResizeObserver(mede).observe(D.body); mede(); };
+    if (D.body) liga(); else D.addEventListener('DOMContentLoaded', liga);
+  }
 }());
 /* ============ util ============ */
 const $=s=>document.querySelector(s);
