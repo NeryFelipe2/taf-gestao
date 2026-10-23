@@ -72,7 +72,7 @@ sub("D=extractRev6(wb);FONTE=f.name+', lido agora';","D=extractRev6(wb);FONTE=f.
 sub("$('n-wa').textContent=W.acoes.length;","$('n-wa').textContent=W.acoes.length;$('t-whatsapp').hidden=!W.acoes.length;")
 sub("if(TABS.indexOf(h0[0])>=0){S.tab=h0[0];if(h0[1])S.sub[h0[0]]=h0[1]}","if(TABS.indexOf(h0[0])>=0){S.tab=h0[0];if(h0[1])S.sub[h0[0]]=h0[1]}if(S.tab==='whatsapp'&&!W.acoes.length)S.tab='painel';")
 # head
-sub('<title>Painel de Gestão TAF</title>','<title>Gestão das obras TAF</title>\n<meta name="robots" content="noindex,nofollow">')
+sub('<title>Painel de Gestão TAF</title>','<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n<title>Gestão das obras TAF</title>\n<meta name="robots" content="noindex,nofollow">')
 sub('/*WCRCSS*/',css+"""
 #gate{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px}
 #gate[hidden]{display:none}
@@ -91,5 +91,5 @@ assert t.count('__BUILD__')==1
 h=hashlib.sha1(t.replace('__BUILD__','').encode('utf-8')).hexdigest()[:10]
 t=t.replace('__BUILD__',h)
 open(os.path.join('..','public','versao.json'),'w',encoding='utf-8').write(json.dumps({'v':h}))
-open('index.html','w',encoding='utf-8').write(t)
+open('index.html','w',encoding='utf-8',newline='\n').write(t)
 print(len(t),h)
