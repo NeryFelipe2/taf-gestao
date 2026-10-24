@@ -1537,9 +1537,10 @@ function crSuc(id) { return crLista().filter(function (x) { return (x.pred || []
 function crRelTxt(p) { var t = { FS: 'término-início', SS: 'início-início', FF: 'término-término' }[p[1]] || p[1]; return t + (+p[2] ? (p[2] > 0 ? ' +' : ' ') + p[2] + ' d' : ''); }
 function crFimObra(cr) {
   var fim = null, lim = null;
-  cr.forEach(function (x) {
+  cr.forEach(function (x) { if (x.contratual && x.fim_base && (!lim || x.fim_base > lim.fim_base)) lim = x; });
+  cr.forEach(function (x) {   // o marco do prazo do contrato é a régua, não entra no fim previsto
+    if (x === lim) return;
     var f = x.fim_real || x.fim; if (f && (!fim || f > fim)) fim = f;
-    if (x.contratual && x.fim_base && (!lim || x.fim_base > lim.fim_base)) lim = x;
   });
   return { fim: fim, lim: lim };
 }

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="taf-versao" content="3d02be7c81">
+<meta name="taf-versao" content="a4353cb71b">
 <title>Obra 342 · Ciclo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
@@ -265,7 +265,7 @@ html.emb body{background:transparent;background-image:none}
   <div class="card" id="m-lista"></div>
   <div id="m-mais"></div>
 </section>
-<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">3d02be7c81</span></footer>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">a4353cb71b</span></footer>
 </div>
 
 <script>/* ciclo-core.js · núcleo comum do /marko (engenheiro) e do /ciclo (gestor), obra 342.
@@ -3442,9 +3442,10 @@ function crSuc(id) { return crLista().filter(function (x) { return (x.pred || []
 function crRelTxt(p) { var t = { FS: 'término-início', SS: 'início-início', FF: 'término-término' }[p[1]] || p[1]; return t + (+p[2] ? (p[2] > 0 ? ' +' : ' ') + p[2] + ' d' : ''); }
 function crFimObra(cr) {
   var fim = null, lim = null;
-  cr.forEach(function (x) {
+  cr.forEach(function (x) { if (x.contratual && x.fim_base && (!lim || x.fim_base > lim.fim_base)) lim = x; });
+  cr.forEach(function (x) {   // o marco do prazo do contrato é a régua, não entra no fim previsto
+    if (x === lim) return;
     var f = x.fim_real || x.fim; if (f && (!fim || f > fim)) fim = f;
-    if (x.contratual && x.fim_base && (!lim || x.fim_base > lim.fim_base)) lim = x;
   });
   return { fim: fim, lim: lim };
 }

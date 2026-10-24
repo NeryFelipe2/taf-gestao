@@ -1011,7 +1011,7 @@ function prazoObra(o){
   var ms=cr.filter(function(a){return (a.dur===0||a.tipo==='evento'||a.tipo==='evento_pct')&&!a.fim_real}).sort(function(a,b){return a.fim<b.fim?-1:a.fim>b.fim?1:0});
   out.passados=ms.filter(function(a){return a.fim<hoje});   /* marco com data já passada e sem data real: dado a atualizar */
   out.prox=ms.filter(function(a){return a.fim>=hoje})[0]||null;
-  var fim=null,lim=null;cr.forEach(function(a){var f=a.fim_real||a.fim;if(f&&(!fim||f>fim))fim=f;if(a.contratual&&a.fim_base&&(!lim||a.fim_base>lim.fim_base))lim=a});
+  var fim=null,lim=null;cr.forEach(function(a){if(a.contratual&&a.fim_base&&(!lim||a.fim_base>lim.fim_base))lim=a});cr.forEach(function(a){if(a===lim)return;var f=a.fim_real||a.fim;if(f&&(!fim||f>fim))fim=f});   /* o marco do prazo é a régua, não entra no fim previsto */
   out.fim=fim;out.lim=lim;out.fimAtr=lim&&fim?dias(lim.fim_base,fim):null;
   var sf=(x&&x.ult_fechada)||null;
   if(!sf){var fs=(L.semanas||[]).filter(function(s){return s.estado==='fechada'}).sort(function(a,b){return a.seg<b.seg?1:-1})[0];if(fs)sf={seg:fs.seg,ppc:fs.ppc,publicados:fs.publicados,cumpridos:fs.cumpridos,ensaio:null}}
@@ -1544,7 +1544,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='bbebf79015',VK='taf-recarga';
+var BUILD='6363a1cd0b',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
