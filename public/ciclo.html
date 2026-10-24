@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="taf-versao" content="0ade7b1c45">
+<meta name="taf-versao" content="3d02be7c81">
 <title>Obra 342 · Ciclo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
@@ -151,6 +151,41 @@ footer.rod{margin-top:28px;color:var(--mu2);font-size:12px}
 html.emb header,html.emb nav.tabs,html.emb footer.rod{display:none}
 html.emb .wrap{max-width:none;padding:0 0 24px}
 html.emb body{background:transparent;background-image:none}
+.cr-barra{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0 8px}.cr-barra .sp{flex:1}
+#p-crono .chip{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line2);background:var(--panel);border-radius:999px;padding:6px 12px;min-height:36px;cursor:pointer;font-size:13px;color:var(--tx)}
+#p-crono .chip[aria-pressed="true"]{border-color:var(--ac);background:var(--acbg);color:var(--hd)}
+#p-crono .lbl{display:block;font-size:12px;color:var(--mu2)}
+#p-crono h4{font:600 14px var(--f-hd);color:var(--hd);margin:14px 0 4px}
+.cr-prelim{border-left:4px solid var(--cf)}
+.cr-leg{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--mu);margin-bottom:8px}.cr-leg span{display:inline-flex;align-items:center;gap:5px}
+.cr-leg i{display:inline-block;width:18px;height:8px;border-radius:2px}
+.cr-lb{background:var(--plano);opacity:.6;height:5px!important}.cr-lv{background:var(--ac)}.cr-lr{background:var(--hd)}.cr-lm{width:9px!important;height:9px!important;background:var(--ac);transform:rotate(45deg);border-radius:1px!important}.cr-lh{width:2px!important;height:14px!important;background:var(--ne)}
+.cr-wrap{display:flex;border:1px solid var(--line2);border-radius:var(--r);background:var(--panel);overflow:hidden}
+.cr-esq{flex:0 0 280px;max-width:45%;border-right:1px solid var(--line2);min-width:0}
+.cr-esq button{display:block;width:100%;height:26px;text-align:left;border:0;background:none;color:var(--tx);font:13px var(--f-tx);padding:0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.cr-esq .cr-fh{font-weight:600;color:var(--hd);background:var(--raised);font-size:12.5px}
+.cr-esq .cr-nm:hover,.cr-esq .cr-nm.cr-sel{background:var(--acbg)}
+.cr-dir{flex:1 1 auto;overflow-x:auto;-webkit-overflow-scrolling:touch;min-width:0}
+.cr-svg{display:block}
+.cr-gm{stroke:var(--line2);stroke-width:1}.cr-gw{stroke:var(--line2);stroke-dasharray:2 3}
+.cr-tm{font:11px var(--f-tx);fill:var(--mu)}
+.cr-fase{fill:var(--raised)}
+.cr-hit{fill:transparent}.cr-l{cursor:pointer}.cr-l:hover .cr-hit,.cr-sel .cr-hit{fill:var(--acbg)}
+.cr-b{fill:var(--plano);opacity:.6}
+.cr-v{fill:var(--ac);opacity:.85}.cr-v.cr-atr{fill:var(--pe)}.cr-v.cr-ev{fill:var(--cf)}
+.cr-r{fill:var(--hd);opacity:.85}
+.cr-mb{fill:none;stroke:var(--plano);stroke-width:1.5}
+.cr-mv{fill:var(--ac)}.cr-mv.cr-contr{fill:var(--cf);stroke:var(--hd);stroke-width:1}.cr-mv.cr-atr{fill:var(--pe)}
+.cr-mr{fill:var(--hd)}
+.cr-tx{font:11.5px var(--f-tx);fill:var(--mu)}.cr-tatr{fill:var(--pe);color:var(--pe);font-weight:600}
+.cr-hoje{stroke:var(--ne);stroke-width:1.5}.cr-th{font:11px var(--f-tx);fill:var(--ne)}
+.cr-det h3{margin:0;font:600 16px var(--f-hd);color:var(--hd)}
+.cr-dh{display:flex;gap:10px;align-items:flex-start;justify-content:space-between}
+.cr-g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:10px 0}
+.cr-falta{margin:4px 0 0 18px;padding:0;font-size:13.5px}
+.cr-ats{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.c-ircr{margin-top:4px;min-height:32px;padding:0 10px;font-size:12px}
+@media (max-width:640px){.cr-esq{flex-basis:150px}}
 </style>
 </head>
 <body>
@@ -180,6 +215,7 @@ html.emb body{background:transparent;background-image:none}
 </header>
 <nav class="tabs" role="tablist" aria-label="Abas">
   <button role="tab" type="button" data-t="sit" aria-selected="true">Situação<span class="n" id="n-sit"></span></button>
+  <button role="tab" type="button" data-t="crono" aria-selected="false">Cronograma</button>
   <button role="tab" type="button" data-t="dem" aria-selected="false">Demandas<span class="n" id="n-dem"></span></button>
   <button role="tab" type="button" data-t="sem" aria-selected="false">Semana<span class="n" id="n-sem"></span></button>
   <button role="tab" type="button" data-t="mud" aria-selected="false">Mudanças<span class="n" id="n-mud"></span></button>
@@ -194,6 +230,13 @@ html.emb body{background:transparent;background-image:none}
   <div id="s-placar"></div>
   <div id="s-qual"></div>
   <div id="s-copiar"></div>
+</section>
+
+<section id="p-crono" role="tabpanel" aria-label="Cronograma" hidden>
+  <div id="c-topo"></div>
+  <div id="c-filtros"></div>
+  <div id="c-det"></div>
+  <div id="c-gantt"></div>
 </section>
 
 <section id="p-dem" role="tabpanel" aria-label="Demandas" hidden>
@@ -222,7 +265,7 @@ html.emb body{background:transparent;background-image:none}
   <div class="card" id="m-lista"></div>
   <div id="m-mais"></div>
 </section>
-<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">0ade7b1c45</span></footer>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">3d02be7c81</span></footer>
 </div>
 
 <script>/* ciclo-core.js · núcleo comum do /marko (engenheiro) e do /ciclo (gestor), obra 342.
@@ -237,7 +280,19 @@ CC.VERSAO = '1.0';
 CC.URL = 'https://vblfdikfobsirwpdnybw.supabase.co/rest/v1/rpc/';
 CC.KEY = 'sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW';
 // ?obra=NNN troca a obra da tela (a obra 999 é o cenário de teste); quem autoriza é o banco, pela chave
-CC.OBRA = (function () { var m = /[?&]obra=(\d{3})(?:&|$)/.exec(window.location.search || ''); return m ? m[1] : '342'; })();
+CC.OBRA = (function () { var m = /[?&]obra=(\d{3})(?:&|$)/.exec(window.location.search || ''); return m ? m[1] : null; })();   // obra sempre explícita: sem ?obra= nenhuma é escolhida sozinha
+CC.semObra = function (titulo, onde) {   // tela 'Selecione uma obra' (sem escolher sozinho)
+  var d = document.createElement('div'); d.className = 'wrap'; d.id = 'sem-obra';
+  d.innerHTML = '<div class="card" style="margin:40px auto;max-width:520px"><h2 style="margin-top:0">Selecione uma obra</h2><p>' + esc(titulo || '') + ' abre sempre numa obra escolhida. Abra pelo Centro de Gestão (a obra marcada lá vale aqui) ou informe a obra:</p>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="so-obra" inputmode="numeric" maxlength="3" placeholder="ex.: 342" aria-label="Código da obra (3 dígitos)" style="min-height:44px;padding:0 12px;border:1px solid var(--line2);border-radius:10px;font-size:16px;width:120px">' +
+    '<button class="btn pri" id="so-ok" type="button">Abrir</button></div><div class="err" id="so-err" role="alert"></div>' + (onde || '') + '</div>';
+  document.body.insertBefore(d, document.body.firstChild);
+  var ir = function () { var v = String(document.getElementById('so-obra').value || '').trim(); if (!/^\d{3}$/.test(v)) { document.getElementById('so-err').textContent = 'A obra tem 3 dígitos (ex.: 342).'; return; }
+    var q = window.location.search.replace(/[?&]obra=[^&]*/, ''); q = q ? q.replace(/^&/, '?') : ''; window.location.search = (q ? q + '&' : '?') + 'obra=' + v; };
+  document.getElementById('so-ok').addEventListener('click', ir);
+  document.getElementById('so-obra').addEventListener('keydown', function (e) { if (e.key === 'Enter') ir(); });
+  d.querySelectorAll('[data-so]').forEach(function (b) { b.addEventListener('click', function () { document.getElementById('so-obra').value = b.getAttribute('data-so'); ir(); }); });
+};
 CC.versao = 0;          // última versão vista (taf_ciclo_ler, respostas de salvar)
 CC.ator = null;         // {nome, papel, verificado} do último ler
 CC.ultimo = null;       // último objeto devolvido por CC.ler
@@ -2124,9 +2179,10 @@ if (D.body) iniciar(); else D.addEventListener('DOMContentLoaded', iniciar);
 'use strict';
 var CC = window.CC, esc = CC.esc, $ = CC.$, D = document;
 var OBRA = CC.OBRA;
+if (!OBRA) { CC.semObra('O ciclo da obra'); return; }
 if (OBRA !== '342') { document.title = document.title.replace('342', OBRA); Array.prototype.forEach.call(D.querySelectorAll('h1,h2,footer.rod'), function (e) { e.innerHTML = e.innerHTML.replace('Obra 342', 'Obra ' + OBRA); }); }
 var K = { chave: '', origem: '' };          // a chave fica só aqui (nunca em window nem no console)
-var ABAS = ['sit', 'dem', 'sem', 'mud'];
+var ABAS = ['sit', 'crono', 'dem', 'sem', 'mud'];
 var S = {
   aba: 'sit', seg: null, L: null, X: null, pronto: false,
   ens: {}, lado: {}, ladoPend: {},
@@ -2407,6 +2463,7 @@ function desenhar() {
   rDem();
   rSem();
   if (S.aba === 'mud') rMud();
+  if (S.aba === 'crono') rCrono();
   rRecusasGerais();
   contagens();
 }
@@ -2428,6 +2485,7 @@ function irAba(t) {
   abas();
   if (t === 'mud' && (!S.H || S.hVelho)) carregarHist(true);
   if (t === 'mud') rMud();
+  if (t === 'crono') rCrono();
   window.scrollTo(0, 0);
 }
 [].forEach.call(D.querySelectorAll('nav.tabs button'), function (b) { b.addEventListener('click', function () { irAba(b.getAttribute('data-t')); }); });
@@ -2855,7 +2913,7 @@ function rSemComps() {
     w.__h = null;
   }
   lista($('w-comps-tb'), cs, function (c) { return 'wc-' + idSeguro(L.seg + '-' + c.cid); }, function (c) {
-    return '<td class="c-n"><b>' + esc(c.cid) + '</b>' + (c.ativ ? '<div class="cod">' + esc(c.ativ) + '</div>' : c.frente ? '<div class="cod">' + esc(c.frente) + '</div>' : '') + '</td>' +
+    return '<td class="c-n"><b>' + esc(c.cid) + '</b>' + (c.ativ ? '<div class="cod">' + esc(c.ativ) + '</div><button type="button" class="btn c-ircr" data-a="cr-ir" data-v="' + esc(c.ativ) + '" title="Abre esta atividade no cronograma">no cronograma</button>' : c.frente ? '<div class="cod">' + esc(c.frente) + '</div>' : '') + '</td>' +
       '<td class="c-at" data-r="Atual" style="min-width:220px">' + compAtual(c) + compErp(c, L) + '</td><td class="c-pub" data-r="Publicado" style="min-width:200px">' + compPub(c) + '</td><td class="c-dias" data-r="Dias">' + compDias(c, L) + '</td>' +
       '<td class="c-res" data-r="Resultado" style="min-width:110px">' + rotRes(c) + '</td><td class="c-cau" data-r="Causa" style="min-width:120px">' + compCausa(c) + '</td><td class="c-rep" data-r="Replanejamento" style="min-width:130px">' + compReplan(c) + '</td><td class="c-sal" data-r="Saldo" style="min-width:110px">' + compSaldo(c) + '</td>' +
       '<td class="c-mud"><button type="button" class="btn" data-a="mud-comp" data-v="' + esc(L.seg + '|' + c.cid) + '" title="Ver as mudanças deste compromisso">Mudanças</button></td>';
@@ -3170,6 +3228,7 @@ D.addEventListener('click', function (e) {
   if (pes != null) { S.hf.pessoa = pes; rMud(); return; }
   var a = b.getAttribute('data-a'), v = b.getAttribute('data-v');
   if (!a) return;
+  if (a.indexOf('cr-') === 0) { crClique(a, v); return; }
   if (a === 'ver-dem') { verDemanda(+v); return; }
   if (a === 'ir-sit') { irAba('sit'); return; }
   if (a === 'ev-todos') { S.evTodos = !S.evTodos; rEventos(); return; }
@@ -3345,6 +3404,224 @@ function montarXlsx(lers, H) {
 }
 $('b-xlsx').addEventListener('click', baixar);
 
+// ===================================================================== Cronograma (Gantt da obra)
+// Só desenha as datas que o motor devolve (taf_ciclo_ler.crono): nenhuma data é calculada aqui.
+// cinza = referência (base) · barra cheia = previsão vigente · faixa escura = período real (até a última data confirmada)
+var CR = { z: 'mes', f: 'todas', sel: null, aviso: '', folga: {}, fx: {} };
+var CR_LIN = 26, CR_TOPO = 34, DIA_MS = 864e5;
+function crMs(iso) { return iso ? Date.parse(String(iso).slice(0, 10) + 'T00:00:00Z') : null; }
+function crD(iso) { return iso ? CC.d(iso) + '/' + String(iso).slice(2, 4) : '—'; }
+function crMarco(x) { return +x.dur === 0; }
+function crEvento(x) { return x.tipo === 'evento' || x.tipo === 'evento_pct'; }
+function crHoje() { return (S.L && S.L.hoje) || ''; }
+function crUltConf(id) {      // última data confirmada pelo apontamento desta atividade (semana carregada)
+  var u = null;
+  ((S.L.semana && S.L.semana.comps) || []).forEach(function (c) {
+    if (c.ativ !== id) return;
+    (c.apont || []).forEach(function (a) { if (a.dia && (a.situacao === 'andou' || a.situacao === 'entregue') && (!u || a.dia > u)) u = a.dia; });
+  });
+  return u;
+}
+function crAndamento(x) { return !!x.ini_real && !x.fim_real; }
+function crPassa(x) {
+  var h = crHoje();
+  if (CR.f === 'desvio') return (+x.atraso || 0) !== 0;
+  if (CR.f === 'andamento') return crAndamento(x) || (!x.fim_real && !!x.ini && x.ini <= h && x.fim >= h);
+  if (CR.f === 'marcos') return crMarco(x) || crEvento(x) || !!x.contratual;
+  return true;
+}
+function crAtrasoTxt(x) { var d = +x.atraso || 0; return d ? (d > 0 ? '+' : '−') + Math.abs(d) + ' d' : ''; }
+function crRef(L) {
+  var o = (L && L.obra) || {};
+  return o.base_aprovada_por
+    ? { ok: true, txt: 'Referência aprovada por ' + o.base_aprovada_por + (o.base_aprovada_em ? ' em ' + crD(o.base_aprovada_em) : '') }
+    : { ok: false, txt: 'Referência preliminar: base protegida contra mudança, aprovação pendente' };
+}
+function crLista() { return ((S.L && S.L.crono) || []).slice().sort(function (a, b) { return (+a.o || 0) - (+b.o || 0); }); }
+function crSuc(id) { return crLista().filter(function (x) { return (x.pred || []).some(function (p) { return p[0] === id; }); }); }
+function crRelTxt(p) { var t = { FS: 'término-início', SS: 'início-início', FF: 'término-término' }[p[1]] || p[1]; return t + (+p[2] ? (p[2] > 0 ? ' +' : ' ') + p[2] + ' d' : ''); }
+function crFimObra(cr) {
+  var fim = null, lim = null;
+  cr.forEach(function (x) {
+    var f = x.fim_real || x.fim; if (f && (!fim || f > fim)) fim = f;
+    if (x.contratual && x.fim_base && (!lim || x.fim_base > lim.fim_base)) lim = x;
+  });
+  return { fim: fim, lim: lim };
+}
+
+function rCrono() {
+  var L = S.L; if (!L) return;
+  var cr = crLista(), ref = crRef(L), fo = crFimObra(cr);
+  var nAtr = cr.filter(function (x) { return (+x.atraso || 0) > 0; }).length;
+  var topo = '<div class="card' + (ref.ok ? '' : ' cr-prelim') + '">' +
+    '<div class="lin"><b>' + esc(ref.txt) + '</b></div>' +
+    (L.obra && L.obra.base_rev ? '<div class="lin fraco">Origem: ' + esc(L.obra.base_rev) + '</div>' : '') +
+    '<div class="lin">Fim previsto da obra: <b>' + esc(crD(fo.fim)) + '</b>' +
+    (fo.lim ? ' · limite contratual ' + esc(fo.lim.id) + ' <b>' + esc(crD(fo.lim.fim_base)) + '</b>' : ' · sem marco contratual de término no cronograma') + '</div>' +
+    '<div class="lin">' + esc(plural(cr.length, 'atividade', 'atividades')) + ' · ' + esc(nAtr) + ' com atraso' +
+    ' · atraso em dias corridos contra a ' + (ref.ok ? 'referência aprovada' : 'referência preliminar') + ' · lido em ' + esc(CC.quando(L.agora)) + '</div></div>';
+  pinta('c-topo', topo);
+
+  var ch = function (v, r) { return '<button type="button" class="chip" data-a="cr-f" data-v="' + v + '" aria-pressed="' + (CR.f === v) + '">' + esc(r) + '</button>'; };
+  var cz = function (v, r) { return '<button type="button" class="chip" data-a="cr-z" data-v="' + v + '" aria-pressed="' + (CR.z === v) + '">' + esc(r) + '</button>'; };
+  pinta('c-filtros', '<div class="cr-barra">' + ch('todas', 'Todas') + ch('desvio', 'Com desvio') + ch('andamento', 'Em andamento') + ch('marcos', 'EVENTOs e marcos') +
+    '<span class="sp"></span>' + cz('semana', 'Semana') + cz('mes', 'Mês') + '</div>' +
+    (CR.aviso ? '<div class="aviso">' + esc(CR.aviso) + '</div>' : '') +
+    '<div class="cr-leg"><span><i class="cr-lb"></i>referência</span><span><i class="cr-lv"></i>previsão vigente</span><span><i class="cr-lr"></i>período real (até a última data confirmada)</span><span><i class="cr-lm"></i>marco</span><span><i class="cr-lh"></i>hoje</span></div>');
+
+  var vis = cr.filter(crPassa);
+  if (!vis.length) { pinta('c-gantt', '<div class="card fraco">Nenhuma atividade neste filtro.</div>'); rCronoDet(); return; }
+  var lo = null, hi = null;
+  vis.forEach(function (x) {
+    [x.ini_base, x.ini, x.ini_real].forEach(function (d) { if (d && (!lo || d < lo)) lo = d; });
+    [x.fim_base, x.fim, x.fim_real].forEach(function (d) { if (d && (!hi || d > hi)) hi = d; });
+  });
+  var h0 = crHoje(); if (h0 && h0 < lo) lo = h0; if (h0 && h0 > hi) hi = h0;
+  var t0 = crMs(lo) - 7 * DIA_MS, t1 = crMs(hi) + 21 * DIA_MS, ppd = CR.z === 'semana' ? 10 : 3;
+  var X = function (iso) { return Math.round((crMs(iso) - t0) / DIA_MS * ppd); };
+  var W = Math.round((t1 - t0) / DIA_MS * ppd);
+
+  var linhas = [], fase = null;
+  vis.forEach(function (x) {
+    if (x.fase !== fase) { fase = x.fase; linhas.push({ fase: fase }); }
+    if (!CR.fx[fase]) linhas.push({ a: x });
+  });
+  var H = CR_TOPO + linhas.length * CR_LIN + 6;
+  var g = '<svg class="cr-svg" width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Cronograma da obra ' + esc(OBRA) + '">';
+  var dm = new Date(t0); dm = new Date(Date.UTC(dm.getUTCFullYear(), dm.getUTCMonth(), 1));
+  var MES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  while (dm.getTime() < t1) {
+    var iso = dm.toISOString().slice(0, 10), xm = X(iso);
+    if (xm >= 0) g += '<line x1="' + xm + '" y1="0" x2="' + xm + '" y2="' + H + '" class="cr-gm"/><text x="' + (xm + 4) + '" y="14" class="cr-tm">' + MES[dm.getUTCMonth()] + '/' + String(dm.getUTCFullYear()).slice(2) + '</text>';
+    if (CR.z === 'semana') {
+      for (var w = 7; w < 31; w += 7) {
+        var dw = new Date(dm.getTime() + w * DIA_MS); if (dw.getUTCMonth() !== dm.getUTCMonth()) break;
+        var xw = X(dw.toISOString().slice(0, 10)); g += '<line x1="' + xw + '" y1="20" x2="' + xw + '" y2="' + H + '" class="cr-gw"/>';
+      }
+    }
+    dm = new Date(Date.UTC(dm.getUTCFullYear(), dm.getUTCMonth() + 1, 1));
+  }
+  linhas.forEach(function (ln, i) {
+    var y = CR_TOPO + i * CR_LIN;
+    if (ln.fase != null) { g += '<rect x="0" y="' + y + '" width="' + W + '" height="' + CR_LIN + '" class="cr-fase"/>'; return; }
+    var x = ln.a, sel = CR.sel === x.id, atr = +x.atraso || 0;
+    g += '<g data-cr="' + esc(x.id) + '" class="cr-l' + (sel ? ' cr-sel' : '') + '"><rect x="0" y="' + y + '" width="' + W + '" height="' + CR_LIN + '" class="cr-hit"/>';
+    if (crMarco(x)) {
+      if (x.fim_base) { var xb = X(x.fim_base); g += '<path d="M' + xb + ' ' + (y + 6) + ' l7 7 l-7 7 l-7 -7z" class="cr-mb"/>'; }
+      var xv = X(x.fim);
+      g += '<path d="M' + xv + ' ' + (y + 6) + ' l7 7 l-7 7 l-7 -7z" class="cr-mv' + (x.contratual ? ' cr-contr' : '') + (atr > 0 ? ' cr-atr' : '') + '"/>';
+      if (x.fim_real) { var xr0 = X(x.fim_real); g += '<path d="M' + xr0 + ' ' + (y + 9) + ' l4 4 l-4 4 l-4 -4z" class="cr-mr"/>'; }
+    } else {
+      if (x.ini_base && x.fim_base) g += '<rect x="' + X(x.ini_base) + '" y="' + (y + 17) + '" width="' + Math.max(2, X(x.fim_base) - X(x.ini_base) + ppd) + '" height="5" class="cr-b"/>';
+      g += '<rect x="' + X(x.ini) + '" y="' + (y + 5) + '" width="' + Math.max(2, X(x.fim) - X(x.ini) + ppd) + '" height="10" rx="2" class="cr-v' + (atr > 0 ? ' cr-atr' : '') + (crEvento(x) ? ' cr-ev' : '') + '"/>';
+      if (x.ini_real) {
+        var fr = x.fim_real || crUltConf(x.id);
+        if (fr && fr >= x.ini_real) g += '<rect x="' + X(x.ini_real) + '" y="' + (y + 5) + '" width="' + Math.max(2, X(fr) - X(x.ini_real) + ppd) + '" height="10" rx="2" class="cr-r"/>';
+        else g += '<rect x="' + X(x.ini_real) + '" y="' + (y + 3) + '" width="2" height="14" class="cr-r"/>';
+      }
+    }
+    var xe = Math.max(X(x.fim || x.fim_base), x.fim_base ? X(x.fim_base) : 0) + ppd + 10;
+    var lab = (crEvento(x) && x.ev ? x.ev + ' ' : '') + crAtrasoTxt(x);
+    if (lab) g += '<text x="' + xe + '" y="' + (y + 15) + '" class="cr-tx' + (atr > 0 ? ' cr-tatr' : '') + '">' + esc(lab) + '</text>';
+    g += '</g>';
+  });
+  if (h0) { var xh = X(h0); g += '<line x1="' + xh + '" y1="18" x2="' + xh + '" y2="' + H + '" class="cr-hoje"/><text x="' + (xh + 3) + '" y="28" class="cr-th">hoje</text>'; }
+  g += '</svg>';
+
+  var esq = '<div class="cr-esq" style="padding-top:' + CR_TOPO + 'px">';
+  linhas.forEach(function (ln) {
+    if (ln.fase != null) {
+      esq += '<button type="button" class="cr-fh" data-a="cr-fase" data-v="' + esc(ln.fase) + '" aria-expanded="' + (!CR.fx[ln.fase]) + '">' + (CR.fx[ln.fase] ? '▸ ' : '▾ ') + esc(ln.fase || 'sem fase') + '</button>';
+      return;
+    }
+    var x = ln.a;
+    esq += '<button type="button" class="cr-nm' + (CR.sel === x.id ? ' cr-sel' : '') + '" data-a="cr-sel" data-v="' + esc(x.id) + '" title="' + esc(x.id + ' · ' + x.nome) + '">' +
+      '<span class="cod">' + esc(x.id) + '</span> ' + (crMarco(x) ? '◆ ' : '') + esc(x.nome) + '</button>';
+  });
+  esq += '</div>';
+  pinta('c-gantt', '<div class="cr-wrap">' + esq + '<div class="cr-dir" id="c-dir">' + g + '</div></div>');
+  rCronoDet();
+}
+
+function rCronoDet() {
+  var L = S.L, id = CR.sel, x = id ? ativDe(id) : null;
+  if (!x) { pinta('c-det', id ? '<div class="card fraco">A atividade ' + esc(id) + ' não existe no cronograma desta obra.</div>' : '<div class="hint" style="margin:8px 0">Toque numa atividade para ver o que está pendurado nela.</div>'); return; }
+  var ref = crRef(L), atr = +x.atraso || 0;
+  var tipo = crMarco(x) ? 'Marco' : crEvento(x) ? 'EVENTO' : x.tipo === 'continua' ? 'Atividade contínua' : 'Atividade';
+  var uc = crUltConf(x.id);
+  var real = x.fim_real ? crD(x.ini_real) + ' a ' + crD(x.fim_real) :
+    x.ini_real ? 'começou ' + crD(x.ini_real) + (uc ? ' · último apontamento ' + crD(uc) : ' · sem apontamento confirmado nesta semana') : 'não começou';
+  var h = '<div class="card cr-det" id="c-det-card"><div class="cr-dh"><h3><span class="cod">' + esc(x.id) + '</span> ' + esc(x.nome) + '</h3>' +
+    '<button type="button" class="btn" data-a="cr-fechar">Fechar</button></div>' +
+    '<div class="lin fraco">' + esc(tipo) + (x.ev ? ' ' + esc(x.ev) : '') + (x.bm ? ' · BM ' + esc(x.bm) : '') + (x.contratual ? ' · marco contratual' : '') + ' · ' + esc(x.fase || '') + (x.frente ? ' · frente ' + esc(x.frente) : '') + '</div>' +
+    '<div class="cr-g3"><div><span class="lbl">Referência' + (ref.ok ? '' : ' (preliminar)') + '</span>' + esc(crD(x.ini_base)) + ' a ' + esc(crD(x.fim_base)) + '</div>' +
+    '<div><span class="lbl">Previsão vigente</span>' + esc(crD(x.ini)) + ' a ' + esc(crD(x.fim)) + '</div>' +
+    '<div><span class="lbl">Real</span>' + esc(real) + '</div></div>' +
+    '<div class="lin">' + (atr ? '<b class="' + (atr > 0 ? 'cr-tatr' : '') + '">' + esc(crAtrasoTxt(x)) + '</b> (dias corridos contra a referência)' : 'Sem desvio contra a referência') + '</div>';
+  var pr = (x.pred || []).map(function (p) { return '<button type="button" class="chip" data-a="cr-sel" data-v="' + esc(p[0]) + '">' + esc(p[0]) + ' · ' + esc(crRelTxt(p)) + '</button>'; }).join(' ');
+  var su = crSuc(x.id).map(function (s) { return '<button type="button" class="chip" data-a="cr-sel" data-v="' + esc(s.id) + '">' + esc(s.id) + '</button>'; }).join(' ');
+  h += '<div class="lin"><span class="lbl">Vem depois de</span> ' + (pr || '<span class="fraco">nenhuma</span>') + '</div>';
+  h += '<div class="lin"><span class="lbl">Libera</span> ' + (su || '<span class="fraco">nenhuma</span>') + '</div>';
+  var ja = ((L.janela && L.janela.ativs) || []).filter(function (a) { return a.id === x.id; })[0];
+  h += '<h4>Pode executar?</h4>';
+  if (x.fim_real) h += '<div class="lin fraco">Já terminou.</div>';
+  else if (!ja) h += '<div class="lin fraco">Fora da janela de preparação (próximas ' + esc((L.obra && L.obra.janela_semanas) || 6) + ' semanas): a liberação é conferida quando ela entrar na janela.</div>';
+  else if (ja.liberada) h += '<div class="lin">' + CC.selo('LIBERADA', 'ok') + '</div>';
+  else h += '<div class="lin">' + CC.selo('NÃO LIBERADA', 'ne') + '</div><ul class="cr-falta">' + (ja.falta || []).map(function (f) { return '<li>' + esc(f) + '</li>'; }).join('') + '</ul>';
+  var dms = (L.demandas || []).filter(function (d) { return (d.ativs || []).indexOf(x.id) >= 0 && d.situacao !== 'cancelada'; });
+  h += '<h4>Restrições e demandas ligadas</h4>' + (dms.length ? dms.map(function (d) {
+    var ab = d.situacao === 'aberta' || d.situacao === 'respondida';
+    return '<div class="lin">' + (ab ? CC.selo(d.alerta === 'VENCIDA' ? 'VENCIDA' : 'ABERTA', d.alerta === 'VENCIDA' ? 'ne' : 'pe') : CC.selo('RESOLVIDA', 'ok')) + ' ' +
+      '<button type="button" class="chip" data-a="ver-dem" data-v="' + esc(d.num) + '">D' + esc(d.num) + '</button>' + (d.tarefa_id ? ' <b>' + esc(d.tarefa_id) + '</b>' : '') + ' ' + esc(d.oque) +
+      '<div class="fraco">' + esc(d.resp || 'sem dono') + ' · precisa até ' + esc(crD(d.efetivo || d.nova_data || d.prazo)) + '</div></div>';
+  }).join('') : '<div class="lin fraco">Nenhuma restrição ou demanda ligada a esta atividade.</div>');
+  var cs = ((L.semana && L.semana.comps) || []).filter(function (c) { return c.ativ === x.id; });
+  h += '<h4>Compromissos da semana de ' + esc(CC.d(L.seg)) + '</h4>' + (cs.length ? cs.map(function (c) {
+    var q = null; (c.apont || []).forEach(function (a) { if (a.qtd != null) q = (q || 0) + (+a.qtd); });
+    return '<div class="lin"><b>' + esc(c.cid) + '</b> ' + esc(c.entrega || '') + (c.resultado ? ' · ' + CC.seloDe('resultado', c.resultado) : '') +
+      (q != null ? '<div class="fraco">apontado: ' + esc(q) + ' ' + esc(c.un || '') + ' (apontamento do engenheiro; não é verificação técnica nem medição)</div>' : '') + '</div>';
+  }).join('') : '<div class="lin fraco">Nenhum compromisso desta atividade na semana.</div>');
+  var f = CR.folga[x.id];
+  h += '<h4>Folga</h4>';
+  if (x.fim_real) h += '<div class="lin fraco">Já terminou.</div>';
+  else if (f == null) h += pode('simular') ? '<button type="button" class="btn" data-a="cr-folga" data-v="' + esc(x.id) + '">Calcular folga</button>' : '<div class="lin fraco">Seu acesso não calcula folga.</div>';
+  else if (f === '…') h += '<div class="lin fraco">Calculando…</div>';
+  else if (f.erro) h += '<div class="lin cc-vermelho">Não consegui calcular: ' + esc(f.erro) + '</div>';
+  else if (f.terminou) h += '<div class="lin fraco">Já terminou.</div>';
+  else h += '<div class="lin">Folga livre: <b>' + esc(f.livre) + ' d</b> (quanto o término pode atrasar sem mexer em nenhuma outra atividade)</div>' +
+    '<div class="lin">Margem até o próximo EVENTO, marco contratual ou fim da obra: <b>' + esc(f.ate_alvo) + ' d</b>' + (f.primeira_afetada ? ' · primeira afetada: ' + esc(f.primeira_afetada) : '') + '</div>' +
+    '<div class="hint">Não é a folga total do caminho crítico (esse cálculo fica para uma próxima etapa). A busca vai até ' + esc(f.limite || 120) + ' dias.</div>';
+  h += '<div class="acts cr-ats"><a class="btn" href="/marko?aba=preparar&obra=' + encodeURIComponent(OBRA) + '&ativ=' + encodeURIComponent(x.id) + '">Ver na preparação</a>' +
+    '<button type="button" class="btn" data-a="cr-sem">Ver na semana</button></div></div>';
+  pinta('c-det', h);
+}
+function crSelecionar(id, rolar) {
+  var x = ativDe(id);
+  CR.aviso = '';
+  if (x && !crPassa(x)) { CR.f = 'todas'; CR.aviso = 'Filtro trocado para "Todas" para mostrar ' + id + '.'; }
+  if (x && CR.fx[x.fase]) delete CR.fx[x.fase];
+  CR.sel = id;
+  rCrono();
+  if (rolar) { var c = $('c-det-card') || $('c-det'); if (c && c.scrollIntoView) c.scrollIntoView({ block: 'start', behavior: 'smooth' }); }
+}
+function crClique(a, v) {
+  if (a === 'cr-f') { CR.f = v; CR.aviso = ''; rCrono(); return; }
+  if (a === 'cr-z') { CR.z = v; rCrono(); return; }
+  if (a === 'cr-fase') { if (CR.fx[v]) delete CR.fx[v]; else CR.fx[v] = 1; rCrono(); return; }
+  if (a === 'cr-sel') { crSelecionar(v, true); return; }
+  if (a === 'cr-fechar') { CR.sel = null; rCrono(); return; }
+  if (a === 'cr-sem') { irAba('sem'); return; }
+  if (a === 'cr-ir') { irAba('crono'); crSelecionar(v, true); return; }
+  if (a === 'cr-folga') {
+    CR.folga[v] = '…'; rCronoDet();
+    CC.folga(v).then(function (r) { CR.folga[v] = r || { erro: 'sem resposta' }; rCronoDet(); }, function (e) { CR.folga[v] = { erro: CC.erro(e) }; rCronoDet(); });
+  }
+}
+D.addEventListener('click', function (e) {      // clique na barra do gráfico
+  var gl = e.target.closest && e.target.closest('[data-cr]');
+  if (gl && gl.closest('#c-gantt')) crSelecionar(gl.getAttribute('data-cr'), true);
+});
+
 // ===================================================================== início
 function digitando() {
   if (CC.digitando()) return true;
@@ -3361,10 +3638,13 @@ function mostrar() {
     if (ABAS.indexOf(a0) >= 0) S.aba = a0;
     var qa = /[?&]aba=([a-z]+)/.exec(window.location.search);     // vindo do Centro de Gestão: abre na tela pedida
     if (qa && ABAS.indexOf(qa[1]) >= 0) S.aba = qa[1];
+    var qt = /[?&]ativ=(T\d{1,5})(?:&|$)/.exec(window.location.search);     // vindo de outra tela: abre a atividade no cronograma
+    if (qt) { S.aba = 'crono'; CR.sel = qt[1]; S.selIni = qt[1]; }
     CC.recusas().forEach(function (r) { if (r.meta && r.meta.mod === 'ciclo') S.rec[r.uid] = { motivo: r.motivo, item: r }; });
     VIG = CC.vigiar(function () { reler(); }, digitando, 30000);
   }
   desenhar();
+  if (S.selIni) { var si = S.selIni; S.selIni = null; crSelecionar(si, true); }
   if (S.aba === 'mud') carregarHist(true);
   ensaioLateral();
   if (!S.linkFeito) {     // link do /erp ou do /marko: /ciclo?demanda=3 abre o cartão da demanda
@@ -3387,6 +3667,7 @@ if (window.TAF_EMB) window.TAF_EMB.on(function (m) {   // comandos do Centro (a 
   if (c.aba && ABAS.indexOf(c.aba) >= 0) irAba(c.aba);
   if (c.demanda) { irAba('dem'); verDemanda(+c.demanda); }
   if (c.lig) ligar(c);
+  if (c.ativ) { irAba('crono'); crSelecionar(c.ativ, true); }
 });
 iniciar();
 }());

@@ -10,7 +10,19 @@ CC.VERSAO = '1.0';
 CC.URL = 'https://vblfdikfobsirwpdnybw.supabase.co/rest/v1/rpc/';
 CC.KEY = 'sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW';
 // ?obra=NNN troca a obra da tela (a obra 999 é o cenário de teste); quem autoriza é o banco, pela chave
-CC.OBRA = (function () { var m = /[?&]obra=(\d{3})(?:&|$)/.exec(window.location.search || ''); return m ? m[1] : '342'; })();
+CC.OBRA = (function () { var m = /[?&]obra=(\d{3})(?:&|$)/.exec(window.location.search || ''); return m ? m[1] : null; })();   // obra sempre explícita: sem ?obra= nenhuma é escolhida sozinha
+CC.semObra = function (titulo, onde) {   // tela 'Selecione uma obra' (sem escolher sozinho)
+  var d = document.createElement('div'); d.className = 'wrap'; d.id = 'sem-obra';
+  d.innerHTML = '<div class="card" style="margin:40px auto;max-width:520px"><h2 style="margin-top:0">Selecione uma obra</h2><p>' + esc(titulo || '') + ' abre sempre numa obra escolhida. Abra pelo Centro de Gestão (a obra marcada lá vale aqui) ou informe a obra:</p>' +
+    '<div style="display:flex;gap:8px;flex-wrap:wrap"><input id="so-obra" inputmode="numeric" maxlength="3" placeholder="ex.: 342" aria-label="Código da obra (3 dígitos)" style="min-height:44px;padding:0 12px;border:1px solid var(--line2);border-radius:10px;font-size:16px;width:120px">' +
+    '<button class="btn pri" id="so-ok" type="button">Abrir</button></div><div class="err" id="so-err" role="alert"></div>' + (onde || '') + '</div>';
+  document.body.insertBefore(d, document.body.firstChild);
+  var ir = function () { var v = String(document.getElementById('so-obra').value || '').trim(); if (!/^\d{3}$/.test(v)) { document.getElementById('so-err').textContent = 'A obra tem 3 dígitos (ex.: 342).'; return; }
+    var q = window.location.search.replace(/[?&]obra=[^&]*/, ''); q = q ? q.replace(/^&/, '?') : ''; window.location.search = (q ? q + '&' : '?') + 'obra=' + v; };
+  document.getElementById('so-ok').addEventListener('click', ir);
+  document.getElementById('so-obra').addEventListener('keydown', function (e) { if (e.key === 'Enter') ir(); });
+  d.querySelectorAll('[data-so]').forEach(function (b) { b.addEventListener('click', function () { document.getElementById('so-obra').value = b.getAttribute('data-so'); ir(); }); });
+};
 CC.versao = 0;          // última versão vista (taf_ciclo_ler, respostas de salvar)
 CC.ator = null;         // {nome, papel, verificado} do último ler
 CC.ultimo = null;       // último objeto devolvido por CC.ler

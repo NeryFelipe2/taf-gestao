@@ -14,7 +14,7 @@ a:hover{color:var(--signal)}
 .hero__image--human{background:#000}.hero__image--human img{width:100%;height:100%;object-fit:contain;object-position:72% 52%}
 .menu__image{background:#050506;display:grid;place-items:center}.menu__image img{object-fit:contain;filter:none;opacity:.8;height:90%}
 .chapter__media{background:#08090c}.chapter__media img{object-fit:contain;opacity:.22;padding:4%}
-.ob-facts{position:absolute;inset:0;z-index:2;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}.ob-facts>div{display:flex;flex-direction:column;justify-content:space-between;padding:clamp(1rem,2vw,1.8rem);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.ob-facts>div:nth-child(2n){border-right:0}.ob-facts>div:nth-child(n+3){border-bottom:0}
+.ob-facts{position:absolute;inset:0;z-index:2;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}.ob-facts>div:nth-child(3):last-child{grid-column:1/-1}.ob-facts>div{display:flex;flex-direction:column;justify-content:space-between;padding:clamp(1rem,2vw,1.8rem);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}.ob-facts>div:nth-child(2n){border-right:0}.ob-facts>div:nth-child(n+3){border-bottom:0}
 .ob-facts small{font-family:"Courier New",monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:rgba(241,240,234,.7)}.ob-facts b{font-size:clamp(2.6rem,5.2vw,6rem);font-weight:500;letter-spacing:-.08em;line-height:.8;font-variant-numeric:tabular-nums}.ob-facts em{font-style:normal;font-size:.8rem;color:rgba(241,240,234,.6);margin-top:.6rem;display:block}
 .neg{color:var(--no)}.sb{color:var(--sb)!important;font-size:clamp(1.4rem,2.4vw,2.4rem)!important;letter-spacing:-.03em!important}
 .lz{display:flex;gap:1rem}.lz span{display:flex;align-items:center;gap:.45rem}.lz i{width:.45rem;height:.45rem;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c)}.lz i.o{background:none;border:1px solid var(--sb);box-shadow:none}.chapter__tag.lzt::before{display:none}
@@ -31,7 +31,7 @@ a:hover{color:var(--signal)}
 <div class="preloader" aria-label="Carregando"><div class="preloader__mark">TAF</div><div class="preloader__foot"><span>Lendo a planilha de gestão<br><b id="pl-corte" style="font-weight:400">—</b></span><span class="preloader__percent">00</span></div></div>
 <div class="noise" aria-hidden="true"></div><div class="global-progress" aria-hidden="true"><span></span></div><div class="cursor" aria-hidden="true"></div><div class="cursor-ring" aria-hidden="true"></div>
 <nav class="nav" aria-label="Navegação"><a class="nav__brand" href="#top">TAF®</a><span class="nav__status" id="nv-corte">Corte —</span><button class="menu-button magnetic" aria-label="Abrir menu" aria-expanded="false"><span></span><span></span></button></nav>
-<div class="menu" aria-hidden="true"><div class="menu__image"><canvas id="mn-topo" style="width:100%;height:100%;display:block"></canvas></div><div class="menu__panel"><small>TAF / Gestão das obras</small><div class="menu__links"><a href="#semana">Semana <span>01</span></a><a href="#obras">Obras <span>02</span></a><a href="#donos">Responsáveis <span>03</span></a><a href="#caixa">Caixa <span>04</span></a><a href="#decisoes">Decisões <span>05</span></a><a href="/">Painel <span>↗</span></a></div><div class="menu__meta"><span>TAF Equipamentos</span><span id="mn-sem">—</span></div></div></div>
+<div class="menu" aria-hidden="true"><div class="menu__image"><canvas id="mn-topo" style="width:100%;height:100%;display:block"></canvas></div><div class="menu__panel"><small>TAF / Gestão das obras</small><div class="menu__links"><a href="#semana">Semana <span>01</span></a><a href="#obras">Obras <span>02</span></a><a href="#donos">Responsáveis <span>03</span></a><a href="#decisoes">Decisões <span>04</span></a><a href="/">Painel <span>↗</span></a></div><div class="menu__meta"><span>TAF Equipamentos</span><span id="mn-sem">—</span></div></div></div>
 <main>
 <section class="hero" id="top">
 <div class="hero__visual" aria-label="Passe o mouse para ver o projeto sobre o terreno"><canvas class="hero__topo" id="topo"></canvas><img class="hero__ghost" src="centro/proj-a.png" alt=""><div class="hero__image hero__image--human"><img src="centro/proj-a.png" alt="Desenho do tanque de contato"></div><div class="hero__halo" aria-hidden="true"></div></div>
@@ -41,7 +41,7 @@ a:hover{color:var(--signal)}
 </section>
 <div class="signal-strip" aria-hidden="true"><div class="signal-strip__track" id="strip"></div></div>
 <section class="manifesto" id="semana"><span class="manifesto__index">01 / A semana</span>
-<h2 class="manifesto__statement"><span class="manifesto__line"><span>Três obras.</span></span><span class="manifesto__line"><span id="mf-cart">R$ — em carteira.</span></span><span class="manifesto__line"><span id="mf-venc">— vencidas.</span></span><span class="manifesto__line"><span id="mf-cx">O caixa aperta em —.</span></span></h2>
+<h2 class="manifesto__statement"><span class="manifesto__line"><span>Três obras.</span></span><span class="manifesto__line"><span id="mf-cart">R$ — em carteira.</span></span><span class="manifesto__line"><span id="mf-venc">— vencidas.</span></span></h2>
 <div class="manifesto__foot"><small id="mf-sem">Semana<br>—</small><p id="mf-p">—</p></div><div class="manifesto__orb" aria-hidden="true"></div></section>
 <section class="metrics" aria-label="A semana em números">
 <article class="metric metric__feature"><small>Master check</small><strong id="mt-master">—</strong><p>Estado da planilha nesta semana (13. CHECKS!C3).</p></article>
@@ -55,11 +55,7 @@ a:hover{color:var(--signal)}
 <section class="capabilities" id="donos"><div class="capabilities__top"><span>03 / Quem está com a bola</span><span>Passe o mouse em um nome</span></div>
 <div class="capabilities__grid"><div class="capabilities__list" id="caps"></div>
 <div class="capabilities__viewer"><p class="viewer__txt" id="vw-txt">—</p><div class="viewer__hud"><div class="viewer__hud-top"><span>Restrições abertas</span><span id="vw-who">—</span></div><div class="viewer__hud-bottom"><span class="viewer__index" id="vw-n">00</span><span id="vw-lbl">—</span></div></div></div></div></section>
-<section class="field" id="caixa"><div class="field__pin"><div class="field__image" id="cx"></div><div class="field__veil" aria-hidden="true"></div>
-<div class="field__top"><span>04 / Caixa da empresa</span><span>10. CAIXA · saldo previsto mês a mês</span></div>
-<h2 class="field__title"><span>O caixa</span><span>aperta.</span></h2>
-<div class="field__card"><strong class="neg" id="fc-v">—</strong><p id="fc-p">—</p></div></div></section>
-<section class="no-formula" id="decisoes"><div class="no-formula__pin"><div class="no-formula__top"><span>05 / Decisões da semana</span><span id="nf-top">—</span></div><div class="no-formula__mark" aria-hidden="true" id="nf-mark">00</div><div class="no-formula__statements" id="nf"></div><div class="no-formula__rail" aria-hidden="true"><span></span></div></div></section>
+<section class="no-formula" id="decisoes"><div class="no-formula__pin"><div class="no-formula__top"><span>04 / Decisões da semana</span><span id="nf-top">—</span></div><div class="no-formula__mark" aria-hidden="true" id="nf-mark">00</div><div class="no-formula__statements" id="nf"></div><div class="no-formula__rail" aria-hidden="true"><span></span></div></div></section>
 <section class="thesis"><div class="thesis__axis-x" aria-hidden="true"></div><div class="thesis__axis-y" aria-hidden="true"></div><div class="thesis__rings" aria-hidden="true"></div>
 <div class="thesis__copy"><small>O método</small><h2>Todo número vem da planilha de gestão. <i>Falta dado</i> é SEM BASE.</h2><p>Nada aqui é digitado à mão. Se a planilha não tem a informação, o painel mostra o buraco em vez de preencher.</p></div></section>
 <section class="cta" id="contato"><div class="cta__top"><span>O resto está lá dentro</span><span id="ct-corte">Corte —</span></div>

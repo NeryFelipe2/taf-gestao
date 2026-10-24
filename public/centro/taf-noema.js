@@ -12,13 +12,13 @@ var T=function(s,t){var e=$(s);if(e)e.textContent=t};
 var OB=["342","343","281"];
 var venc=0,sem=0;OB.forEach(function(k){venc+=D.obras[k].vencidas.v;sem+=D.obras[k].vencemSemana.v});
 var abertas=D.restricoes.filter(function(r){return r.sit!=="RESOLVIDA"});
-var corte=dm(D.corte.v),cxPior="−R$ "+fm(-D.caixa.pior.v)+" mi",cxMes=mm(D.caixa.piorMes.v);
+var corte=dm(D.corte.v);
 
 /* textos */
 T("#pl-corte","Corte "+corte);T("#nv-corte","Corte "+corte);T("#ct-corte","Corte "+corte+" · master check "+D.master.v);T("#mn-sem",D.semana.v);
-T("#mf-cart","R$ "+fm(D.carteira.v)+" mi em carteira.");T("#mf-venc",venc+" tarefas vencidas.");T("#mf-cx","O caixa aperta em "+cxMes+".");
+T("#mf-cart","R$ "+fm(D.carteira.v)+" mi em carteira.");T("#mf-venc",venc+" tarefas vencidas.");
 $("#mf-sem").innerHTML="Semana<br>"+D.semana.v.replace(/^semana de /,"");
-T("#mf-p",sem+" restrições vencem até sexta. O pior saldo previsto da empresa é "+cxPior+", em "+cxMes+". As três obras estão abaixo, uma de cada vez.");
+T("#mf-p",sem+" restrições vencem até sexta. As três obras estão abaixo, uma de cada vez.");
 T("#mt-master",D.master.v);$("#mt-venc").dataset.c=venc;$("#mt-sem").dataset.c=sem;$("#mt-ab").dataset.c=abertas.length;
 T("#ft-code","TAF / GESTÃO DAS OBRAS / REV6 / CORTE "+corte.replace(/\//g,"-"));
 var strip=[];OB.forEach(function(k){var o=D.obras[k];strip.push("Obra "+k);strip.push(o.vencidas.v+" vencidas");strip.push("Fim "+dm(o.fim.v))});strip.push("Carteira R$ "+fm(D.carteira.v)+" mi");
@@ -26,7 +26,7 @@ $("#strip").innerHTML=strip.concat(strip).map(function(s){return"<span>"+s+"</sp
 
 /* obras = capítulos */
 var LC={VERDE:"var(--ok)",AMARELO:"var(--am)",VERMELHO:"var(--no)"};
-$("#chapters").innerHTML=OB.map(function(k,i){var o=D.obras[k],nm=o.nome.v.replace(/^\d+\s—\s/,""),cli=nm.split(" ")[0],resto=nm.slice(cli.length+1),pct=typeof o.pct.v==="number"?o.pct.v:null,pc=o.piorCaixa.v;
+$("#chapters").innerHTML=OB.map(function(k,i){var o=D.obras[k],nm=o.nome.v.replace(/^\d+\s—\s/,""),cli=nm.split(" ")[0],resto=nm.slice(cli.length+1),pct=typeof o.pct.v==="number"?o.pct.v:null;
  var lz=[["PRODUCAO","Produção"],["DINHEIRO","Dinheiro"],["PLANO","Plano"]].map(function(l){var v=o.luz[l[0]].v,c=LC[v];return'<span><i class="'+(c?"":"o")+'" style="--c:'+(c||"transparent")+'"></i>'+l[1]+"</span>"}).join("");
  return'<article class="chapter" data-screen-label="Obra '+k+'"><div class="chapter__copy"><span class="chapter__number">OBRA_'+k+" / "+cli+'</span><h2>'+k+'<i>'+cli.toLowerCase().replace(/^./,function(c){return c.toUpperCase()})+'.</i></h2>'+
  '<div class="chapter__body"><small>Fim do prazo<br>'+dm(o.fim.v)+'</small><p>'+resto+". "+o.vencidas.v+" restrições vencidas, "+o.vencemSemana.v+" vencem na semana e "+o.semDono.v+" sem dono.</p></div></div>"+
@@ -34,7 +34,6 @@ $("#chapters").innerHTML=OB.map(function(k,i){var o=D.obras[k],nm=o.nome.v.repla
  '<div><small>Contrato</small><div><b data-c="'+(o.contrato.v/1e6)+'" data-d="2">0</b><em>R$ mi · parte TAF '+Math.round(o.parte.v*100)+"%</em></div></div>"+
  '<div><small>Medido</small><div>'+(pct==null?'<b class="sb">SEM BASE</b>':'<b data-c="'+(pct*100)+'" data-d="1" data-s="%">0</b>')+"<em>R$ "+fm(o.medido.v)+" mi aprovado</em></div></div>"+
  '<div><small>Vencidas</small><div><b class="'+(o.vencidas.v?"neg":"")+'" data-c="'+o.vencidas.v+'" data-d="0">0</b><em>'+o.vencemSemana.v+" vencem na semana</em></div></div>"+
- '<div><small>Pior caixa</small><div>'+(pc==null?'<b class="sb">SEM BASE</b><em>sem fluxo projetado</em>':'<b class="neg" data-c="'+(-pc/1e6)+'" data-d="2" data-p="−">0</b><em>R$ mi · '+mm(o.piorMes.v)+"</em>")+"</div></div>"+
  '</div><span class="chapter__tag lzt"><span class="lz">'+lz+"</span></span></div></article>"}).join("");
 
 /* responsáveis */
@@ -48,18 +47,6 @@ function pick(i){var d=donos[i],o=d[1],top=o.list.slice().sort(function(a,b){ret
  $("#vw-txt").innerHTML=top.txt+'<span class="viewer__meta"><span>'+top.n+" · obra "+top.obra+"</span><span>"+(top.alerta||"")+"</span><span>até "+(top.ate?dm(top.ate):"—")+"</span></span>";
  if(window.gsap&&!reduce)gsap.fromTo("#vw-txt",{opacity:0,y:24},{opacity:1,y:0,duration:.6,ease:"power3.out"})}
 $$(".capability").forEach(function(c){var f=function(){pick(+c.dataset.i)};c.addEventListener("mouseenter",f);c.addEventListener("focus",f)});pick(0);
-
-/* caixa */
-var P=D.caixa.prev.map(function(v){return v/1000}),W=1200,H=400,mn=Math.min.apply(0,P),mx=Math.max.apply(0,P),pd=20;
-var X=function(i){return i*(W/(P.length-1))},Y=function(v){return pd+(mx-v)/(mx-mn)*(H-pd*2)},Z=Y(0),wi=P.indexOf(mn);
-var ln=P.map(function(v,i){return(i?"L":"M")+X(i).toFixed(1)+" "+Y(v).toFixed(1)}).join(" "),ar=ln+" L"+W+" "+Z+" L0 "+Z+"Z";
-$("#cx").innerHTML='<svg viewBox="0 0 '+W+" "+(H+30)+'" preserveAspectRatio="none"><defs><clipPath id="cu"><rect x="0" y="-10" width="'+W+'" height="'+(Z+10)+'"/></clipPath><clipPath id="cd"><rect x="0" y="'+Z+'" width="'+W+'" height="'+H+'"/></clipPath></defs>'+
- '<path d="'+ar+'" fill="rgba(5,5,6,.08)" clip-path="url(#cu)"/><path d="'+ar+'" fill="rgba(198,47,47,.28)" clip-path="url(#cd)"/>'+
- '<line x1="0" x2="'+W+'" y1="'+Z+'" y2="'+Z+'" stroke="rgba(5,5,6,.45)" stroke-dasharray="3 6" vector-effect="non-scaling-stroke"/>'+
- '<path id="cl" d="'+ln+'" fill="none" stroke="#050506" stroke-width="2" vector-effect="non-scaling-stroke"/>'+
- '<circle r="6" fill="#c62f2f" cx="'+X(wi)+'" cy="'+Y(mn)+'"/>'+
- D.caixa.meses.map(function(m,i){return i%2?"":'<text class="ax" x="'+X(i)+'" y="'+(H+26)+'" text-anchor="'+(i===0?"start":"middle")+'">'+mm(m)+"</text>"}).join("")+"</svg>";
-T("#fc-v",cxPior);T("#fc-p","Pior saldo previsto da empresa, em "+cxMes+". A linha mostra o caixa mês a mês; abaixo do tracejado, falta dinheiro.");
 
 /* decisões */
 var DEC=D.decisoes.filter(function(d){return d.sit!=="RESOLVIDA"}).slice(0,4);
@@ -136,14 +123,6 @@ gsap.to(".velocity__row:nth-child(2)",{xPercent:8,ease:"none",scrollTrigger:{tri
 
 /* responsáveis */
 gsap.from(".capability",{x:-55,opacity:0,duration:.8,stagger:.09,ease:"power3.out",scrollTrigger:{trigger:".capabilities__list",start:"top 78%"}});
-
-/* caixa */
-var cl=$("#cl"),L=cl.getTotalLength();cl.style.strokeDasharray=L;cl.style.strokeDashoffset=L;
-if(wide){gsap.timeline({scrollTrigger:{trigger:".field__pin",start:"top top",end:"+=210%",pin:true,scrub:1,anticipatePin:1}})
- .to(".field__image",{clipPath:"inset(0% 0% 0% 0%)",duration:1.2,ease:"none"},0).to(cl,{strokeDashoffset:0,duration:1.3,ease:"none"},.1)
- .to(".field__veil",{opacity:.18,duration:.85},.25).to(".field__title span:first-child",{xPercent:-14,duration:1},0).to(".field__title span:last-child",{xPercent:16,duration:1},0)
- .from(".field__card",{y:90,opacity:0,duration:.4},.75)}
-else{gsap.to(".field__image",{clipPath:"inset(0% 0% 0% 0%)",ease:"none",scrollTrigger:{trigger:".field",start:"top bottom",end:"bottom top",scrub:true}});gsap.to(cl,{strokeDashoffset:0,ease:"none",scrollTrigger:{trigger:".field",start:"top 80%",end:"center center",scrub:true}})}
 
 /* decisões presas */
 var rf=$$(".no-formula__statement"),M=rf.length;

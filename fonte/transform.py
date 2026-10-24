@@ -20,7 +20,7 @@ def sub(old,new,cnt=1):
 # dados vêm do banco
 sub('var D=/*SNAP*/;\nvar W=/*WA*/;','var D=null,W={acoes:[]};')
 sub('(function(){\n"use strict";','window.__iniciar=function(){\n"use strict";')
-sub('tkInit();\nrender();\n})();','tkInit();\nrender();\npollIni();\nverIni();\n};')
+sub('tkInit();\nrender();\n})();','tkInit();\nrender();\npollIni();\nverIni();\nobrasCarregar().then(render,render);\n};')
 sub("var FONTE='rev6 do projeto, lida em 19/10/2026';","var FONTE='planilha de gestão';")
 # edicoes compartilhadas
 old=t[t.index("try{var _e=JSON.parse(localStorage.getItem(EK)"):t.index("var edVazio=")]
