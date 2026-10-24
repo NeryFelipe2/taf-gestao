@@ -1050,8 +1050,8 @@ function rObrasPrazo(){
     }else{
       var pr=p.prox;
       h+='<div class="pz-g">'+
-        '<div><span class="lbl">Próximo marco</span>'+(pr?esc(pr.id)+' '+(pr.ev?'EVENTO '+esc(pr.ev):esc(String(pr.nome).slice(0,38)))+' · <b>'+dt(pr.fim)+'</b>'+(pr.atraso?' <b class="'+(pr.atraso>0?'pz-atr':'')+'">'+(pr.atraso>0?'+':'')+pr.atraso+' d</b> vs base de '+dt(pr.fim_base):' · sem desvio'):'nenhum marco futuro em aberto')+(p.passados.length?'<br><span class="pz-atr">'+p.passados.length+' marco(s) já passaram sem data real</span>':'')+'</div>'+
-        '<div><span class="lbl">Fim previsto</span><b>'+(p.fim?dt(p.fim):SB)+'</b>'+(p.lim?' · contrato '+dt(p.lim.fim_base)+(p.fimAtr?' <b class="'+(p.fimAtr>0?'pz-atr':'')+'">'+(p.fimAtr>0?'+':'')+p.fimAtr+' d</b>':''):' · sem marco contratual de término')+'</div>'+
+        '<div><span class="lbl">Próximo marco</span>'+(pr?esc(pr.id)+' '+(pr.ev?'EVENTO '+esc(pr.ev):esc(String(pr.nome).slice(0,38)))+' · <b>'+dt(pr.fim)+'</b>'+(pr.atraso?' · <b class="'+(pr.atraso>0?'pz-atr':'')+'">'+Math.abs(pr.atraso)+' d '+(pr.atraso>0?'de atraso':'adiantado')+'</b> (base '+dt(pr.fim_base)+')':' · sem desvio'):'nenhum marco futuro em aberto')+(p.passados.length?'<br><span class="pz-atr">'+p.passados.length+' marco(s) já passaram sem data real</span>':'')+'</div>'+
+        '<div><span class="lbl">Fim previsto</span><b>'+(p.fim?dt(p.fim):SB)+'</b>'+(p.lim?' · contrato '+dt(p.lim.fim_base)+(p.fimAtr?' · <b class="'+(p.fimAtr>0?'pz-atr':'')+'">'+Math.abs(p.fimAtr)+' d '+(p.fimAtr>0?'de atraso':'de folga')+'</b>':' · no limite'):' · sem marco contratual de término')+'</div>'+
         '<div><span class="lbl">PPC da última semana fechada</span>'+(!p.sem?'sem semana fechada':!p.sem.publicados?'sem compromissos ('+dt(p.sem.seg)+')':(p.sem.ensaio?'ensaio: ':'')+'<b>'+(p.sem.ppc!=null?Math.round(p.sem.ppc)+'%':SB)+'</b> · '+p.sem.cumpridos+' de '+p.sem.publicados+' · semana de '+dt(p.sem.seg)+(p.sem.ensaio?' (não conta)':p.sem.ensaio==null?' (ensaio não informado)':''))+'</div>'+
         '<div><span class="lbl">Pendências</span>'+p.vencD+' demanda(s) vencida(s) · '+p.vencR+' restrição(ões) vencida(s) · '+p.decis+' decisão(ões)</div>'+
         '<div><span class="lbl">Referência</span>'+(p.prelim?'preliminar (aprovação pendente)':'aprovada por '+esc(p.aprov))+'</div>'+
@@ -1544,7 +1544,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='6363a1cd0b',VK='taf-recarga';
+var BUILD='7265471782',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){

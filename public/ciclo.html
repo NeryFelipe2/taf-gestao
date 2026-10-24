@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="taf-versao" content="a4353cb71b">
+<meta name="taf-versao" content="0d93f39958">
 <title>Obra 342 · Ciclo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
@@ -265,7 +265,7 @@ html.emb body{background:transparent;background-image:none}
   <div class="card" id="m-lista"></div>
   <div id="m-mais"></div>
 </section>
-<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">a4353cb71b</span></footer>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">0d93f39958</span></footer>
 </div>
 
 <script>/* ciclo-core.js · núcleo comum do /marko (engenheiro) e do /ciclo (gestor), obra 342.
@@ -3440,6 +3440,11 @@ function crRef(L) {
 function crLista() { return ((S.L && S.L.crono) || []).slice().sort(function (a, b) { return (+a.o || 0) - (+b.o || 0); }); }
 function crSuc(id) { return crLista().filter(function (x) { return (x.pred || []).some(function (p) { return p[0] === id; }); }); }
 function crRelTxt(p) { var t = { FS: 'término-início', SS: 'início-início', FF: 'término-término' }[p[1]] || p[1]; return t + (+p[2] ? (p[2] > 0 ? ' +' : ' ') + p[2] + ' d' : ''); }
+function crFolgaTxt(fo) {   // fim previsto contra o prazo do contrato, em dias corridos
+  if (!fo.fim || !fo.lim) return '';
+  var d = Math.round((Date.parse(fo.fim + 'T00:00:00Z') - Date.parse(fo.lim.fim_base + 'T00:00:00Z')) / 864e5);
+  return d ? ' · <b class="' + (d > 0 ? 'cr-tatr' : '') + '">' + Math.abs(d) + ' d ' + (d > 0 ? 'de atraso' : 'de folga') + '</b>' : ' · no limite';
+}
 function crFimObra(cr) {
   var fim = null, lim = null;
   cr.forEach(function (x) { if (x.contratual && x.fim_base && (!lim || x.fim_base > lim.fim_base)) lim = x; });
@@ -3458,7 +3463,7 @@ function rCrono() {
     '<div class="lin"><b>' + esc(ref.txt) + '</b></div>' +
     (L.obra && L.obra.base_rev ? '<div class="lin fraco">Origem: ' + esc(L.obra.base_rev) + '</div>' : '') +
     '<div class="lin">Fim previsto da obra: <b>' + esc(crD(fo.fim)) + '</b>' +
-    (fo.lim ? ' · limite contratual ' + esc(fo.lim.id) + ' <b>' + esc(crD(fo.lim.fim_base)) + '</b>' : ' · sem marco contratual de término no cronograma') + '</div>' +
+    (fo.lim ? ' · limite contratual ' + esc(fo.lim.id) + ' <b>' + esc(crD(fo.lim.fim_base)) + '</b>' + crFolgaTxt(fo) : ' · sem marco contratual de término no cronograma') + '</div>' +
     '<div class="lin">' + esc(plural(cr.length, 'atividade', 'atividades')) + ' · ' + esc(nAtr) + ' com atraso' +
     ' · atraso em dias corridos contra a ' + (ref.ok ? 'referência aprovada' : 'referência preliminar') + ' · lido em ' + esc(CC.quando(L.agora)) + '</div></div>';
   pinta('c-topo', topo);
@@ -3558,7 +3563,7 @@ function rCronoDet() {
     '<div class="cr-g3"><div><span class="lbl">Referência' + (ref.ok ? '' : ' (preliminar)') + '</span>' + esc(crD(x.ini_base)) + ' a ' + esc(crD(x.fim_base)) + '</div>' +
     '<div><span class="lbl">Previsão vigente</span>' + esc(crD(x.ini)) + ' a ' + esc(crD(x.fim)) + '</div>' +
     '<div><span class="lbl">Real</span>' + esc(real) + '</div></div>' +
-    '<div class="lin">' + (atr ? '<b class="' + (atr > 0 ? 'cr-tatr' : '') + '">' + esc(crAtrasoTxt(x)) + '</b> (dias corridos contra a referência)' : 'Sem desvio contra a referência') + '</div>';
+    '<div class="lin">' + (atr ? '<b class="' + (atr > 0 ? 'cr-tatr' : '') + '">' + Math.abs(atr) + ' d ' + (atr > 0 ? 'de atraso' : 'adiantada') + '</b> (dias corridos contra a referência)' : 'Sem desvio contra a referência') + '</div>';
   var pr = (x.pred || []).map(function (p) { return '<button type="button" class="chip" data-a="cr-sel" data-v="' + esc(p[0]) + '">' + esc(p[0]) + ' · ' + esc(crRelTxt(p)) + '</button>'; }).join(' ');
   var su = crSuc(x.id).map(function (s) { return '<button type="button" class="chip" data-a="cr-sel" data-v="' + esc(s.id) + '">' + esc(s.id) + '</button>'; }).join(' ');
   h += '<div class="lin"><span class="lbl">Vem depois de</span> ' + (pr || '<span class="fraco">nenhuma</span>') + '</div>';
