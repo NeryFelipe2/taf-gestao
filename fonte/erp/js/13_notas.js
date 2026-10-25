@@ -18,7 +18,7 @@ function viewNota(X){
 function modalNF(id){
   const ex=id?S.t.notas.find(n=>n.id===id):null;
   NF=ex?{...ex,rateio:ex.rateio.map(l=>({...l}))}:{id:'n'+Date.now(),oc:'',rateio:[],valor:0,emitente:'',chave:'',emissao:hojeISO()};
-  const ocsOk=S.t.ocs.filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status));
+  const ocsOk=S.t.ocs.filter(o=>OC_COMPROMETE.includes(o.status));
   modal(`<h3>${ex?'Ratear '+ex.num:'Lançar nota fiscal'}</h3><div class="sub">Prefira “Importar XML”, que traz emitente, chave e valor da NF-e; aqui o administrativo confere e rateia.</div>
    <div class="g2"><div><label>Emitente</label><input id="n-e" value="${esc(NF.emitente)}" ${ex?'disabled':''}></div><div><label>Chave / número</label><input id="n-c" value="${esc(NF.chave)}" ${ex?'disabled':''}></div></div>
    <div class="g3"><div><label>Valor da nota (R$)</label><input id="n-v" type="number" step="0.01" value="${NF.valor||''}" ${ex?'disabled':''}></div><div><label>Emissão</label><input id="n-d" type="date" value="${NF.emissao}" ${ex?'disabled':''}></div>

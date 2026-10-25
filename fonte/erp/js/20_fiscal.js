@@ -15,7 +15,7 @@ function parseNFe(txt){
   return {chave,num:g(ide,'nNF'),serie:g(ide,'serie'),emissao:dh.slice(0,10),emitente:g(emit,'xNome'),cnpj:g(emit,'CNPJ')||g(emit,'CPF'),valor:r2(v),itens,
     inss:r2(+xmlTxt(doc,'vRetPrev')||0),iss:r2(+xmlTxt(doc,'vISSRet')||+xmlTxt(doc,'vISS')||0)}}
 function sugereOC(x){
-  const ocs=S.t.ocs.filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status)&&norm(o.forn)&&(norm(x.emitente).includes(norm(o.forn))||norm(o.forn).includes(norm(x.emitente))));
+  const ocs=S.t.ocs.filter(o=>OC_COMPROMETE.includes(o.status)&&norm(o.forn)&&(norm(x.emitente).includes(norm(o.forn))||norm(o.forn).includes(norm(x.emitente))));
   const bons=ocs.filter(o=>Math.abs(o.valor-x.valor)/Math.max(o.valor,1)<=S.t.par.tol);return bons.length===1?bons[0]:null}
 function importaXmls(textos){
   const res={ok:[],dup:[],erro:[]};

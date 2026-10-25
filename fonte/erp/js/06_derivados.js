@@ -17,7 +17,7 @@ function derive(){
   X.pendAprov=S.t.ocs.filter(o=>o.status==='em_alcada');
   X.semRateio=S.t.notas.filter(n=>n.status==='lancada');
   X.semPedido=S.t.notas.filter(n=>!n.oc);
-  X.economia=S.t.ocs.filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status)).reduce((s,o)=>{const i=S.byCod[o.item];return s+(i.meta_unit*o.qtd-o.valor)},0);
+  X.economia=S.t.ocs.filter(o=>OC_COMPROMETE.includes(o.status)).reduce((s,o)=>{const i=S.byCod[o.item];return s+(i.meta_unit*o.qtd-o.valor)},0);
   if(chaveLigada('ev_agrega')){X.eventos=agregaEventos();X.pacGrupos=agregaPacotes()}
   return X;
 }

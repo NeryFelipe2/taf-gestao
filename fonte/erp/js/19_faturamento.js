@@ -13,7 +13,8 @@ const fatLiq=f=>r2(f.valor*(1-(f.ret||0)/100));
 const fatRec=f=>r2(S.t.recs.filter(r=>r.fat===f.id).reduce((s,r)=>s+r.valor,0));
 const fatSaldo=f=>r2(Math.max(0,fatLiq(f)-fatRec(f)));
 const BC_ST={rascunho:['mute','Rascunho'],enviado:['info','Enviado ao cliente'],aprovado:['warn','Aprovado, a faturar'],faturado:['ok','Faturado']};
-function realPorConta(){const real={};S.t.notas.forEach(n=>{if(n.status==='lancada')return;n.rateio.forEach(l=>{const c=l.conta||contaPadrao(l.nat,S.byCod[l.item]?.pacote);real[c]=(real[c]||0)+ +l.valor})});return real}
+/* realizado por conta: vem de contaObra() (05_motor_de_regras.js), a conta única; antes repetia o laço das notas aqui */
+function realPorConta(){const real={};contaObra(S.t).real.forEach(({l,v})=>{const c=l.conta||contaPadrao(l.nat,S.byCod[l.item]?.pacote);real[c]=(real[c]||0)+v});return real}
 function dre(){
   const trib=S.D.obra.tributos_nota,bcs=S.t.bcs.filter(b=>b.status==='aprovado'||b.status==='faturado');
   const bruto=bcs.reduce((s,b)=>s+bcBruto(b),0),reaj=bcs.reduce((s,b)=>s+r2(bcBruto(b)*(b.reajuste||0)/100),0),glosa=bcs.reduce((s,b)=>s+bcGlosa(b),0);

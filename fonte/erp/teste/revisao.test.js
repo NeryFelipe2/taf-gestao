@@ -231,3 +231,28 @@ test('M3: sem calc_v2 os Alertas e Eventos ficam iguais ao que eram (só ev_agre
   abre(novo, obra999(), estado999({ ev_agrega: true })); const X = novo.derive();
   assert.ok(!J(novo.alertas(X)).some(a => /banco ainda/.test(a[1] + a[2]))); assert.doesNotMatch(novo.viewEventos(X), /atenção/);
 });
+
+/* ============ B6 do revisor: cópias do cálculo que ficaram fora de contaObra (só refatoração: nada pode mudar) ============ */
+test('B6: realizado por conta (DRE do Faturamento) e listas de status de pedido: iguais ao ERP de partida em 300 cenários, chaves desligadas', () => {
+  const NAO = new Set(); let comNota = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const cen = cenario(seed);
+    const f = api => {
+      const S = abre(api, cen.D, cen.t); const X = api.derive();
+      const r = { rpc: api.realPorConta(), dre: api.dre(), economia: X.economia };
+      const emit = ['FORN FICTÍCIO 0', 'FORN FICTÍCIO 1', 'FORN FICTÍCIO 2'];
+      r.sug = emit.flatMap(e => [1000, 1500.5, 20000].map(v => { const o = api.sugereOC({ emitente: e, valor: v }); return o ? o.id : null; }));
+      api.modalNF(); r.modal = api.el('#mbox').innerHTML;
+      return limpa(r);
+    };
+    assert.deepEqual(f(novo), f(base), 'semente ' + seed);
+    if (cen.t.notas.some(n => n.status !== 'lancada' && n.rateio.length)) comNota++;
+  }
+  assert.ok(comNota > 150, 'os cenários têm notas rateadas (' + comNota + ')');
+});
+test('B6: com a chave ligada o realizado por conta continua igual (o realizado não depende de calc_v2)', () => {
+  for (let seed = 1; seed <= 100; seed++) {
+    const cen = cenario(seed); const f = lig => { const c = J(cen.t); c.par.calc_v2 = lig; abre(novo, cen.D, c); novo.derive(); return limpa(novo.realPorConta()); };
+    assert.deepEqual(f(true), f(false), 'semente ' + seed);
+  }
+});
