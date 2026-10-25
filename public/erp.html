@@ -369,6 +369,17 @@ const MODO_SB=MODO_CH||!!(CFG.supabaseUrl&&CFG.supabaseKey)&&(CFG.modo==='supaba
 const SB={c:null,user:null,perfil:null,obraId:null,sync:{},estado:'',timer:null,busy:false,perfis:[]};
 let S={view:'dash',tab:{},role:'engenheiro',D:null,t:null,exp:new Set(),q:''};
 const novoT=()=>({titulos:[],frozen:false,versao:1,hist:[],metaOv:{},baseOv:{},basePac:{},sols:[],elos:[],ocs:[],notas:[],aud:[],meds:[],conc:[],apts:[],rsts:[],atvs:[],tars:[],bcs:[],fats:[],recs:[],lans:[],lfxs:[],ctbs:[],ests:[],invs:[],ctrs:[],prjs:[],pats:[],frts:[],fmvs:[],cols:[],ptos:[],ssts:[],movs:[],cobrs:[],fechs:[],forns:[],inss:[],bancos:[],seq:{sol:0,oc:0,nf:0,bm:0},par:{tol:0.02,limite:100000}});
+/* [PROVISÓRIO] Parâmetros da chave par.ev_ctrl (M4, limite em três níveis). Vêm das decisões do Felipe de 25/10/2026 (DECISOES-DO-FELIPE.md) e valem só com a chave ligada na obra.
+   Cada obra pode trocar um deles em estado.par.ev = {nome: valor}, sem mexer em código. Os valores de alçada em R$ (verde sem confirmação até R$ 100.000, Gerente até R$ 250.000) e a tolerância
+   nota x pedido (2%) continuam em novoT().par e na janela de Parâmetros: seguem provisórios até a Diretoria definir (D2). Nenhum percentual de desvio existe (D3).
+   Regras que NÃO são parâmetro porque valem sempre que a chave está ligada: item continua rígido (D6, vale a pior cor entre item, pacote e evento) e grupo com meta acima do limite fica vermelho (E3). */
+const EV_PADRAO={
+  somaDiaPacote:true,           /* [PROVISÓRIO] D2: pedidos verdes do mesmo pacote no mesmo dia somam para a alçada */
+  reservaEmAlcada:true,         /* [PROVISÓRIO] pedido aguardando aprovação reserva saldo (corrige o achado A4) */
+  reservaPorOrdem:true,         /* [PROVISÓRIO] na decisão, só reservam saldo os pedidos emitidos ANTES do que está sendo decidido (fila): o primeiro a ser aprovado não vira vermelho por causa do segundo */
+  aprovaExigeChavePessoal:true, /* [PROVISÓRIO] D4: com a chave geral do site (nome digitado) ninguém aprova; vale a chave pessoal (ou o login do banco) */
+  notaSemPedido:true            /* [PROVISÓRIO] D7: nota sem pedido passa pelo mesmo semáforo e alçada de uma OC */
+};
 /* Cadastros (fornecedores, insumos, bancos) valem para todas as obras: no modo aberto ficam numa chave própria do navegador. */
 const GL_KEYS=['forns','inss','bancos'];
 const save=()=>{if(MODO_SB){sbSyncSoon();return}try{const g={};GL_KEYS.forEach(k=>g[k]=S.t[k]);localStorage.setItem('taf_global',JSON.stringify(g));localStorage.setItem(chaveObra(),JSON.stringify({...S.t,role:S.role}))}catch(e){}};
@@ -538,7 +549,7 @@ async function chEntrar(k,q,doForm){
   if(!CH.quem){if(doForm)throw new Error('Informe seu nome.');chTela('Informe seu nome.');return}
   CH.chave=k;chLs(CHK,k);if(q)chLs(CHQ,q);login().classList.remove('open');
   S.role=CH.fixo?r.papel:(pp&&ROLES[pp]&&!['admin','pendente'].includes(pp)?pp:r.papel);
-  SB.perfil={nome:CH.quem,papel:S.role};
+  SB.perfil={nome:CH.quem,papel:S.role,fixo:CH.fixo,uid:(CH.fixo?'pessoa:':'nome:')+nomeNorm(CH.quem)};   /* uid: identidade do usuário (D4, ev_ctrl); a chave geral tem nome digitado, a pessoal tem nome fixo */
   const rs=$('#role');if(CH.fixo)rs.parentNode.style.display='none';else{rs.parentNode.style.display='';rs.value=S.role}
   $('#userbox').style.display='block';
   $('#userbox').innerHTML=`<div class="note"><b>${esc(CH.quem)}</b><span>${CH.leitura?'Só leitura':CH.fixo?esc(ROLES[S.role]?.n||S.role)+' · chave pessoal':'Chave do site · papel escolhido acima'}</span><div style="margin-top:8px;display:flex;gap:6px"><a class="btn sm" href="/">Site</a><button class="btn sm" data-act="sair">Sair</button></div></div>`;
@@ -660,14 +671,45 @@ const OC_COMPROMETE=['aprovada','recebida_parcial','recebida'];
 /* Chaves liga/desliga POR OBRA, guardadas em estado.par (vão para o banco junto com os parâmetros). Todas nascem DESLIGADAS: desligada = o ERP de sempre. [SUPOSIÇÃO: mecanismo proposto no plano 00-MATRIZ-E-PLANO] */
 const CHAVES_OBRA=[
  {k:'calc_v2',n:'Cálculo único de comprometido e realizado (M1)',d:'Nota rateada em outro item não conta duas vezes: o pedido é abatido pela nota inteira, com aviso. Remanejar meta também acerta a meta unitária. Atualizar pela planilha lista os itens remanejados. Atenção: o banco (tela “Da tarefa à compra e ao BM”, Ciclo e Marko) ainda não acompanha esta chave e continua contando como antes; em obra real, os números desses lugares podem diferir de Orçamento, Eventos e Painéis.'},
- {k:'ev_agrega',n:'Eventos e pacotes pela soma dos itens (M2)',d:'O teto e o alerta do pacote passam a olhar a soma dos itens. Liga a aba Eventos (só leitura): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote.'}];
+ {k:'ev_agrega',n:'Eventos e pacotes pela soma dos itens (M2)',d:'O teto e o alerta do pacote passam a olhar a soma dos itens. Liga a aba Eventos (só leitura): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote.'},
+ {k:'oc_linhas',n:'Compra com várias linhas (M3)',d:'Solicitação e pedido (OC) passam a ter várias linhas {item, quantidade, valor}. O comprometido e o faturado são contados por linha, o rateio da nota nasce igual às linhas do pedido e a tela mostra evento, pacote e saldo de cada item ao escolher. Pedido antigo com um item só continua igual. Atenção: o banco (tela “Da tarefa à compra e ao BM”, Ciclo e Marko) ainda lê só o item da primeira linha.'},
+ {k:'ev_ctrl',n:'Limite em três níveis: item, pacote e evento (M4)',d:'O semáforo devolve a pior cor entre item, pacote e evento e vale na solicitação, no pedido e na nota sem pedido. Pedido aguardando aprovação reserva saldo; a decisão recalcula o semáforo; quem solicitou não aprova (por usuário); pedidos verdes do mesmo pacote no mesmo dia somam para a alçada. Alçadas e valores seguem provisórios.'}];
 const chaveLigada=(k,t)=>{const p=(t||S.t||{}).par;return !!(p&&p[k])};
 const calcV2=t=>chaveLigada('calc_v2',t);
+const ocLinhasLigada=t=>chaveLigada('oc_linhas',t);
+const evCtrl=t=>chaveLigada('ev_ctrl',t);
+/* parâmetros da chave ev_ctrl: os de partida (02_estado.js, EV_PADRAO) com o que a obra trocou em par.ev */
+const evPar=t=>({...EV_PADRAO,...(((t||S.t||{}).par||{}).ev||{})});
+/* ---------- M3: linhas de solicitação e de pedido ----------
+   Com par.oc_linhas ligada, uma solicitação ou OC pode ter várias linhas [{item, nat, conta, qtd, valor}] (campo doc.linhas). O campo doc.item guarda sempre a PRIMEIRA linha
+   (compatibilidade: quem não conhece linhas lê só o primeiro item). Documento sem lista (antigo) ou chave desligada: vale a linha única {item}. Nada é regravado: é derivado na leitura.
+   Pedido de várias linhas guarda qtd=1 e preco=valor (o pacote é uma unidade só: recebimento, conferência da nota e proposta do fornecedor falam em valor do pacote). [SUPOSIÇÃO] */
+function linhasDe(d,t){
+  if(ocLinhasLigada(t)&&Array.isArray(d.linhas)&&d.linhas.length)return d.linhas;
+  return [{item:d.item,nat:d.nat,conta:d.conta,qtd:d.qtd,valor:d.valor!=null?d.valor:r2((+d.qtd||0)*(+d.preco||0))}]}
+const ocMulti=(d,t)=>ocLinhasLigada(t)&&Array.isArray(d.linhas)&&d.linhas.length>1;
+const itensDe=(d,t)=>[...new Set(linhasDe(d,t).map(l=>l.item))];
+/* texto curto dos itens de um documento: "1.1" ou "1.1 +2" quando há mais itens */
+const itensTxt=(d,t)=>{const L=itensDe(d,t);return L.length>1?L[0]+' +'+(L.length-1):String(L[0]==null?'':L[0])};
+/* unidade do pedido: pedido de várias linhas é recebido como um pacote só */
+const ocUn=o=>ocMulti(o)?'pacote':(S.byCod[o.item].unidade||'');
+/* reparte um total em centavos entre pesos (maior resto): a soma é sempre exatamente o total e ninguém passa do próprio peso. Pesos todos zero: partes iguais. */
+function repartir(totalCent,pesos){
+  const n=pesos.length;if(!n)return [];const W=pesos.reduce((s,x)=>s+x,0),T=Math.max(0,Math.round(totalCent));
+  const sh=pesos.map(w=>W>0?T*w/W:T/n),out=sh.map(Math.floor);let falta=T-out.reduce((s,x)=>s+x,0);
+  sh.map((x,k)=>[x-Math.floor(x),k]).sort((a,b)=>b[0]-a[0]||a[1]-b[1]).forEach(([f,k])=>{if(falta>0&&(W<=0||out[k]<pesos[k])){out[k]++;falta--}});
+  for(let k=0;falta>0;k=(k+1)%n){out[k]++;falta--}
+  return out}
+/* o mesmo em reais (2 casas) */
+const repartirR=(total,pesos)=>repartir(Math.round(total*100),pesos.map(w=>Math.round((+w||0)*100))).map(c=>c/100);
 /* Aviso fixo enquanto o SQL (_taf_erp_valores) não acompanha calc_v2 (LEIA-ME-M1-SQL-PENDENTE.md): aparece onde o número do banco convive com o do navegador. Só com a chave ligada. */
 const AVISO_SQL_CALC='Esta obra está com o cálculo novo de comprometido e realizado ligado. O banco ainda não acompanha: “Da tarefa à compra e ao BM”, o Ciclo e o Marko continuam contando como antes. Onde há nota rateada fora do item do pedido, os números desses lugares podem diferir de Orçamento, Eventos e Painéis até o banco ser atualizado.';
 const avisoSqlCalc=()=>calcV2()?`<div class="sub" style="margin-top:10px"><span class="pill warn">atenção</span> ${AVISO_SQL_CALC}</div>`:'';
+/* Idem para a compra de várias linhas (M3): o SQL do rastro lê só o item da primeira linha (LEIA-ME-M3-SQL-PENDENTE.md). Só com a chave oc_linhas ligada. */
+const AVISO_SQL_LINHAS='Esta obra está com a compra de várias linhas ligada. O banco ainda não acompanha: “Da tarefa à compra e ao BM”, o Ciclo e o Marko leem só o item da primeira linha de cada solicitação e de cada pedido. Nos pedidos de várias linhas, os números e o evento mostrados nessas telas podem diferir de Orçamento, Eventos e Painéis até o banco ser atualizado.';
+const avisoSqlLinhas=()=>ocLinhasLigada()?`<div class="sub" style="margin-top:10px"><span class="pill warn">atenção</span> ${AVISO_SQL_LINHAS}</div>`:'';
 function contaObra(t){
-  t=t||S.t;const v2=calcV2(t),ocs=t.ocs||[],real=[],fatItem={},fatOC={},porId={};
+  t=t||S.t;const v2=calcV2(t),LN=ocLinhasLigada(t),EC=evCtrl(t),ocs=t.ocs||[],real=[],fatItem={},fatOC={},porId={};
   /* itens do orçamento (EAP) da obra aberta. Só vale para a obra aberta (t===S.t) e quando há EAP: nas telas que trocam S.t por outra obra (comObra, 44_painel_inicio.js)
      S.D.items vem vazio, e aí não há como saber o que existe naquela obra (sem filtro). Usado só com a chave calc_v2 ligada. */
   const eap=v2&&t===S.t&&S.D&&S.D.items&&S.D.items.length?new Set(S.D.items.map(i=>String(i.codigo))):null;
@@ -678,36 +720,143 @@ function contaObra(t){
     /* fatOC (só da chave ligada) soma o que a nota realiza em item que existe no orçamento: rateio para item que não existe não vira realizado do item,
        então não pode abater o pedido (senão o valor sumia das duas pontas). Fica comprometido no pedido e vira aviso. */
     if(n.oc){const k=n.oc+'|'+l.item;fatItem[k]=(fatItem[k]||0)+v;if(naEAP(l))fatOC[n.oc]=(fatOC[n.oc]||0)+v}})});
-  const comp=[],avisos=[];
-  ocs.forEach(o=>{if(!OC_COMPROMETE.includes(o.status))return;
-    const abate=v2?(fatOC[o.id]||0):(fatItem[o.id+'|'+o.item]||0);comp.push({oc:o,comp:Math.max(0,o.valor-abate),abate})});
+  /* comp = um registro por pedido (valor do pedido que ainda não virou nota); lin = um registro por LINHA do pedido (item, natureza e conta de cada linha), usado por quem precisa do item;
+     res (só com ev_ctrl) = pedidos aguardando aprovação, que reservam saldo. Sem oc_linhas cada pedido tem uma linha só e lin repete comp. */
+  const comp=[],lin=[],res=[],avisos=[];
+  ocs.forEach(o=>{
+    if(EC&&evPar(t).reservaEmAlcada&&o.status==='em_alcada')linhasDe(o,t).forEach(l=>res.push({oc:o,item:l.item,valor:+l.valor||0}));
+    if(!OC_COMPROMETE.includes(o.status))return;
+    const L=LN?linhasDe(o,t):null;
+    /* chave desligada, ou pedido de uma linha só: a conta de sempre (a linha única é o item do pedido) */
+    if(!L||L.length===1){const it=L?L[0].item:o.item,vl=L?L[0].valor:o.valor,abate=v2?(fatOC[o.id]||0):(fatItem[o.id+'|'+it]||0),c=Math.max(0,vl-abate);comp.push({oc:o,comp:c,abate});lin.push({oc:o,item:it,nat:L?L[0].nat||o.nat:o.nat,conta:L?L[0].conta||o.conta:o.conta,comp:c});return}
+    /* oc_linhas ligada [SUPOSIÇÃO, plano M3], pedido de várias linhas: o pedido é abatido linha a linha. 1) cada linha é abatida primeiro pelas notas rateadas NO MESMO ITEM (várias linhas do mesmo item dividem a nota na ordem);
+       2) com calc_v2 ligada, o que a nota realizou em outros itens do orçamento abate o que sobrou do pedido, repartido na proporção do que sobrou em cada linha (em centavos, a soma fecha exata).
+       Com uma linha só dá exatamente o número das duas contas de antes (ramo acima). */
+    const vals=L.map(l=>+l.valor||0),usado={};
+    const ab=L.map((l,k)=>{const disp=Math.max(0,(fatItem[o.id+'|'+l.item]||0)-(usado[l.item]||0)),a=Math.min(vals[k],disp);usado[l.item]=(usado[l.item]||0)+a;return a});
+    const resto=vals.map((v,k)=>v-ab[k]),al=resto.map(()=>0);
+    if(v2){const sobra=Math.max(0,(fatOC[o.id]||0)-ab.reduce((x,y)=>x+y,0)),soma=resto.reduce((x,y)=>x+y,0);
+      if(sobra>0&&soma>0){const dist=Math.min(sobra,soma),parte=repartir(Math.round(dist*100),resto.map(r=>Math.round(r*100)));parte.forEach((c,k)=>{al[k]=c/100})}}
+    const cl=resto.map((r,k)=>Math.max(0,r2(r-al[k])));
+    L.forEach((l,k)=>lin.push({oc:o,item:l.item,nat:l.nat||o.nat,conta:l.conta||o.conta,comp:cl[k]}));
+    comp.push({oc:o,comp:r2(cl.reduce((x,y)=>x+y,0)),abate:r2(ab.reduce((x,y)=>x+y,0)+al.reduce((x,y)=>x+y,0))})});
   /* aviso: nota rateada em item diferente do item da OC. Uma linha por nota+OC, com os itens e o valor que caiu fora.
-     orfaos/valorOrfao (só quando existem): parte que caiu em item que não está no orçamento. */
+     orfaos/valorOrfao (só quando existem): parte que caiu em item que não está no orçamento. Com oc_linhas, "item do pedido" é qualquer item das linhas do pedido. */
   if(v2)(t.notas||[]).forEach(n=>{const o=n.status!=='lancada'&&n.oc&&porId[n.oc];if(!o||!OC_COMPROMETE.includes(o.status))return;
-    const fora=(n.rateio||[]).filter(l=>l.item!==o.item);if(!fora.length)return;
+    const itOC=LN?new Set(linhasDe(o,t).map(l=>l.item)):new Set([o.item]);
+    const fora=(n.rateio||[]).filter(l=>!itOC.has(l.item));if(!fora.length)return;
     const av={tipo:'nota_fora_do_item',oc:o.id,ocNum:o.num,itemOC:o.item,nota:n.id,notaNum:n.num,itens:[...new Set(fora.map(l=>l.item))],valor:r2(fora.reduce((s,l)=>s+ +l.valor,0))};
+    if(itOC.size>1)av.itensOC=[...itOC];
     const orf=fora.filter(l=>!naEAP(l));if(orf.length){av.orfaos=[...new Set(orf.map(l=>l.item))];av.valorOrfao=r2(orf.reduce((s,l)=>s+ +l.valor,0))}
     avisos.push(av)});
-  return {v2,real,ocs:comp,avisos};
+  return {v2,real,ocs:comp,lin,res,avisos};
 }
 function saldos(){
   const m={};S.D.items.forEach(i=>m[i.codigo]={comp:0,real:0});
   const C=S.conta=contaObra(S.t);
   C.real.forEach(x=>{m[x.l.item]&&(m[x.l.item].real+=x.v)});
-  C.ocs.forEach(x=>{if(m[x.oc.item])m[x.oc.item].comp+=x.comp});
-  S.sd=m;S.D.items.forEach(i=>{const s=m[i.codigo];s.meta=i.meta_total;s.teto=i.teto_total;s.livre=r2(i.meta_total-s.comp-s.real)});
+  C.lin.forEach(x=>{if(m[x.item])m[x.item].comp+=x.comp});
+  /* ev_ctrl: pedido aguardando aprovação reserva saldo (campo res, só existe com a chave ligada); comp e livre continuam como sempre */
+  if(evCtrl()){S.D.items.forEach(i=>m[i.codigo].res=0);C.res.forEach(x=>{if(m[x.item])m[x.item].res+=x.valor})}
+  S.sd=m;S.idx=null;S.D.items.forEach(i=>{const s=m[i.codigo];s.meta=i.meta_total;s.teto=i.teto_total;s.livre=r2(i.meta_total-s.comp-s.real)});
   return m;
 }
-function semaforo(cod,total,pendId){
+/* semáforo de UM item: o de sempre. adj (só com ev_ctrl) = {res: saldo reservado por pedidos aguardando aprovação, real: realizado a descontar (nota que está sendo decidida)}. */
+function semaforoItem(cod,total,adj){
   const i=S.byCod[cod];
   if(!S.t.frozen)return ['bloqueado','Linha de base não congelada','Obra sem linha de base não abre compra (E01). Peça à Gestão para congelar a versão 1 em Orçamento.'];
   if(i&&i.tipo_linha==='item'&&i.meta_total==null)return ['bloqueado','Item sem meta de custo','Esta obra ainda não tem estudo de custo: defina a meta do item (Orçamento → Atualizar pela planilha) antes de comprar.'];
   if(!i||i.tipo_linha!=='item'||i.meta_total==null)return ['bloqueado','Fora da planilha do contrato','Sem item com meta não há compra: abra pedido de inclusão ou aditivo.'];
-  const s=S.sd[i.codigo];
-  if(i.teto_total!=null&&s.comp+s.real+total>i.teto_total)return ['vermelho','Acima do teto','Teto '+brl(i.teto_total)+' (margem zero). Só a Diretoria aprova.'];
-  if(total<=s.livre)return ['verde','Cabe no saldo da meta','Saldo livre '+brl(s.livre)+'. Vira pedido sem alçada.'];
-  return ['amarelo','Acima da meta, até o teto','Saldo livre '+brl(s.livre)+'. O Gerente de contrato aprova com justificativa.'];
+  const s=S.sd[i.codigo],rs=adj&&adj.res||0,rl=adj&&adj.real||0,aj=rs||rl;
+  const gasto=aj?s.comp+s.real-rl+rs:s.comp+s.real,livre=aj?r2(s.livre+rl-rs):s.livre;
+  if(i.teto_total!=null&&gasto+total>i.teto_total)return ['vermelho','Acima do teto','Teto '+brl(i.teto_total)+' (margem zero). Só a Diretoria aprova.'];
+  if(total<=livre)return ['verde','Cabe no saldo da meta','Saldo livre '+brl(livre)+'. Vira pedido sem alçada.'];
+  return ['amarelo','Acima da meta, até o teto','Saldo livre '+brl(livre)+'. O Gerente de contrato aprova com justificativa.'];
 }
+function semaforo(cod,total,pendId){return evCtrl()?semaforoLinhas([{item:cod,valor:total}],{ocId:pendId}):semaforoItem(cod,total)}
+const SEV={verde:0,amarelo:1,vermelho:2,bloqueado:3};
+
+/* ---------- M4: limite em três níveis (item, pacote, evento) ----------
+   Chave par.ev_ctrl (por obra, padrão DESLIGADA). Desligada, tudo isto fica parado e o semáforo é o de sempre (semaforoItem).
+   Ligada [SUPOSIÇÃO do plano, decisões D1, D2, D4, D6, D7 e E3 do Felipe de 25/10/2026]:
+   - a cor de uma compra é a PIOR entre o item, o pacote e o evento (obra sem evento: o grupo da EAP faz o papel do evento, como em Eventos);
+   - item continua rígido (D6): acima da meta do item é amarelo mesmo com saldo no pacote;
+   - pacote e evento usam a soma das metas e dos tetos dos itens, a mesma conta da tela Eventos: verde dentro da meta, amarelo acima da meta até o limite (teto), vermelho acima do limite;
+   - grupo com meta acima do limite (sem folga) é vermelho para qualquer compra (E3);
+   - pedido aguardando aprovação reserva saldo (par.ev.reservaEmAlcada) e a decisão recalcula tudo (12_compras.js, decidirCtrl). */
+function idxCtrl(){
+  if(S.idx)return S.idx;
+  const its=S.D.items,modo=its.length&&its.every(i=>!evDe(i))?'grupo':'evento',pac=new Map(),ev=new Map();
+  its.forEach(i=>{const p=pacDe(i),e=modo==='grupo'?grupoRaiz(i):evDe(i);
+    if(p!=='')(pac.get(p)||pac.set(p,[]).get(p)).push(i);if(e!=='')(ev.get(e)||ev.set(e,[]).get(e)).push(i)});
+  return S.idx={modo,pac,ev}}
+/* ordem de emissão do pedido (fila): o número do pedido; sem número válido, a posição na lista (a lista guarda o mais novo primeiro) */
+const ordemOC=o=>{const n=parseInt(String(o.num||'').replace(/\D/g,''));return n>0?n:(S.t.ocs.length-S.t.ocs.indexOf(o))};
+/* o que descontar do saldo na hora de calcular a cor de um documento: reserva dos pedidos aguardando aprovação (todos, para um documento novo; só os mais antigos, para um pedido já emitido)
+   e o realizado da própria nota (quando a nota que está sendo decidida já conta como realizada). ctx = {ocId, notaId} */
+function ajusteCtrl(ctx){
+  const C=S.conta||contaObra(S.t),res={},real={},P=evPar();
+  const me=ctx.ocId?S.t.ocs.find(o=>o.id===ctx.ocId):null,ord=me?ordemOC(me):Infinity;
+  (C.res||[]).forEach(x=>{if(ctx.ocId&&x.oc.id===ctx.ocId)return;if(me&&P.reservaPorOrdem&&ordemOC(x.oc)>ord)return;res[x.item]=(res[x.item]||0)+x.valor});
+  if(ctx.notaId){const n=S.t.notas.find(x=>x.id===ctx.notaId);if(n&&n.status!=='lancada')(n.rateio||[]).forEach(l=>{real[l.item]=(real[l.item]||0)+ +l.valor})}
+  return {res,real}}
+/* soma de um grupo de itens (pacote ou evento) para a conta da compra: meta, limite (teto), gasto (comprometido + realizado + reservado) e saldo */
+function somaGrupoCtrl(its,adj){
+  const g={meta:0,teto:0,temTeto:false,gasto:0};
+  its.forEach(i=>{const s=S.sd[i.codigo]||{comp:0,real:0};g.meta+=+i.meta_total||0;if(i.teto_total!=null){g.teto+=+i.teto_total||0;g.temTeto=true}
+    g.gasto+=s.comp+s.real-(adj.real[i.codigo]||0)+(adj.res[i.codigo]||0)});
+  g.meta=r2(g.meta);g.teto=r2(g.teto);g.gasto=r2(g.gasto);g.livre=r2(g.meta-g.gasto);return g}
+/* cor de uma compra de valor tot dentro de um grupo (pacote ou evento) */
+function corGrupoCtrl(rot,g,tot){
+  if(g.temTeto&&g.meta>g.teto)return ['vermelho',rot+': meta acima do limite','Meta '+brl(g.meta)+' × limite '+brl(g.teto)+' (soma dos itens): sem folga, toda compra nasce vermelha. Só a Diretoria aprova.'];
+  const novo=r2(g.gasto+tot);
+  if(g.temTeto&&novo>g.teto)return ['vermelho',rot+': acima do limite','Limite '+brl(g.teto)+' (soma dos tetos dos itens); já usado '+brl(g.gasto)+'. Só a Diretoria aprova.'];
+  if(novo>g.meta)return ['amarelo',rot+': acima da meta, até o limite','Saldo livre '+brl(g.livre)+'. O Gerente de contrato aprova com justificativa.'];
+  return ['verde',rot+': cabe no saldo da meta','Saldo livre '+brl(g.livre)+'.']}
+const PIOR=(a,b)=>SEV[b.r[0]]>SEV[a.r[0]]?b:a;
+/* semáforo de um documento com várias linhas [{item, valor}] (M3 e M4): linhas do mesmo item somam; vale a PIOR cor.
+   Sem ev_ctrl: só o nível do item. Uma linha só dá o mesmo resultado de semaforo(). A resposta é a de sempre [cor, título, texto]; com mais de um item o texto diz de qual item vem a cor.
+   Com ev_ctrl vem um quarto elemento, a lista dos níveis [{nivel, chave, rot, cor, titulo, texto}], que a tela mostra. ctx = {ocId, notaId}: documento já existente que está sendo decidido (não conta contra si mesmo). */
+function semaforoLinhas(L,ctx){
+  ctx=ctx||{};const EC=evCtrl(),porItem=new Map();
+  (L||[]).forEach(l=>{if(l&&l.item!=null&&l.item!=='')porItem.set(l.item,(porItem.get(l.item)||0)+(+l.valor||0))});
+  if(!porItem.size)return ['bloqueado','Pedido sem linha','Informe ao menos um item com quantidade e preço.'];
+  const adj=EC?ajusteCtrl(ctx):null;
+  const rs=[...porItem.entries()].map(([cod,tot])=>({cod,tot,r:semaforoItem(cod,tot,EC?{res:adj.res[cod]||0,real:adj.real[cod]||0}:null)}));
+  const multi=rs.length>1,txt=x=>multi?[x.r[0],x.r[1],x.r[2]+' (item '+x.cod+')']:x.r;
+  const bl=rs.find(x=>x.r[0]==='bloqueado');if(bl)return txt(bl);
+  const pior=rs.reduce(PIOR);
+  if(!EC)return txt(pior);
+  /* pacote e evento: soma dos itens de cada grupo que as linhas tocam */
+  const ix=idxCtrl(),niveis=rs.map(x=>({nivel:'item',chave:x.cod,rot:'Item '+x.cod,cor:x.r[0],titulo:x.r[1],texto:x.r[2]}));
+  const piorN=[{r:txt(pior),n:niveis[rs.indexOf(pior)]}];
+  const grupo=(nivel,mapa,rotulo,chaveDe)=>{const tot=new Map();rs.forEach(x=>{const i=S.byCod[x.cod],k=chaveDe(i);if(k!=='')tot.set(k,(tot.get(k)||0)+x.tot)});
+    tot.forEach((t,k)=>{const its=mapa.get(k)||[],g=somaGrupoCtrl(its,adj),rot=rotulo+' '+k,r=corGrupoCtrl(rot,g,t),n={nivel,chave:k,rot,cor:r[0],titulo:r[1],texto:r[2],meta:g.meta,teto:g.temTeto?g.teto:null,gasto:g.gasto,livre:g.livre,compra:r2(t)};niveis.push(n);
+      if(SEV[r[0]]>SEV[piorN[0].r[0]])piorN[0]={r,n}})};
+  grupo('pacote',ix.pac,'Pacote',i=>pacDe(i));
+  grupo('evento',ix.ev,ix.modo==='grupo'?'Grupo':'Evento',i=>ix.modo==='grupo'?grupoRaiz(i):evDe(i));
+  const w=piorN[0].r;return [w[0],w[1],w[2],niveis]}
+/* alçada de um documento (OC ou nota sem pedido) com a regra D2: pedidos VERDES do mesmo pacote no mesmo dia somam para a alçada (quem parte uma compra grande em várias pequenas não escapa da aprovação).
+   Só conta pedido verde, não cancelado nem reprovado, criado no mesmo dia e com linha em algum pacote que o documento também toca. ctx = {ocId, dia}. */
+function somaVerdesDia(L,ctx){
+  const pacs=new Set(L.map(l=>S.byCod[l.item]).filter(Boolean).map(pacDe).filter(Boolean));if(!pacs.size)return 0;
+  const dia=ctx.dia||hojeISO();
+  return S.t.ocs.filter(o=>o.id!==ctx.ocId&&o.sem==='verde'&&o.criado===dia&&!['cancelada','reprovada'].includes(o.status))
+    .reduce((s,o)=>s+linhasDe(o).reduce((a,l)=>{const i=S.byCod[l.item];return a+(i&&pacs.has(pacDe(i))?+l.valor||0:0)},0),0)}
+function alcadaCtrl(sem,total,L,ctx){return alcadaDe(sem,sem==='verde'&&evPar().somaDiaPacote?total+somaVerdesDia(L,ctx||{}):total)}
+/* quem é o usuário (identidade, não nome): chave pessoal -> 'pessoa:nome sem acento'; login do banco -> 'auth:id'; chave geral do site -> 'nome:nome digitado'; sem login (demonstração) -> 'papel:papel escolhido' */
+const nomeNorm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+function usuarioId(){
+  const p=(typeof SB!=='undefined'&&SB.perfil)||null;
+  if(p&&p.uid)return p.uid;
+  if(p&&p.user_id)return 'auth:'+p.user_id;
+  return 'papel:'+S.role}
+/* o usuário atual é quem solicitou este documento? Com ev_ctrl compara a identidade gravada no documento (solicitanteId); documento sem identidade (antigo) compara o nome sem acento nem caixa.
+   Sem a chave: o que sempre foi (nome igual ao do usuário). */
+function ehSolicitante(o){
+  if(!evCtrl())return o.solicitante===user();
+  if(o.solicitanteId)return o.solicitanteId===usuarioId();
+  return nomeNorm(o.solicitante)!==''&&nomeNorm(o.solicitante)===nomeNorm(user())}
 const SEM_CLASS={verde:'ok',amarelo:'warn',vermelho:'bad',bloqueado:'bad',sem_base:'mute'};
 const semPill=s=>`<span class="pill ${SEM_CLASS[s]||'mute'}">${s||'—'}</span>`;
 const PX={sol:'SC',oc:'OC',nf:'NF',bm:'BM',apt:'AP',rst:'RE',tar:'TA',bc:'BC',fat:'FT'};
@@ -733,12 +882,13 @@ function derive(){
        A soma só vale quando os itens do pacote têm meta E teto (pacSoma). Se nenhum item tem teto (ou meta) não há soma para mostrar: vale o cadastro do pacote, igual à chave desligada (antes saía R$ 0 e folga negativa). */
     p._teto=p._it.reduce((s,i)=>s+(+i.teto_total||0),0);p._temTeto=p._it.some(i=>i.teto_total!=null);p._temMeta=p._it.some(i=>i.meta_total!=null);
     if(pacSoma(p))p._acima=r2(p._meta)>r2(p._teto);
-    p._temOC=S.t.ocs.some(o=>S.byCod[o.item]?.pacote===p.codigo&&o.status!=='cancelada'&&o.status!=='reprovada')});
+    p._temOC=S.t.ocs.some(o=>linhasDe(o).some(l=>S.byCod[l.item]?.pacote===p.codigo)&&o.status!=='cancelada'&&o.status!=='reprovada')});
   X.vencidos=D.pacotes.filter(p=>p._dias!=null&&p._dias<0&&p._it.length&&!p._temOC);
   X.pendAprov=S.t.ocs.filter(o=>o.status==='em_alcada');
+  if(evCtrl())X.pendNotas=S.t.notas.filter(n=>n.aprov==='pendente');   /* ev_ctrl, D7: nota sem pedido aguardando alçada */
   X.semRateio=S.t.notas.filter(n=>n.status==='lancada');
   X.semPedido=S.t.notas.filter(n=>!n.oc);
-  X.economia=S.t.ocs.filter(o=>OC_COMPROMETE.includes(o.status)).reduce((s,o)=>{const i=S.byCod[o.item];return s+(i.meta_unit*o.qtd-o.valor)},0);
+  X.economia=S.t.ocs.filter(o=>OC_COMPROMETE.includes(o.status)).reduce((s,o)=>s+linhasDe(o).reduce((a,l)=>{const i=S.byCod[l.item];return a+(i.meta_unit*l.qtd-l.valor)},0),0);
   if(chaveLigada('ev_agrega')){X.eventos=agregaEventos();X.pacGrupos=agregaPacotes()}
   return X;
 }
@@ -760,15 +910,15 @@ const evDe=i=>String(i.evento==null?'':i.evento).trim();
 const pacDe=i=>{const c=i.pacote==null?'':String(i.pacote);return c.trim()===''?'':c};
 function grupoRaiz(i){let g=i,n=0;while(g&&g.pai&&S.byCod[g.pai]&&n++<30)g=S.byCod[g.pai];return g&&g!==i&&g.tipo_linha==='grupo'?g.codigo:String(i.codigo).split('.')[0]}
 function somaItens(its){
-  const g={n:its.length,venda:0,meta:0,teto:0,temTeto:false,comp:0,real:0,livre:0,semMeta:0,itens:its.map(i=>i.codigo)};
+  const g={n:its.length,venda:0,meta:0,teto:0,temTeto:false,comp:0,real:0,livre:0,semMeta:0,itens:its.map(i=>i.codigo)};if(evCtrl())g.res=0;   /* ev_ctrl: reservado por pedidos aguardando aprovação */
   its.forEach(i=>{const s=S.sd[i.codigo]||{comp:0,real:0,livre:0};g.venda+=+i.preco_venda_total||0;g.meta+=+i.meta_total||0;if(i.teto_total!=null){g.teto+=+i.teto_total||0;g.temTeto=true}
-    if(i.meta_total==null)g.semMeta++;g.comp+=s.comp;g.real+=s.real;g.livre+=s.livre});
+    if(i.meta_total==null)g.semMeta++;g.comp+=s.comp;g.real+=s.real;g.livre+=s.livre;if(g.res!==undefined)g.res+=s.res||0});
   return g}
 /* mesma conta da coluna Limite do Eventos e do "meta acima do teto" do pacote (soma das metas dos itens contra soma dos tetos) */
 const grupoSemFolga=g=>g.temTeto&&r2(g.meta)>r2(g.teto);
 function semGrupo(g){
   if(!g.n||g.semMeta===g.n)return ['sem_base',g.n?'Nenhum item com meta de custo':'Nenhum item no orçamento'];
-  const gasto=r2(g.comp+g.real);
+  const gasto=r2(g.comp+g.real+(g.res||0));
   if(g.temTeto&&gasto>r2(g.teto))return ['vermelho','Comprometido + realizado acima do limite (teto)'];
   if(grupoSemFolga(g))return ['vermelho','Meta acima do limite (teto): sem folga, qualquer compra nasce vermelha'];
   if(gasto>r2(g.meta))return ['amarelo','Acima da meta, até o limite'];
@@ -800,12 +950,14 @@ function alertas(X){
   if(!S.t.frozen)a.push(['bad','Linha de base não congelada','Compras bloqueadas até a Gestão congelar a versão 1 (E01).']);
   X.vencidos.forEach(p=>a.push(['bad',`Pacote ${p.codigo}: fechar até ${fdata(p.fechar_ate)} vencido`,`${-p._dias} dia(s) de atraso, sem pedido. ${brl(pacMeta(p),true)} de meta; vira restrição na frente.`]));
   S.D.pacotes.filter(p=>p._acima).forEach(p=>a.push(['bad',`Pacote ${p.codigo}: meta acima do teto`,`Meta ${brl(pacMeta(p))} × teto ${brl(pacTeto(p))}. Solicitação nasce vermelha.`]));
-  X.pendAprov.forEach(o=>a.push([o.alcada==='diretoria'?'bad':'warn',`${o.num} aguarda ${ROLES[o.alcada].n}`,`${brl(o.valor)} · ${o.item} · ${esc(o.forn)}`]));
+  X.pendAprov.forEach(o=>a.push([o.alcada==='diretoria'?'bad':'warn',`${o.num} aguarda ${ROLES[o.alcada].n}`,`${brl(o.valor)} · ${itensTxt(o)} · ${esc(o.forn)}`]));
+  (X.pendNotas||[]).forEach(n=>a.push([n.alcada==='diretoria'?'bad':'warn',`${n.num} (nota sem pedido) aguarda ${ROLES[n.alcada].n}`,`${brl(n.valor)} · ${esc(n.emitente)} · ${esc(n.justSemOC||'sem justificativa')}`]));
   X.semRateio.forEach(n=>a.push(['warn',`${n.num} sem rateio`,`${esc(n.emitente)} · ${brl(n.valor)}. Não entra no custo do item.`]));
   X.semPedido.filter(n=>n.status!=='paga').forEach(n=>a.push(['warn',`${n.num} sem pedido`,`Alerta de governança: ${esc(n.justSemOC||'sem justificativa')}`]));
   S.t.notas.filter(n=>n.status==='divergente').forEach(n=>a.push(['bad',`${n.num} divergente do pedido`,'Pagamento bloqueado até Compras resolver.']));
   if(calcV2())a.push(['warn','Cálculo novo ligado: o banco ainda conta como antes',AVISO_SQL_CALC]);
-  if(calcV2())contaObra().avisos.forEach(v=>a.push(['warn',`${esc(v.notaNum)} rateada fora do item do pedido ${esc(v.ocNum)}`,`O pedido é do item ${esc(v.itemOC)}, mas ${brl(v.valor)} da nota foram para ${v.itens.map(esc).join(', ')}. Com o cálculo novo o pedido é abatido pela nota inteira (conta uma vez só); confira o item do rateio.${v.orfaos?` ${brl(v.valorOrfao)} foram para ${v.orfaos.map(esc).join(', ')}, que não existe no orçamento: essa parte não abate o pedido (continua comprometido).`:''}`]));
+  if(ocLinhasLigada())a.push(['warn','Compra de várias linhas ligada: o banco ainda lê só a primeira linha',AVISO_SQL_LINHAS]);
+  if(calcV2())contaObra().avisos.forEach(v=>a.push(['warn',`${esc(v.notaNum)} rateada fora do item do pedido ${esc(v.ocNum)}`,`O pedido é d${v.itensOC?'os itens '+v.itensOC.map(esc).join(', '):'o item '+esc(v.itemOC)}, mas ${brl(v.valor)} da nota foram para ${v.itens.map(esc).join(', ')}. Com o cálculo novo o pedido é abatido pela nota inteira (conta uma vez só); confira o item do rateio.${v.orfaos?` ${brl(v.valorOrfao)} foram para ${v.orfaos.map(esc).join(', ')}, que não existe no orçamento: essa parte não abate o pedido (continua comprometido).`:''}`]));
   S.t.meds.filter(m=>m.status==='lancada').forEach(m=>a.push(['warn',`${m.num} aguarda atesto`,`${m.item} · ${num(m.qtd)} medidos por ${esc(m.quem)}`]));
   S.t.titulos.filter(t=>!t.cancelado&&t.venc<hojeISO()&&tituloInfo(t).saldo>0).forEach(t=>a.push(['bad',`Título ${t.ocNum} vencido`,`${esc(t.forn)} · saldo ${brl(tituloInfo(t).saldo)}`]));
   S.D.items.forEach(i=>{const r=resItem(i);if(r.sem==='bad')a.push(['bad',`Item ${i.codigo}: ${r.txt}`,`Receita ${brl(r.rec)} × custo ${brl(r.real)}${r.idc!=null?' · IDC '+r.idc.toFixed(2).replace('.',','):''}`])});
@@ -854,7 +1006,7 @@ const vistaPermitida=v=>NAV_BASE.some(n=>n[0]===v)&&(v!=='evt'||chaveLigada('ev_
 const navItens=()=>NAV_BASE.filter(n=>tabVisivel(n[0]));
 const badgeArea=(a,X)=>a.tabs.map(t=>badgeFor(t[0],X)).join('');
 const abasDaArea=a=>a.tabs.length<2?'':`<div class="tabs areatabs">${a.tabs.map(([k,l])=>`<button data-v="${k}" class="${S.view===k?'on':''}">${l}</button>`).join('')}</div>`;
-function badgeFor(k,X){return k==='compras'?(X.pendAprov.length?`<span class="badge hot">${X.pendAprov.length}</span>`:''):k==='nota'?(X.semRateio.length?`<span class="badge hot">${X.semRateio.length}</span>`:''):''}
+function badgeFor(k,X){return k==='compras'?(X.pendAprov.length+(X.pendNotas||[]).length?`<span class="badge hot">${X.pendAprov.length+(X.pendNotas||[]).length}</span>`:''):k==='nota'?(X.semRateio.length?`<span class="badge hot">${X.semRateio.length}</span>`:''):''}
 function ticks(items){return items.map(i=>`<i class="${i.meta_total>i.teto_total?'r':i.status_cotacao==='A cotar'?'w':''}" title="${i.codigo}"></i>`).join('')}
 function ring(p,c){return `<div class="ring" style="--p:${Math.round(p*100)};--c:${c}"><span>${Math.round(p*100)}</span></div>`}
 function bar(a,b,tot){const w=x=>tot>0?Math.min(100,Math.max(0,x/tot*100)):0;return `<div class="bar" title="comprometido ${brl(a)} · realizado ${brl(b)} · meta ${brl(tot)}"><i class="b" style="width:${w(b)}%"></i><i class="a" style="width:${Math.min(w(a),100-w(b))}%"></i></div>`}
@@ -873,9 +1025,10 @@ function pacRow(p){
 function minhaFila(X){
   const f=[];
   if(!S.t.frozen&&can('congelar'))f.push(['bad','Congelar a linha de base v1','Libera a abertura de compras na obra.','eap']);
-  if(isRole('gerente','diretoria'))X.pendAprov.filter(o=>o.alcada===S.role||(isRole('diretoria')&&o.alcada==='gerente')||S.role==='admin').forEach(o=>f.push([o.alcada==='diretoria'?'bad':'warn',`Aprovar ${o.num} · ${brl(o.valor)}`,`${o.item} · ${esc(o.forn)}`,'compras']));
-  if(isRole('compras'))S.t.sols.filter(s=>s.status==='enviada'||s.status==='em_cotacao').forEach(s=>f.push(['warn',`Cotar ${s.num}`,`${esc(s.desc)} · ${s.item}`,'compras']));
-  if(isRole('almox'))S.t.ocs.filter(o=>['aprovada','recebida_parcial'].includes(o.status)).forEach(o=>f.push(['info',`Receber ${o.num}`,`${esc(o.forn)} · ${num(o.qtd-(o.recebido||0))} ${S.byCod[o.item].unidade||''} a receber`,'compras']));
+  if(isRole('gerente','diretoria'))X.pendAprov.filter(o=>o.alcada===S.role||(isRole('diretoria')&&o.alcada==='gerente')||S.role==='admin').forEach(o=>f.push([o.alcada==='diretoria'?'bad':'warn',`Aprovar ${o.num} · ${brl(o.valor)}`,`${itensTxt(o)} · ${esc(o.forn)}`,'compras']));
+  if(isRole('gerente','diretoria'))(X.pendNotas||[]).filter(n=>n.alcada===S.role||(isRole('diretoria')&&n.alcada==='gerente')||S.role==='admin').forEach(n=>f.push([n.alcada==='diretoria'?'bad':'warn',`Aprovar ${n.num} (nota sem pedido) · ${brl(n.valor)}`,`${esc(n.emitente)}`,'compras']));
+  if(isRole('compras'))S.t.sols.filter(s=>s.status==='enviada'||s.status==='em_cotacao').forEach(s=>f.push(['warn',`Cotar ${s.num}`,`${esc(s.desc)} · ${itensTxt(s)}`,'compras']));
+  if(isRole('almox'))S.t.ocs.filter(o=>['aprovada','recebida_parcial'].includes(o.status)).forEach(o=>f.push(['info',`Receber ${o.num}`,`${esc(o.forn)} · ${num(o.qtd-(o.recebido||0))} ${ocUn(o)} a receber`,'compras']));
   if(isRole('gerente','diretoria'))S.t.meds.filter(m=>m.status==='lancada'&&m.quem!==user()).forEach(m=>f.push(['warn',`Atestar ${m.num}`,`${m.item} · ${num(m.qtd)} medidos`,'med']));
   if(isRole('adm'))X.semRateio.forEach(n=>f.push(['warn',`Ratear ${n.num}`,`${esc(n.emitente)} · ${brl(n.valor)}`,'nota']));
   if(isRole('financeiro'))S.t.notas.filter(n=>n.status==='conferida'||n.status==='liberada').forEach(n=>f.push(['info',`${n.status==='conferida'?'Liberar':'Pagar'} ${n.num}`,`${esc(n.emitente)} · ${brl(n.valor)}`,'nota']));
@@ -924,11 +1077,11 @@ function viewEap(X){
 }
 function modalItem(cod){
   const i=S.byCod[cod],s=S.sd[cod];
-  const ocs=S.t.ocs.filter(o=>o.item===cod);const rat=S.t.notas.flatMap(n=>n.rateio.filter(l=>l.item===cod).map(l=>({n,l})));
+  const ocs=S.t.ocs.filter(o=>itensDe(o).includes(cod));const rat=S.t.notas.flatMap(n=>n.rateio.filter(l=>l.item===cod).map(l=>({n,l})));
   modal(`<h3>${cod} <span class="mut">${esc(i.unidade||'')}</span></h3><div class="sub">${esc(i.descricao)}</div>
    <div class="kpi4"><div><div class="k-l">Meta</div><div class="v">${brl(i.meta_total)}</div></div><div><div class="k-l">Teto</div><div class="v ${i.meta_total>i.teto_total?'neg':''}">${brl(i.teto_total)}</div></div><div><div class="k-l">Comprometido</div><div class="v">${brl(s.comp)}</div></div><div><div class="k-l">Saldo livre</div><div class="v ${s.livre<0?'neg':''}">${brl(s.livre)}</div></div></div>
    <div class="sub" style="margin-top:10px">Pacote ${i.pacote||'—'} · evento ${i.evento||'—'} · natureza ${i.nat} · fonte da meta: ${esc(i.fonte_meta||'—')} · ${esc(i.status_cotacao||'')}</div>
-   ${ocs.length?`<div class="panel-t" style="margin-top:14px">Pedidos</div>${ocs.map(o=>`<div class="sub">${o.num} · ${esc(o.forn)} · ${brl(o.valor)} · ${o.status}</div>`).join('')}`:''}
+   ${ocs.length?`<div class="panel-t" style="margin-top:14px">Pedidos</div>${ocs.map(o=>`<div class="sub">${o.num} · ${esc(o.forn)} · ${ocMulti(o)?brl(linhasDe(o).filter(l=>l.item===cod).reduce((s,l)=>s+ +l.valor,0))+' deste item (pedido de '+brl(o.valor)+')':brl(o.valor)} · ${o.status}</div>`).join('')}`:''}
    ${rat.length?`<div class="panel-t" style="margin-top:14px">Notas rateadas</div>${rat.map(x=>`<div class="sub">${x.n.num} · ${esc(x.n.emitente)} · ${brl(x.l.valor)}</div>`).join('')}`:''}
    <div class="acts"><button class="btn" data-act="fechar">Fechar</button><button class="btn dark" data-act="nova-sol" data-item="${cod}" ${can('solicitar')?'':'disabled title="Só Engenheiro ou Gerente"'}>Solicitar compra</button></div>`);
 }
@@ -973,62 +1126,131 @@ function modalPac(cod){
    <div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`);
 }
 /* ============ COMPRAS (Fase 3) ============ */
-function semBox(r){return `<div class="sem ${r[0]}"><b>${r[0].toUpperCase()}</b><div><b>${r[1]}</b><br><span>${r[2]}</span></div></div>`}
+function semBox(r){return `<div class="sem ${r[0]}"><b>${r[0].toUpperCase()}</b><div><b>${r[1]}</b><br><span>${r[2]}</span>${r[3]?`<div class="niveis" style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${r[3].map(n=>`<span class="pill ${SEM_CLASS[n.cor]||'mute'}" title="${esc(n.titulo+'. '+n.texto)}">${esc(n.rot)}: ${n.cor}</span>`).join('')}</div>`:''}</div></div>`}
+/* M3 (par.oc_linhas): outras linhas da solicitação. A primeira linha é o formulário de sempre (mesmos campos, mesmos ids: Orçamento, Necessidades, Mín./Máx. e Rastro continuam preenchendo-o). */
+let SOLX=[],SOLUPD=null;
+/* o que o engenheiro precisa ver ao escolher o item: evento, pacote e saldo */
+function ctxItem(cod){
+  const i=S.byCod[cod];if(!i)return '';const s=S.sd[cod]||{livre:0},p=(S.D.pacotes||[]).find(x=>x.codigo===pacDe(i));
+  const res=s.res||0,liv=r2(s.livre-res);
+  let h=`evento <b class="mono">${esc(evDe(i)||'—')}</b> · pacote <b class="mono">${esc(pacDe(i)||'—')}</b>${p?' '+esc(p.nome):''} · saldo livre do item <b class="${liv<0?'neg':''}">${brl(liv)}</b>`;
+  if(evCtrl()){   /* limite em três níveis: o saldo do pacote e do evento também aparece ao escolher o item; todos já descontam o que está reservado por pedidos aguardando aprovação */
+    const ix=idxCtrl(),adj=ajusteCtrl({}),gp=ix.pac.get(pacDe(i)),ge=ix.ev.get(ix.modo==='grupo'?grupoRaiz(i):evDe(i));
+    if(gp)h+=` · saldo do pacote <b>${brl(somaGrupoCtrl(gp,adj).livre)}</b>`;if(ge)h+=` · saldo d${ix.modo==='grupo'?'o grupo':'o evento'} <b>${brl(somaGrupoCtrl(ge,adj).livre)}</b>`;
+    if(res>0)h+=` · já descontados <b>${brl(res)}</b> reservados por pedidos aguardando aprovação`}
+  return h}
+function natOpts(i,sel){return i.linhas.map(l=>`<option value="${l.nat}" ${l.nat===(sel||i.nat)?'selected':''}>${NATNOME[l.nat]} · ${Math.round(l.share*100)}% da composição</option>`).join('')}
+function pintaSolX(){
+  const el=$('#s-lin');if(!el)return;
+  el.innerHTML=SOLX.map((x,k)=>{const i=S.byCod[x.item];
+    return `<div class="g3" style="grid-template-columns:2fr 1.4fr .7fr .8fr auto;align-items:end;margin-top:8px"><div><label style="margin-top:0">Item</label><select data-sx="${k}" data-f="item">${itemOptions(x.item)}</select></div><div><label style="margin-top:0">Natureza</label><select data-sx="${k}" data-f="nat">${i?natOpts(i,x.nat):''}</select></div><div><label style="margin-top:0">Quantidade</label><input type="number" step="any" min="0" data-sx="${k}" data-f="qtd" value="${x.qtd}"></div><div><label style="margin-top:0">Preço unit. (R$)</label><input type="number" step="any" min="0" data-sx="${k}" data-f="pu" value="${x.pu}"></div><button class="btn sm no" data-act="sol-del-lin" data-k="${k}">×</button>
+     <div class="sub" id="sx-ctx-${k}" style="grid-column:1/-1;margin-top:-4px">${ctxItem(x.item)}</div></div>`}).join('');
+  document.querySelectorAll('[data-sx]').forEach(e=>e.oninput=e.onchange=()=>{const x=SOLX[+e.dataset.sx],f=e.dataset.f;x[f]=e.value;if(f==='item'){const i=S.byCod[x.item];x.nat=i?i.nat:'';pintaSolX()}if(SOLUPD)SOLUPD()})}
+/* linhas do formulário: a primeira (formulário de sempre) mais as de SOLX */
+function solLinhasForm(){
+  const L=[{item:$('#s-item').value,nat:$('#s-nat').value,qtd:+$('#s-qtd').value,preco:+$('#s-pu').value}];
+  SOLX.forEach(x=>L.push({item:x.item,nat:x.nat,qtd:+x.qtd,preco:+x.pu}));return L}
 function modalSol(cod){
-  modal(`<h3>Nova solicitação de compra</h3><div class="sub">Nasce dentro de um item do orçamento. O preço é comparado com o saldo, a meta e o teto do item.</div>
+  const LN=ocLinhasLigada(),CT=LN||evCtrl();SOLX=[];SOLUPD=null;
+  modal(`<h3>Nova solicitação de compra</h3><div class="sub">${LN?'Nasce dentro de um item do orçamento; para comprar um pacote, junte outras linhas abaixo. O preço é comparado com o saldo, a meta e o teto de cada item.':'Nasce dentro de um item do orçamento. O preço é comparado com o saldo, a meta e o teto do item.'}</div>
    <label>Item do orçamento</label><select id="s-item">${itemOptions(cod)}</select><label>Linha da composição do item (natureza e conta vêm do cadastro)</label><select id="s-nat"></select><div class="sub" id="s-conta"></div>
    <label>Insumo do estoque (opcional: a entrada na OC vai para o estoque)</label><select id="s-ins"><option value="">— nenhum —</option>${S.t.inss.map(i=>`<option value="${esc(i.cod)}">${esc(i.cod)} · ${esc(i.desc)}</option>`).join('')}</select><label>O que comprar</label><input id="s-desc" placeholder="ex.: Tubo K-7 DN300, 76 m">
    <div class="g3"><div><label>Quantidade</label><input id="s-qtd" type="number" step="any" min="0"></div><div><label>Preço unitário achado (R$)</label><input id="s-pu" type="number" step="any" min="0"></div><div><label>Necessária em</label><input id="s-dt" type="date"></div></div>
+   ${CT?`<div class="sub" id="s-ctx0" style="margin-top:6px"></div>`:''}${LN?`<div class="panel-t" style="margin-top:14px">Outras linhas deste pedido</div><div class="sub">Compra de pacote: junte vários itens numa solicitação só. O fornecedor cota o valor total do pedido. Insumo do estoque só vale em pedido de uma linha.</div><div id="s-lin"></div><div style="margin-top:8px"><button class="btn sm" data-act="sol-add-lin">+ Linha</button></div>`:''}
    <label>Motivo</label><input id="s-mot" placeholder="opcional"><div id="s-sem"></div>
    <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="sol-ok">Enviar solicitação</button></div>`);
   const upd=()=>{const i=S.byCod[$('#s-item').value],q=+$('#s-qtd').value,p=+$('#s-pu').value;
     if(i&&!$('#s-qtd').value&&i.qtd)$('#s-qtd').placeholder='orçado: '+num(i.qtd);if(i&&!$('#s-pu').value)$('#s-pu').placeholder='meta unit.: '+num(i.meta_unit);
+    if(CT){const c0=$('#s-ctx0');if(c0)c0.innerHTML=ctxItem($('#s-item').value)}
+    if(LN){
+      const L=solLinhasForm(),ok=L.every(l=>l.item&&l.qtd>0&&l.preco>0);
+      $('#s-sem').innerHTML=ok?semBox(semaforoLinhas(L.map(l=>({item:l.item,valor:r2(l.qtd*l.preco)})))):`<div class="sub" style="margin-top:10px">Informe quantidade e preço de cada linha para ver o semáforo.${L.length>1?'':' Saldo livre do item: <b>'+brl(S.sd[i.codigo].livre)+'</b>'}</div>`;return}
     $('#s-sem').innerHTML=q>0&&p>0?semBox(semaforo(i.codigo,q*p)):`<div class="sub" style="margin-top:10px">Informe quantidade e preço para ver o semáforo. Saldo livre do item: <b>${brl(S.sd[i.codigo].livre)}</b></div>`};
   const linhas=()=>{const i=S.byCod[$('#s-item').value];$('#s-nat').innerHTML=i.linhas.map(l=>`<option value="${l.nat}" ${l.nat===i.nat?'selected':''}>${NATNOME[l.nat]} · ${Math.round(l.share*100)}% da composição</option>`).join('');conta()};
   const conta=()=>{const i=S.byCod[$('#s-item').value],n=$('#s-nat').value,c=contaPadrao(n,i.pacote);$('#s-conta').innerHTML=`Conta <b class="mono">${c}</b> · ${esc(nomeConta(c))}`};
   $('#s-item').onchange=()=>{linhas();upd()};$('#s-nat').onchange=conta;linhas();
-  ['s-item','s-qtd','s-pu'].forEach(id=>$('#'+id).oninput=upd);upd();
+  ['s-item','s-qtd','s-pu'].forEach(id=>$('#'+id).oninput=upd);SOLUPD=upd;upd();
+}
+/* fim da criação: igual para a solicitação de uma linha e para a de várias */
+function solGrava(s,total,sem){
+  S.t.sols.unshift(s);log('solicitacao',s.num,'criada','',brl(total)+' · '+sem[0]);const volta=typeof rastroAposSol==='function'&&rastroAposSol(s);save();closeModal();toast(s.num+' enviada · '+sem[0]);if(!volta){S.view='compras';S.tab.compras='sols'}render();
 }
 function doSol(){
   const cod=$('#s-item').value,q=+$('#s-qtd').value,p=+$('#s-pu').value,desc=$('#s-desc').value.trim();
   if(!desc||!(q>0)||!(p>=0))return toast('Preencha descrição, quantidade e preço');
+  if(ocLinhasLigada()||evCtrl())return doSolLinhas(desc);
   const sem=semaforo(cod,q*p);if(sem[0]==='bloqueado'){toast(sem[1]);return}
   const nat=$('#s-nat').value,s={id:'s'+Date.now(),num:nextNum('sol'),item:cod,nat,conta:contaPadrao(nat,S.byCod[cod].pacote),desc,ins:($('#s-ins')||{}).value||'',qtd:q,preco:p,data:$('#s-dt').value,mot:$('#s-mot').value,solicitante:user(),status:'enviada',sem:sem[0],cots:[],criado:hojeISO()};
-  S.t.sols.unshift(s);log('solicitacao',s.num,'criada','',brl(q*p)+' · '+sem[0]);const volta=typeof rastroAposSol==='function'&&rastroAposSol(s);save();closeModal();toast(s.num+' enviada · '+sem[0]);if(!volta){S.view='compras';S.tab.compras='sols'}render();
+  solGrava(s,q*p,sem);
 }
+/* oc_linhas ligada: a solicitação guarda linhas [{item, nat, conta, qtd, preco, valor}]; item/nat/conta/qtd/preco do documento seguem a primeira linha, como antes.
+   De várias linhas: qtd=1 e preco=total (o pacote é uma unidade; a proposta do fornecedor é o valor total do pedido). */
+function doSolLinhas(desc){
+  const L=solLinhasForm().slice(0,ocLinhasLigada()?1e9:1),ins=($('#s-ins')||{}).value||'';
+  for(const l of L.slice(1))if(!l.item||!(l.qtd>0)||!(l.preco>=0))return toast('Complete cada linha do pedido: item, quantidade e preço');
+  if(L.length>1&&ins)return toast('Insumo do estoque só vale em pedido de uma linha');
+  L.forEach(l=>{l.valor=r2(l.qtd*l.preco);l.conta=contaPadrao(l.nat,S.byCod[l.item].pacote)});
+  const total=r2(L.reduce((a,l)=>a+l.valor,0)),sem=semaforoLinhas(L.map(l=>({item:l.item,valor:l.valor})));
+  if(sem[0]==='bloqueado'){toast(sem[1]);return}
+  const s={id:'s'+Date.now(),num:nextNum('sol'),item:L[0].item,nat:L[0].nat,conta:L[0].conta,desc,ins,qtd:L.length>1?1:L[0].qtd,preco:L.length>1?total:L[0].preco,data:$('#s-dt').value,mot:$('#s-mot').value,solicitante:user(),status:'enviada',sem:sem[0],cots:[],criado:hojeISO(),
+    };
+  if(ocLinhasLigada())s.linhas=L.map(l=>({item:l.item,nat:l.nat,conta:l.conta,qtd:l.qtd,preco:l.preco,valor:l.valor}));
+  if(evCtrl())s.solicitanteId=usuarioId();   /* quem solicitou, por usuário (D4): a aprovação compara isto, não o nome */
+  solGrava(s,total,sem);
+}
+ACOES['sol-add-lin']=()=>{const i=S.D.items[0];SOLX.push({item:i.codigo,nat:i.nat,qtd:'',pu:''});pintaSolX();if(SOLUPD)SOLUPD()};
+ACOES['sol-del-lin']=el=>{SOLX.splice(+el.dataset.k,1);pintaSolX();if(SOLUPD)SOLUPD()};
 function viewCompras(X){
   const tab=S.tab.compras||'sols';
   const sols=S.t.sols,ocs=S.t.ocs;
-  const nAprov=X.pendAprov.length;
+  const pn=X.pendNotas||[],nAprov=X.pendAprov.length+pn.length;
   let body='';
-  if(tab==='sols')body=sols.length?`<table class="tbl"><thead><tr><th>Nº</th><th>Item</th><th>O que</th><th class="r">Total est.</th><th>Semáforo</th><th>Status</th><th></th></tr></thead><tbody>${sols.map(s=>`<tr><td class="mono">${s.num}</td><td class="mono">${s.item}</td><td>${esc(s.desc)}<div class="mut" style="font-size:11.5px">${esc(s.solicitante)} · ${fdata(s.criado)}</div></td><td class="r">${brl(s.qtd*s.preco)}</td><td>${semPill(s.sem)}</td><td><span class="pill mute">${s.status.replace('_',' ')}</span></td><td class="r">${['enviada','em_cotacao'].includes(s.status)?`<button class="btn sm" data-act="mapa" data-id="${s.id}" ${can('cotar')?'':'disabled title="Só Compras"'}>Mapa de cotação</button>`:''}</td></tr>`).join('')}</tbody></table>`:empty('Nenhuma solicitação ainda.','Abra um item em Orçamento e clique em “Solicitar compra”.');
-  if(tab==='ocs')body=ocs.length?`<table class="tbl"><thead><tr><th>OC</th><th>Item / Fornecedor</th><th class="r">Valor</th><th>Semáforo</th><th>Status</th><th>Receb.</th><th></th></tr></thead><tbody>${ocs.map(o=>{const i=S.byCod[o.item];return `<tr><td class="mono">${o.num}</td><td><span class="mono">${o.item}</span> · ${esc(o.forn)}<div class="mut" style="font-size:11.5px">${num(o.qtd)} ${i.unidade||''} × ${brl(o.preco)}${o.emergencia?' · EMERGÊNCIA':''} · conta <span class="mono">${o.conta||'—'}</span></div></td><td class="r">${brl(o.valor)}</td><td>${semPill(o.sem)}</td><td><span class="pill ${o.status==='aprovada'||o.status==='recebida'?'ok':o.status==='em_alcada'?'warn':o.status==='reprovada'||o.status==='cancelada'?'bad':'mute'}">${o.status.replace('_',' ')}</span></td><td class="mono">${num(o.recebido||0)}/${num(o.qtd)}</td>
-   <td class="r">${o.status==='em_alcada'?aprovBtns(o):''}<button class="btn sm" data-act="oc-ocor" data-id="${o.id}">Ocorrência${o.ocorr&&o.ocorr.length?' ('+o.ocorr.length+')':''}</button> ${['recebida','recebida_parcial'].includes(o.status)&&o.ins?`<button class="btn sm" data-act="oc-dev" data-id="${o.id}" ${can('receber')?'':'disabled'}>Devolver</button> `:''}${['aprovada','recebida_parcial'].includes(o.status)?`<button class="btn sm" data-act="receber" data-id="${o.id}" ${can('receber')?'':'disabled title="Só Almoxarife"'}>Receber</button> <button class="btn sm no" data-act="cancelar-oc" data-id="${o.id}">Cancelar</button>`:''}</td></tr>`}).join('')}</tbody></table>`:empty('Nenhuma OC ainda.','A OC nasce no mapa de cotação, depois da escolha do fornecedor.');
-  if(tab==='aprov')body=nAprov?`<table class="tbl"><thead><tr><th>OC</th><th>Item</th><th class="r">Valor</th><th>Alçada</th><th>Justificativa</th><th></th></tr></thead><tbody>${X.pendAprov.map(o=>`<tr><td class="mono">${o.num}</td><td><span class="mono">${o.item}</span> · ${esc(o.forn)}</td><td class="r">${brl(o.valor)}</td><td>${semPill(o.sem)} <span class="mut">${ROLES[o.alcada].n}</span></td><td>${esc(o.just||'—')}</td><td class="r">${aprovBtns(o)}</td></tr>`).join('')}</tbody></table>`:empty('Nada aguardando aprovação.','Compras acima da meta ou do teto aparecem aqui.');
+  if(tab==='sols')body=sols.length?`<table class="tbl"><thead><tr><th>Nº</th><th>Item</th><th>O que</th><th class="r">Total est.</th><th>Semáforo</th><th>Status</th><th></th></tr></thead><tbody>${sols.map(s=>`<tr><td class="mono">${s.num}</td><td class="mono">${itensTxt(s)}</td><td>${esc(s.desc)}<div class="mut" style="font-size:11.5px">${esc(s.solicitante)} · ${fdata(s.criado)}</div></td><td class="r">${brl(s.qtd*s.preco)}</td><td>${semPill(s.sem)}</td><td><span class="pill mute">${s.status.replace('_',' ')}</span></td><td class="r">${['enviada','em_cotacao'].includes(s.status)?`<button class="btn sm" data-act="mapa" data-id="${s.id}" ${can('cotar')?'':'disabled title="Só Compras"'}>Mapa de cotação</button>`:''}</td></tr>`).join('')}</tbody></table>`:empty('Nenhuma solicitação ainda.','Abra um item em Orçamento e clique em “Solicitar compra”.');
+  if(tab==='ocs')body=ocs.length?`<table class="tbl"><thead><tr><th>OC</th><th>Item / Fornecedor</th><th class="r">Valor</th><th>Semáforo</th><th>Status</th><th>Receb.</th><th></th></tr></thead><tbody>${ocs.map(o=>{const i=S.byCod[o.item];return `<tr><td class="mono">${o.num}</td><td><span class="mono">${itensTxt(o)}</span> · ${esc(o.forn)}<div class="mut" style="font-size:11.5px">${ocMulti(o)?linhasDe(o).length+' linhas · recebido como um pacote':num(o.qtd)+' '+(i.unidade||'')+' × '+brl(o.preco)}${o.emergencia?' · EMERGÊNCIA':''} · ${ocMulti(o)?'contas por linha':'conta <span class="mono">'+(o.conta||'—')+'</span>'}</div></td><td class="r">${brl(o.valor)}</td><td>${semPill(o.sem)}</td><td><span class="pill ${o.status==='aprovada'||o.status==='recebida'?'ok':o.status==='em_alcada'?'warn':o.status==='reprovada'||o.status==='cancelada'?'bad':'mute'}">${o.status.replace('_',' ')}</span></td><td class="mono">${num(o.recebido||0)}/${num(o.qtd)}</td>
+   <td class="r">${o.status==='em_alcada'?aprovBtns(o):''}${ocMulti(o)?`<button class="btn sm" data-act="oc-lin" data-id="${o.id}">Linhas</button> `:''}<button class="btn sm" data-act="oc-ocor" data-id="${o.id}">Ocorrência${o.ocorr&&o.ocorr.length?' ('+o.ocorr.length+')':''}</button> ${['recebida','recebida_parcial'].includes(o.status)&&o.ins?`<button class="btn sm" data-act="oc-dev" data-id="${o.id}" ${can('receber')?'':'disabled'}>Devolver</button> `:''}${['aprovada','recebida_parcial'].includes(o.status)?`<button class="btn sm" data-act="receber" data-id="${o.id}" ${can('receber')?'':'disabled title="Só Almoxarife"'}>Receber</button> <button class="btn sm no" data-act="cancelar-oc" data-id="${o.id}">Cancelar</button>`:''}</td></tr>`}).join('')}</tbody></table>`:empty('Nenhuma OC ainda.','A OC nasce no mapa de cotação, depois da escolha do fornecedor.');
+  if(tab==='aprov')body=nAprov?`<table class="tbl"><thead><tr><th>${evCtrl()?'OC / NF':'OC'}</th><th>Item</th><th class="r">Valor</th><th>Alçada</th><th>Justificativa</th><th></th></tr></thead><tbody>${X.pendAprov.map(o=>`<tr><td class="mono">${o.num}</td><td><span class="mono">${itensTxt(o)}</span> · ${esc(o.forn)}</td><td class="r">${brl(o.valor)}</td><td>${semPill(o.sem)} <span class="mut">${ROLES[o.alcada].n}</span></td><td>${esc(o.just||'—')}</td><td class="r">${aprovBtns(o)}</td></tr>`).join('')}${pn.map(n=>`<tr><td class="mono">${n.num} <span class="pill info">NF</span></td><td>${esc(n.emitente)}<div class="mut" style="font-size:11.5px">sem pedido · itens ${esc([...new Set(n.rateio.map(l=>l.item))].join(', '))}</div></td><td class="r">${brl(n.valor)}</td><td>${semPill(n.sem)} <span class="mut">${ROLES[n.alcada].n}</span></td><td>${esc(n.justSemOC||'—')}</td><td class="r">${aprovBtns(n)}</td></tr>`).join('')}</tbody></table>`:empty('Nada aguardando aprovação.','Compras acima da meta ou do teto aparecem aqui.');
   return `<div class="head"><div><h1>Compras</h1><p class="lead">Solicitação → cotação (3 preços) → OC. Verde passa direto; amarelo vai ao Gerente; vermelho, à Diretoria; fora da planilha, bloqueado.</p></div>
    <div style="display:flex;gap:8px"><button class="btn" data-act="params" ${can('param')?'':'disabled title="Só Diretoria ou Gestão"'}>Parâmetros</button><button class="btn dark" data-act="nova-sol" ${can('solicitar')?'':'disabled title="Só Engenheiro ou Gerente"'}>Nova solicitação</button></div></div>
-   ${alcadaAviso()}<div class="toolbar">${tabs('compras',[['sols','Solicitações '+sols.length],['ocs','Ordens de compra '+ocs.length],['aprov','Aprovações',nAprov]],tab)}<span class="sub">Verde sem confirmação até ${brl(S.t.par.limite)} · Gerente até ${brl(gerAte())} · tolerância nota×pedido ${(S.t.par.tol*100).toFixed(1)}%</span></div><div class="tw">${body}</div>`;
+   ${alcadaAviso()}<div class="toolbar">${tabs('compras',[['sols','Solicitações '+sols.length],['ocs','Ordens de compra '+ocs.length],['aprov','Aprovações',nAprov]],tab)}<span class="sub">Verde sem confirmação até ${brl(S.t.par.limite)} · Gerente até ${brl(gerAte())} · tolerância nota×pedido ${(S.t.par.tol*100).toFixed(1)}%${evCtrl()&&evPar().somaDiaPacote?' · pedidos verdes do mesmo pacote no mesmo dia somam para a alçada':''}</span></div><div class="tw">${body}</div>`;
 }
 const empty=(a,b)=>`<div class="soon" style="min-height:200px"><h2 style="font-size:16px">${a}</h2><div>${b}</div></div>`;
 function aprovBtns(o){
-  const ok=can_aprovar(o);return `<button class="btn sm ok" data-act="aprovar" data-id="${o.id}" ${ok?'':'disabled title="Sem alçada ou é o próprio solicitante"'}>Aprovar</button> <button class="btn sm no" data-act="reprovar" data-id="${o.id}" ${ok?'':'disabled'}>Reprovar</button>`}
+  const ok=can_aprovar(o);return `<button class="btn sm ok" data-act="aprovar" data-id="${o.id}" ${ok?'':`disabled title="${evCtrl()?esc(motivoNaoAprova(o)):'Sem alçada ou é o próprio solicitante'}"`}>Aprovar</button> <button class="btn sm no" data-act="reprovar" data-id="${o.id}" ${ok?'':'disabled'}>Reprovar</button>`}
 const gerAte=()=>S.t.par.gerenteAte??250000;
 /* alçadas e tolerância ainda não foram definidas pela Diretoria: os números são os de partida do sistema e aparecem como pendência */
 const alcadaAviso=()=>MODO_CH&&!S.t.par.alcadaOk?`<div class="alert" style="margin:0 0 10px"><div class="g" style="color:var(--warn)"><svg class="ic" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div><div><b>Alçadas ainda não definidas</b><p>Os limites abaixo (verde até ${brl(S.t.par.limite)}, Gerente até ${brl(gerAte())}, tolerância nota × pedido ${(S.t.par.tol*100).toFixed(1)}%) são os de partida do sistema, não foram aprovados. A Diretoria ou a Gestão define em Parâmetros; até lá, valem como provisórios.</p></div></div>`:'';
 const alcadaDe=(sem,total)=>{let a=sem==='verde'?(total>S.t.par.limite?'gerente':null):sem==='amarelo'?'gerente':'diretoria';if(a==='gerente'&&total>gerAte())a='diretoria';return a};
-function can_aprovar(o){if(o.solicitante===user())return false;if(o.alcada==='diretoria')return isRole('diretoria');return isRole('gerente','diretoria')}
+function can_aprovar(o){if(ehSolicitante(o))return false;if(evCtrl()&&exigeChavePessoal())return false;if(o.alcada==='diretoria')return isRole('diretoria');return isRole('gerente','diretoria')}
+/* ev_ctrl, D4: com a chave geral do site o nome é digitado e o papel é escolhido na tela, então não vale como aprovador; vale a chave pessoal (ou o login do banco) */
+const exigeChavePessoal=()=>evPar().aprovaExigeChavePessoal&&!!SB.perfil&&SB.perfil.fixo===false;
+function motivoNaoAprova(o){
+  if(ehSolicitante(o))return 'Quem solicitou não aprova (vale o usuário, não o nome).';
+  if(exigeChavePessoal())return 'Aprovar exige a chave pessoal: com a chave geral do site o nome e o papel são escolhidos na tela.';
+  if(o.alcada==='diretoria'&&!isRole('diretoria'))return 'Acima do limite: só a Diretoria aprova.';
+  if(!isRole('gerente','diretoria'))return 'Só o Gerente de contrato ou a Diretoria aprovam.';
+  return ''}
+/* proposta do fornecedor -> linhas do pedido. Pedido de uma linha: a linha única de sempre. Pedido de várias linhas: a proposta é o valor TOTAL do pacote e cada linha recebe a parte
+   proporcional ao valor estimado da solicitação (o centavo que sobra vai para a linha com maior resto). [SUPOSIÇÃO: o fornecedor ainda não cota linha por linha.] */
+function linhasDaProposta(s,c){
+  const total=r2(s.qtd*c.preco);
+  if(!ocMulti(s))return [{item:s.item,nat:s.nat,conta:s.conta,qtd:s.qtd,valor:total}];
+  const v=repartirR(total,s.linhas.map(l=>+l.valor||0));
+  return s.linhas.map((l,k)=>({item:l.item,nat:l.nat,conta:l.conta,qtd:l.qtd,valor:v[k]}))}
+/* semáforo da proposta escolhida */
+function semProposta(s,c){return ocLinhasLigada()||evCtrl()?semaforoLinhas(linhasDaProposta(s,c).map(l=>({item:l.item,valor:l.valor}))):semaforo(s.item,s.qtd*c.preco)}
 function modalMapa(id){
-  const s=S.t.sols.find(x=>x.id===id),i=S.byCod[s.item];
+  const s=S.t.sols.find(x=>x.id===id),i=S.byCod[s.item],multi=ocMulti(s);
   const L=s.cots.map((c,k)=>`<tr><td><input type="radio" name="esc" value="${k}" ${s.escolhida===k?'checked':''}></td><td>${esc(c.forn)}</td><td class="r">${brl(c.preco)}</td><td>${esc(c.prazo||'—')}</td><td class="r">${brl(c.preco*s.qtd)}</td><td>${c.preco===Math.min(...s.cots.map(x=>x.preco))?'<span class="pill ok">menor</span>':''}</td></tr>`).join('');
-  modal(`<h3>Mapa de cotação · ${s.num}</h3><div class="sub"><span class="mono">${s.item}</span> · ${esc(s.desc)} · ${num(s.qtd)} ${i.unidade||''} · meta unitária ${brl(i.meta_unit)}</div>
-   <div class="tw"><table class="tbl"><thead><tr><th></th><th>Fornecedor</th><th class="r">Preço unit.</th><th>Prazo</th><th class="r">Total</th><th></th></tr></thead><tbody>${L||'<tr><td colspan="6" class="mut">Sem propostas.</td></tr>'}</tbody></table></div>
-   <div class="g3"><div><label>Fornecedor</label><input id="c-f"></div><div><label>Preço unit. (R$)</label><input id="c-p" type="number" step="any" min="0"></div><div><label>Prazo / condição</label><input id="c-z"></div></div>
+  const linhasTab=multi?`<div class="tw" style="max-height:30vh"><table class="tbl"><thead><tr><th>Item</th><th>Evento</th><th>Pacote</th><th class="r">Qtd.</th><th class="r">Valor estimado</th></tr></thead><tbody>${s.linhas.map(l=>{const it=S.byCod[l.item]||{};return `<tr><td><span class="mono">${esc(l.item)}</span><div class="mut" style="font-size:11.5px">${esc((it.descricao||'').slice(0,60))}</div></td><td class="mono">${esc(evDe(it)||'—')}</td><td class="mono">${esc(pacDe(it)||'—')}</td><td class="r">${num(l.qtd)}</td><td class="r">${brl(l.valor)}</td></tr>`}).join('')}</tbody></table></div>`:'';
+  modal(`<h3>Mapa de cotação · ${s.num}</h3><div class="sub">${multi?`${s.linhas.length} linhas · ${esc(s.desc)} · total estimado ${brl(s.preco)}. A proposta do fornecedor é o valor total do pedido; cada linha recebe a parte proporcional ao valor estimado.`:`<span class="mono">${s.item}</span> · ${esc(s.desc)} · ${num(s.qtd)} ${i.unidade||''} · meta unitária ${brl(i.meta_unit)}`}</div>${linhasTab}
+   <div class="tw"><table class="tbl"><thead><tr><th></th><th>Fornecedor</th><th class="r">${multi?'Proposta (total)':'Preço unit.'}</th><th>Prazo</th><th class="r">Total</th><th></th></tr></thead><tbody>${L||'<tr><td colspan="6" class="mut">Sem propostas.</td></tr>'}</tbody></table></div>
+   <div class="g3"><div><label>Fornecedor</label><input id="c-f"></div><div><label>${multi?'Valor total da proposta (R$)':'Preço unit. (R$)'}</label><input id="c-p" type="number" step="any" min="0"></div><div><label>Prazo / condição</label><input id="c-z"></div></div>
    <div style="margin-top:8px"><button class="btn sm" data-act="add-cot" data-id="${id}">Adicionar proposta</button></div>
-   <label>Resposta do fornecedor por arquivo: cole linhas <span class="mono">fornecedor;preço;prazo</span></label><textarea id="c-csv" rows="3"></textarea><div style="margin:6px 0;display:flex;gap:8px"><button class="btn sm" data-act="cot-colar" data-id="${id}">Adicionar propostas coladas</button><button class="btn sm" data-act="cot-sug" data-id="${id}">Sugerir melhor</button></div>
+   <label>Resposta do fornecedor por arquivo: cole linhas <span class="mono">${multi?'fornecedor;valor total;prazo':'fornecedor;preço;prazo'}</span></label><textarea id="c-csv" rows="3"></textarea><div style="margin:6px 0;display:flex;gap:8px"><button class="btn sm" data-act="cot-colar" data-id="${id}">Adicionar propostas coladas</button><button class="btn sm" data-act="cot-sug" data-id="${id}">Sugerir melhor</button></div>
    <label>Justificativa (obrigatória se escolher fora da menor ou com menos de 3 propostas)</label><input id="c-j" value="${esc(s.just||'')}">
    <label style="display:flex;gap:8px;align-items:center;text-transform:none;font-family:inherit;letter-spacing:0"><input type="checkbox" id="c-em" style="width:auto"> Compra de emergência (frente parada): permite OC sem 3 cotações; regularizar em 2 dias úteis</label>
    <div id="c-sem"></div><div class="acts"><button class="btn" data-act="fechar">Fechar</button><button class="btn dark" data-act="emitir-oc" data-id="${id}">Emitir OC</button></div>`);
-  const upd=()=>{const r=document.querySelector('input[name=esc]:checked');if(!r){$('#c-sem').innerHTML='';return}const c=s.cots[+r.value];$('#c-sem').innerHTML=semBox(semaforo(s.item,s.qtd*c.preco))};
+  const upd=()=>{const r=document.querySelector('input[name=esc]:checked');if(!r){$('#c-sem').innerHTML='';return}const c=s.cots[+r.value];$('#c-sem').innerHTML=semBox(semProposta(s,c))};
   document.querySelectorAll('input[name=esc]').forEach(e=>e.onchange=upd);upd();
 }
 function addCot(id){const s=S.t.sols.find(x=>x.id===id);const f=$('#c-f').value.trim(),p=+$('#c-p').value;if(!f||!(p>0))return toast('Informe fornecedor e preço');
@@ -1038,23 +1260,26 @@ function emitirOC(id){
   const c=s.cots[+r.value],menor=Math.min(...s.cots.map(x=>x.preco)),just=$('#c-j').value.trim(),em=$('#c-em').checked;
   if(!em&&s.cots.length<3&&!just)return toast('Menos de 3 propostas: justifique ou marque emergência');
   if(c.preco>menor&&!just)return toast('Escolheu fora da menor: justifique');
-  const total=r2(s.qtd*c.preco),sem=semaforo(s.item,total);if(sem[0]==='bloqueado')return toast(sem[1]);
+  const LN=ocLinhasLigada(),EC=evCtrl(),total=r2(s.qtd*c.preco),L=LN||EC?linhasDaProposta(s,c):null,sem=L?semaforoLinhas(L.map(l=>({item:l.item,valor:l.valor}))):semaforo(s.item,total);if(sem[0]==='bloqueado')return toast(sem[1]);
   if(sem[0]==='amarelo'&&!just)return toast('Acima da meta: justificativa escrita é obrigatória');
   if(sem[0]==='vermelho'&&!just)return toast('Acima do teto: justificativa é obrigatória');
-  const alc=alcadaDe(sem[0],total),st=alc?'em_alcada':'aprovada';
+  const alc=EC?alcadaCtrl(sem[0],total,L,{}):alcadaDe(sem[0],total),st=alc?'em_alcada':'aprovada';
   const o={id:'o'+Date.now()+Math.random().toString(36).slice(2,5),num:nextNum('oc'),sol:s.id,item:s.item,nat:s.nat,conta:s.conta,forn:c.forn,ins:s.ins||'',qtd:s.qtd,preco:c.preco,valor:total,sem:sem[0],status:st,alcada:alc,just,emergencia:em,solicitante:s.solicitante,recebido:0,criado:hojeISO()};
+  if(LN)o.linhas=L;
+  if(EC)o.solicitanteId=s.solicitanteId||'';   /* identidade de quem solicitou, gravada na solicitação (D4) */
   S.t.ocs.unshift(o);if(st==='aprovada')criaTitulo(o);s.status='atendida';s.oc=o.num;log('ordem_compra',o.num,'emitida','',brl(total)+' · '+sem[0]+' · '+st,just);save();closeModal();toast(o.num+(st==='aprovada'?' aprovada (verde)':' aguarda '+ROLES[alc].n));S.tab.compras='ocs';render();
 }
 let ASK=null;
 function ask(titulo,rotulo,padrao,cb){ASK=cb;modal(`<h3>${esc(titulo)}</h3><label>${esc(rotulo)}</label><input id="ask-v" value="${esc(padrao||'')}"><div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="ask-ok">Confirmar</button></div>`);setTimeout(()=>{const e=$('#ask-v');e&&e.focus()},0)}
 function askOk(){const v=($('#ask-v').value||'').trim(),f=ASK;if(!v)return toast('Preencha o campo');ASK=null;closeModal();f(v)}
-function decidir(id,ok){const o=S.t.ocs.find(x=>x.id===id);if(!can_aprovar(o))return toast('Sem alçada');
+function decidir(id,ok){if(evCtrl())return decidirCtrl(id,ok);
+  const o=S.t.ocs.find(x=>x.id===id);if(!can_aprovar(o))return toast('Sem alçada');
   if(!ok)return ask('Reprovar '+o.num,'Motivo da reprovação (volta para renegociar ou remanejar saldo)','',m=>decidirFim(o,false,m));
   decidirFim(o,true,'')}
 function decidirFim(o,ok,m){
-  const a=o.status;o.status=ok?'aprovada':'reprovada';o.aprovador=user();if(ok)criaTitulo(o);log('ordem_compra',o.num,'status',a,o.status,m);save();toast(o.num+(ok?' aprovada':' reprovada'));render()}
+  const a=o.status;o.status=ok?'aprovada':'reprovada';o.aprovador=user();if(evCtrl())o.aprovadorId=usuarioId();if(ok)criaTitulo(o);log('ordem_compra',o.num,'status',a,o.status,m);save();toast(o.num+(ok?' aprovada':' reprovada'));render()}
 function modalReceber(id){const o=S.t.ocs.find(x=>x.id===id),i=S.byCod[o.item],falta=o.qtd-(o.recebido||0);
-  modal(`<h3>Receber ${o.num}</h3><div class="sub">${esc(o.forn)} · ${num(o.qtd)} ${i.unidade||''} pedidos · ${num(o.recebido||0)} já recebidos</div><label>Quantidade recebida agora</label><input id="rc-q" type="number" step="any" value="${falta}" min="0" max="${falta}">${o.ins&&(insBy(o.ins)||{}).unAlt&&insBy(o.ins).unAlt.length?`<label>Unidade da entrada no estoque</label><select id="rc-u"><option value="">${esc(insBy(o.ins).un)} (base)</option>${insBy(o.ins).unAlt.map(u=>`<option value="${esc(u.un)}">${esc(u.un)} (1 = ${u.fator} ${esc(insBy(o.ins).un)})</option>`).join('')}</select>`:''}
+  modal(`<h3>Receber ${o.num}</h3><div class="sub">${esc(o.forn)} · ${num(o.qtd)} ${ocUn(o)} pedidos · ${num(o.recebido||0)} já recebidos</div><label>Quantidade recebida agora</label><input id="rc-q" type="number" step="any" value="${falta}" min="0" max="${falta}">${o.ins&&(insBy(o.ins)||{}).unAlt&&insBy(o.ins).unAlt.length?`<label>Unidade da entrada no estoque</label><select id="rc-u"><option value="">${esc(insBy(o.ins).un)} (base)</option>${insBy(o.ins).unAlt.map(u=>`<option value="${esc(u.un)}">${esc(u.un)} (1 = ${u.fator} ${esc(insBy(o.ins).un)})</option>`).join('')}</select>`:''}
    <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="rc-ok" data-id="${id}">Confirmar recebimento</button></div>`)}
 function doReceber(id){const o=S.t.ocs.find(x=>x.id===id),q=+$('#rc-q').value;if(!(q>0)||q>o.qtd-(o.recebido||0)+1e-9)return toast('Quantidade inválida');
   const a=o.recebido||0;o.recebido=a+q;estEntradaOC(o,q,($('#rc-u')||{}).value);o.status=o.recebido>=o.qtd-1e-9?'recebida':'recebida_parcial';log('ordem_compra',o.num,'recebido',a,o.recebido);save();closeModal();toast('Recebimento registrado');render()}
@@ -1078,6 +1303,38 @@ function gravaChaves(){
 /* grava só as chaves liga/desliga; não mexe nas alçadas (por isso não marca "alçadas definidas") */
 ACOES['chaves-ok']=()=>{if(!can('param'))return toast('Só Diretoria ou Gestão');
   gravaChaves();prep();save();closeModal();toast('Chaves salvas');render()};
+
+/* M3: linhas de um pedido (item, evento, pacote, valor, quanto já foi faturado e o saldo atual do item) */
+ACOES['oc-lin']=el=>{const o=S.t.ocs.find(x=>x.id===el.dataset.id),L=linhasDe(o);
+  modal(`<h3>Linhas de ${o.num}</h3><div class="sub">${esc(o.forn)} · ${brl(o.valor)} · ${o.status.replace('_',' ')}. A nota rateia nestes mesmos itens.</div>
+   <div class="tw" style="max-height:50vh"><table class="tbl"><thead><tr><th>Item</th><th>Evento</th><th>Pacote</th><th class="r">Qtd.</th><th class="r">Valor</th><th class="r">Faturado</th><th class="r">Saldo do item</th></tr></thead><tbody>${L.map(l=>{const it=S.byCod[l.item]||{},sd=S.sd[l.item]||{livre:0},fat=S.t.notas.filter(n=>n.oc===o.id&&n.status!=='lancada').reduce((a,n)=>a+n.rateio.filter(r=>r.item===l.item).reduce((b,r)=>b+ +r.valor,0),0);
+    return `<tr><td><span class="mono">${esc(l.item)}</span><div class="mut" style="font-size:11.5px">${esc((it.descricao||'').slice(0,60))}</div></td><td class="mono">${esc(evDe(it)||'—')}</td><td class="mono">${esc(pacDe(it)||'—')}</td><td class="r">${num(l.qtd)}</td><td class="r">${brl(l.valor)}</td><td class="r">${brl(fat)}</td><td class="r ${sd.livre<0?'neg':''}">${brl(sd.livre)}</td></tr>`}).join('')}</tbody></table></div>
+   <div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`)};
+/* ---------- M4 (par.ev_ctrl): decidir OC ou nota sem pedido ----------
+   A decisão RECALCULA o semáforo e a alçada com o saldo de agora (o saldo pode ter mudado desde a emissão: pedido aprovado, nota lançada, remanejamento): pedido emitido antes do seu reserva saldo,
+   pedido aprovado já conta como comprometido. Se a cor piora e quem está decidindo não tem mais a alçada, o documento fica com a cor e a alçada novas e a aprovação não acontece. */
+function recalculaDoc(d){
+  const oc=S.t.ocs.includes(d),L=oc?linhasDe(d).map(l=>({item:l.item,valor:+l.valor||0})):(d.rateio||[]).map(l=>({item:l.item,valor:+l.valor||0})),ctx=oc?{ocId:d.id,dia:d.criado}:{notaId:d.id,dia:d.rateadaEm};
+  const sem=semaforoLinhas(L,ctx);if(sem[0]==='bloqueado')return {bloqueado:true,sem};
+  const alc=alcadaCtrl(sem[0],+d.valor||0,L,ctx);
+  return {sem,alc,antes:d.sem,antesAlc:d.alcada||null,mudou:sem[0]!==d.sem||(alc||null)!==(d.alcada||null)}}
+function decidirCtrl(id,ok){
+  const o=S.t.ocs.find(x=>x.id===id),n=o?null:S.t.notas.find(x=>x.id===id),d=o||n;if(!d)return;
+  if(!can_aprovar(d))return toast(motivoNaoAprova(d)||'Sem alçada');
+  if(!ok)return ask('Reprovar '+d.num,'Motivo da reprovação (volta para renegociar ou remanejar saldo)','',m=>o?decidirFim(o,false,m):notaDecideFim(n,false,m));
+  const r=recalculaDoc(d);if(r.bloqueado)return toast(r.sem[1]);
+  if(r.mudou){
+    log(o?'ordem_compra':'nota_fiscal',d.num,'semáforo',(r.antes||'—')+(r.antesAlc?' · '+r.antesAlc:''),r.sem[0]+(r.alc?' · '+r.alc:''),'recalculado na aprovação');
+    d.sem=r.sem[0];d.alcada=r.alc;save();
+    if(!can_aprovar(d)){toast(d.num+': o semáforo agora é '+r.sem[0]+' (era '+(r.antes||'—')+'). '+(motivoNaoAprova(d)||'Sem alçada'));render();return}
+    toast(d.num+': semáforo recalculado, agora '+r.sem[0])}
+  o?decidirFim(o,true,''):notaDecideFim(n,true,'')}
+/* nota sem pedido que passou pela alçada: aprovada, segue para conferir; reprovada, volta para a fila "sem rateio" com o rateio recusado guardado e o motivo */
+function notaDecideFim(n,ok,m){
+  const a=n.aprov;n.aprovador=user();n.aprovadorId=usuarioId();
+  if(ok){n.aprov='aprovada'}
+  else{n.aprov='reprovada';n.motivoAlcada=m;n.rateioRecusado=n.rateio;n.rateio=[];n.status='lancada'}
+  log('nota_fiscal',n.num,'alçada',a,n.aprov,m);save();toast(n.num+(ok?' aprovada na alçada':' reprovada: volta para a fila sem rateio'));render()}
 /* ============ NOTAS E RATEIO (Fase 4) ============ */
 let NF=null;
 function viewNota(X){
@@ -1105,22 +1362,39 @@ function modalNF(id){
    <div><label>Pedido (OC)</label><select id="n-o" ${ex?'disabled':''}><option value="">Sem pedido</option>${ocsOk.map(o=>`<option value="${o.id}" ${NF.oc===o.id?'selected':''}>${o.num} · ${esc(o.forn)} · ${brl(o.valor)}</option>`).join('')}</select></div></div>
    <div id="n-js" style="display:none"><label>Justificativa (nota sem pedido)</label><input id="n-j" value="${esc(NF.justSemOC||'')}"></div>
    <div class="panel-t" style="margin-top:16px">Rateio</div><div id="n-rat"></div><div style="margin-top:8px;display:flex;gap:8px"><button class="btn sm" data-act="add-lin">+ Linha</button><button class="btn sm" data-act="sug-lin">Sugerir pelo pedido</button></div>
-   <div class="bar-fecha" id="n-bar"><i></i></div><div class="sub" id="n-fecha" style="margin-top:6px"></div>
+   <div class="bar-fecha" id="n-bar"><i></i></div><div class="sub" id="n-fecha" style="margin-top:6px"></div>${evCtrl()?'<div id="n-sem"></div>':''}
    <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn" data-act="nf-ok" data-modo="lancada">Salvar sem ratear</button><button class="btn dark" data-act="nf-ok" data-modo="rateada">Salvar rateio</button></div>`);
-  $('#n-o').onchange=()=>{NF.oc=$('#n-o').value;$('#n-js').style.display=NF.oc?'none':'block';if(calcV2(S.t))pintaRat()};$('#n-js').style.display=NF.oc?'none':'block';
+  $('#n-o').onchange=()=>{NF.oc=$('#n-o').value;$('#n-js').style.display=NF.oc?'none':'block';
+    /* oc_linhas: ao escolher o pedido, o rateio nasce igual às linhas do pedido (só se ainda não foi preenchido à mão) */
+    if(ocLinhasLigada()&&NF.oc&&NF.rateio.every(l=>!(+l.valor>0))){const o=S.t.ocs.find(x=>x.id===NF.oc);if(o){NF.rateio=rateioDoPedido(o);pintaRat();return}}
+    if(calcV2(S.t)||evCtrl())pintaRat()};$('#n-js').style.display=NF.oc?'none':'block';
   $('#n-v').oninput=()=>{NF.valor=+$('#n-v').value;pintaRat()};if(!NF.rateio.length)NF.rateio.push({item:S.D.items[0].codigo,valor:0});pintaRat();
 }
-function natLin(l){const oc=NF&&NF.oc?S.t.ocs.find(o=>o.id===NF.oc):null,i=S.byCod[l.item];const nat=oc&&oc.item===l.item&&oc.nat?oc.nat:i.nat;return {n:nat,c:contaPadrao(nat,i.pacote)}}
+/* rateio que nasce do pedido: as linhas do pedido (mesmo item, mesmo valor). Nota de valor menor que o pedido: cada linha recebe a parte proporcional. Linhas do mesmo item somam. */
+function rateioDoPedido(o){
+  const alvo=Math.min(+NF.valor||o.valor,o.valor),L=linhasDe(o);
+  if(L.length<=1)return [{item:o.item,valor:alvo}];
+  const v=repartirR(alvo,L.map(l=>+l.valor||0)),M=new Map();L.forEach((l,k)=>M.set(l.item,r2((M.get(l.item)||0)+v[k])));
+  return [...M.entries()].map(([item,valor])=>({item,valor}))}
+function natLin(l){const oc=NF&&NF.oc?S.t.ocs.find(o=>o.id===NF.oc):null,i=S.byCod[l.item];const ol=oc?linhasDe(oc).find(x=>x.item===l.item):null;const nat=ol&&ol.nat?ol.nat:i.nat;return {n:nat,c:contaPadrao(nat,i.pacote)}}
 function pintaRat(){
   const ocNF=calcV2(S.t)&&NF.oc?S.t.ocs.find(o=>o.id===NF.oc):null;   /* calc_v2: avisa a linha rateada fora do item do pedido */
   $('#n-rat').innerHTML=NF.rateio.map((l,k)=>{const i=S.byCod[l.item],s=S.sd[l.item];
    return `<div class="g3" style="grid-template-columns:2fr 1fr .6fr auto;align-items:end;margin-top:8px"><div><label style="margin-top:0">Item</label><select data-lin="${k}" data-f="item">${itemOptions(l.item)}</select></div><div><label style="margin-top:0">Valor (R$)</label><input type="number" step="0.01" data-lin="${k}" data-f="valor" value="${l.valor||''}"></div><div><label style="margin-top:0">Conta</label><span class="pill info" title="${esc(nomeConta(natLin(l).c))}">${natLin(l).c}</span></div><button class="btn sm no" data-act="del-lin" data-k="${k}">×</button>
-   <div class="sub" style="grid-column:1/-1;margin-top:-4px">saldo livre do item ${brl(s.livre)}${l.valor>s.livre?' · <b class="neg">acima da meta</b>':''}${ocNF&&ocNF.item!==l.item?` · <b style="color:var(--warn)">fora do item do pedido (${esc(ocNF.item)}): o pedido é abatido pela nota inteira</b>`:''}</div></div>`}).join('');
+   <div class="sub" style="grid-column:1/-1;margin-top:-4px">saldo livre do item ${brl(s.livre)}${l.valor>s.livre?' · <b class="neg">acima da meta</b>':''}${ocNF&&!itensDe(ocNF).includes(l.item)?` · <b style="color:var(--warn)">fora do item do pedido (${esc(itensDe(ocNF).join(', '))}): o pedido é abatido pela nota inteira</b>`:''}</div></div>`}).join('');
   document.querySelectorAll('[data-lin]').forEach(e=>e.oninput=e.onchange=()=>{const l=NF.rateio[+e.dataset.lin];l[e.dataset.f]=e.dataset.f==='valor'?+e.value:e.value;if(e.dataset.f==='item')pintaRat();else fechaBar()});fechaBar();
 }
 function fechaBar(){const soma=r2(NF.rateio.reduce((s,l)=>s+(+l.valor||0),0)),v=r2(NF.valor);const p=v>0?Math.min(100,soma/v*100):0;
   $('#n-bar').className='bar-fecha'+(Math.abs(soma-v)>.004?(soma>v?' bad':''):'');$('#n-bar i').style.width=p+'%';
-  $('#n-fecha').innerHTML=Math.abs(soma-v)<.005&&v>0?`<b class="pos">Fecha 100%</b> · ${brl(soma)}`:`Rateado ${brl(soma)} de ${brl(v)} · falta <b class="${soma>v?'neg':''}">${brl(v-soma)}</b>`}
+  $('#n-fecha').innerHTML=Math.abs(soma-v)<.005&&v>0?`<b class="pos">Fecha 100%</b> · ${brl(soma)}`:`Rateado ${brl(soma)} de ${brl(v)} · falta <b class="${soma>v?'neg':''}">${brl(v-soma)}</b>`;if(evCtrl())semNota()}
+/* ev_ctrl, D7: nota SEM pedido mostra o semáforo (item, pacote e evento) e a alçada, como uma OC */
+function semNota(){
+  const el=$('#n-sem');if(!el)return;
+  if(NF.oc||!evPar().notaSemPedido){el.innerHTML='';return}
+  const L=(NF.rateio||[]).filter(l=>+l.valor>0&&l.item).map(l=>({item:l.item,valor:+l.valor}));
+  if(!L.length){el.innerHTML='<div class="sub" style="margin-top:10px">Nota sem pedido: informe o rateio para ver o semáforo.</div>';return}
+  const sem=semaforoLinhas(L,{}),alc=sem[0]==='bloqueado'?null:alcadaCtrl(sem[0],+NF.valor||L.reduce((a,l)=>a+l.valor,0),L,{});
+  el.innerHTML=semBox(sem)+(alc?`<div class="sub" style="margin-top:6px">Pede aprovação: <b>${ROLES[alc].n}</b>. A nota sem pedido só segue para conferir depois da aprovação.</div>`:'')}
 function doNF(modo){
   const ex=S.t.notas.find(n=>n.id===NF.id);
   NF.emitente=ex?ex.emitente:$('#n-e').value.trim();NF.valor=ex?ex.valor:r2($('#n-v').value);NF.chave=ex?ex.chave:$('#n-c').value.trim();NF.emissao=ex?ex.emissao:$('#n-d').value;NF.oc=ex?ex.oc:$('#n-o').value;
@@ -1131,11 +1405,18 @@ function doNF(modo){
   if(modo==='rateada'){if(!lin.length||lin.some(l=>!l.item))return toast('Toda linha precisa de obra e item');
     if(Math.abs(r2(lin.reduce((s,l)=>s+ +l.valor,0))-NF.valor)>.004)return toast('O rateio não fecha 100% da nota')}
   const n={...NF,rateio:lin.map(l=>({item:l.item,valor:r2(l.valor),nat:natLin(l).n,conta:natLin(l).c})),status:modo,ocNum:NF.oc?S.t.ocs.find(o=>o.id===NF.oc).num:''};
+  /* ev_ctrl, D7: nota sem pedido passa pelo mesmo semáforo (item, pacote e evento) e pela mesma alçada de uma OC. Bloqueado (item sem meta ou fora da planilha) não grava o rateio. */
+  let alcN=null,semN=null;
+  if(modo==='rateada'&&!NF.oc&&evCtrl()&&evPar().notaSemPedido){
+    const L=n.rateio.map(l=>({item:l.item,valor:l.valor})),sem=semaforoLinhas(L,{notaId:ex&&ex.status!=='lancada'?ex.id:undefined});
+    if(sem[0]==='bloqueado')return toast(sem[1]);
+    alcN=alcadaCtrl(sem[0],NF.valor,L,{});semN=sem[0];
+    Object.assign(n,{sem:semN,alcada:alcN,aprov:alcN?'pendente':'',solicitante:user(),solicitanteId:usuarioId(),rateadaEm:hojeISO()})}
   if(ex){Object.assign(ex,n)}else{n.num=nextNum('nf');S.t.notas.unshift(n)}
-  log('nota_fiscal',n.num||ex.num,'status','',modo+' · '+brl(NF.valor));save();closeModal();toast('Nota '+(modo==='rateada'?'rateada':'lançada (fila sem rateio)'));render();
+  log('nota_fiscal',n.num||ex.num,'status','',modo+' · '+brl(NF.valor)+(semN?' · '+semN+(alcN?' · '+alcN:''):''));save();closeModal();toast('Nota '+(modo==='rateada'?'rateada':'lançada (fila sem rateio)')+(alcN?' · aguarda '+ROLES[alcN].n+' ('+semN+')':''));render();
 }
 function conferir(id){
-  const n=S.t.notas.find(x=>x.id===id);n.diverg='';
+  const n=S.t.notas.find(x=>x.id===id);if(evCtrl()&&n.aprov==='pendente')return toast(n.num+' aguarda aprovação ('+ROLES[n.alcada].n+') antes de conferir');n.diverg='';
   if(n.oc){const o=S.t.ocs.find(x=>x.id===n.oc);
     const outras=S.t.notas.filter(x=>x.oc===o.id&&x.id!==n.id&&x.status!=='lancada').reduce((s,x)=>s+x.valor,0);
     const esperado=r2(ocRecebido(o)-outras);
@@ -1144,7 +1425,7 @@ function conferir(id){
     else n.status='conferida'}
   else n.status='conferida';
   log('nota_fiscal',n.num,'status','rateada',n.status,n.diverg);save();toast(n.status==='conferida'?'Conferida':'Divergente: volta para Compras');render()}
-function liberar(id){const n=S.t.notas.find(x=>x.id===id);
+function liberar(id){const n=S.t.notas.find(x=>x.id===id);if(evCtrl()&&n.aprov==='pendente')return toast(n.num+' aguarda aprovação ('+ROLES[n.alcada].n+')');
   if(n.oc){const o=S.t.ocs.find(x=>x.id===n.oc);if(!(o.recebido>0))return toast('Pagamento só com recebimento confirmado (E19)')}
   n.status='liberada';log('nota_fiscal',n.num,'status','conferida','liberada');save();toast('Liberada para pagamento');render()}
 function pagar(id){const n=S.t.notas.find(x=>x.id===id);if(bloqueada(hojeISO(),'pagamento'))return;n.status='paga';n.pago=hojeISO();log('nota_fiscal',n.num,'status','liberada','paga');save();toast('Pago');render()}
@@ -1222,7 +1503,7 @@ function doAtestar(id){const m=S.t.meds.find(x=>x.id===id);if(m.quem===user())re
 function planoSaldos(){
   const C=contaObra(S.t),real={},comp={},meta={};
   C.real.forEach(({l,v})=>{const c=l.conta||contaPadrao(l.nat,S.byCod[l.item]?.pacote);real[c]=(real[c]||0)+v});
-  C.ocs.forEach(({oc,comp:v})=>{comp[oc.conta]=(comp[oc.conta]||0)+v});
+  C.lin.forEach(({conta,comp:v})=>{comp[conta]=(comp[conta]||0)+v});
   S.D.items.forEach(i=>i.linhas.forEach(l=>{const c=contaPadrao(l.nat,i.pacote);meta[c]=(meta[c]||0)+i.meta_total*l.share}));
   return {real,comp,meta}}
 function viewPlano(X){
@@ -1703,7 +1984,7 @@ document.addEventListener('click',e=>{
      aprovar:()=>decidir(id,true),reprovar:()=>decidir(id,false),receber:()=>modalReceber(id),'rc-ok':()=>doReceber(id),'cancelar-oc':()=>cancelarOC(id),params:modalParams,
      'params-ok':()=>{S.t.par.limite=+$('#p-l').value||0;S.t.par.gerenteAte=+$('#p-g').value||0;S.t.par.tol=(+$('#p-t').value||0)/100;S.t.par.alcadaOk=true;log('parametros','alçada','limite/gerente/tolerância','',brl(S.t.par.limite)+' / '+brl(S.t.par.gerenteAte)+' / '+$('#p-t').value+'%');if(gravaChaves())prep();save();closeModal();render()},
      'nova-nf':()=>modalNF(),ratear:()=>modalNF(id),'add-lin':()=>{NF.rateio.push({item:S.D.items[0].codigo,valor:0});pintaRat()},'del-lin':()=>{NF.rateio.splice(+el.dataset.k,1);pintaRat()},
-     'sug-lin':()=>{const o=S.t.ocs.find(x=>x.id===NF.oc);if(!o)return toast('Escolha um pedido');NF.rateio=[{item:o.item,valor:Math.min(+NF.valor||o.valor,o.valor)}];pintaRat()},
+     'sug-lin':()=>{const o=S.t.ocs.find(x=>x.id===NF.oc);if(!o)return toast('Escolha um pedido');NF.rateio=ocLinhasLigada()?rateioDoPedido(o):[{item:o.item,valor:Math.min(+NF.valor||o.valor,o.valor)}];pintaRat()},
      'nf-ok':()=>doNF(el.dataset.modo),conciliar:doConciliar,'nova-med':modalMed,'ask-ok':askOk,'obras':modalObras,'obra-abrir':()=>abrirObra(el.dataset.cod),'obra-imp':()=>importarObraBanco(el.dataset.cod),'hist-281':importaHistorico281,'cad-novo':()=>modalCad(el.dataset.k),'cad-edit':()=>modalCad(el.dataset.k,id),'cad-ok':doCad,'nfe-buscar':nfeBuscar,'sync-novo':modalSync,'sync-ler':syncLer,'sync-aplicar':syncAplicar,'xml-novo':modalXml,'xml-ok':doXml,'fech-csv':()=>fechGerar(),'fech-fechar':fechFechar,'fech-copy':()=>{const t=$('#f-out');t.select();try{navigator.clipboard.writeText(t.value).then(()=>toast('Copiado'),()=>toast('Selecionado: use Ctrl+C'))}catch(e){toast('Selecionado: use Ctrl+C')}},'bc-novo':modalBc,'bc-ok':doBc,'bc-env':()=>bcEnv(id),'bc-apr':()=>bcAprModal(id),'bc-apr-ok':()=>bcAprOk(id),'bc-fat':()=>bcFat(id),'rec-novo':()=>modalRec(id),'rec-ok':()=>doRec(id),'conc-ent':concEnt,'lan-novo':modalLan,'lan-ok':doLan,'novo-apt':modalApt,'apt-ok':doApt,'apt-conf':()=>aptConf(id),'apt-apr':()=>aptApr(id),'apt-addp':()=>{lerApt();APT.pessoas.push({funcao:FUNCOES()[0]||'',n:1,h:8});pintaApt()},'apt-delp':()=>{lerApt();APT.pessoas.splice(+el.dataset.k,1);pintaApt()},'apt-adde':()=>{lerApt();APT.equip.push({nome:'',h:8,rh:0});pintaApt()},'apt-dele':()=>{lerApt();APT.equip.splice(+el.dataset.k,1);pintaApt()},'nova-atv':modalAtv,'atv-salvar':doAtv,'atv-ok':()=>atvOk(id),'atv-no':()=>atvNo(id),'atv-no-ok':()=>atvNoOk(id),'nova-rst':modalRst,'rst-salvar':doRst,'rst-ok':()=>rstOk(id),'rst-rep':()=>rstRep(id),'nova-tar':modalTar,'tar-salvar':doTar,'tar-mv':()=>tarMv(id),'med-ok':doMed,atestar:()=>doAtestar(id),conferir:()=>conferir(id),liberar:()=>liberar(id),pagar:()=>pagar(id),
      reset:()=>{if(MODO_SB)return toast('No modo conectado nada é apagado');if(!S.confirmReset){S.confirmReset=1;return toast('Clique de novo em Restaurar para apagar tudo');}S.confirmReset=0;localStorage.removeItem(chaveObra());S.t=novoT();prep();toast('Dados restaurados');render()}};
     if(A[a])A[a]();else if(ACOES[a])ACOES[a](el);return}
@@ -2241,7 +2522,7 @@ ACOES['oc-dev-ok']=el=>{const o=S.t.ocs.find(x=>x.id===el.dataset.id),q=+$('#dv-
   if(o.ins&&q>saldoIns(o.ins)+1e-9)return toast('Estoque menor que a devolução');o.devolvido=r2((o.devolvido||0)+q);if(o.ins)novoMov({tipo:'dev',ins:o.ins,qtd:q,cu:cmIns(o.ins),oc:o.id,ocNum:o.num,motivo:'Devolução '+o.num+': '+m});
   (o.ocorr=o.ocorr||[]).push({data:hojeISO(),tipo:'Devolução',texto:num(q)+' un · crédito '+brl(q*o.preco)+' · '+m,quem:user()});log('ordem_compra',o.num,'devolução','',num(q)+' · '+brl(q*o.preco),m);save();closeModal();toast('Devolução registrada · crédito '+brl(q*o.preco));render()};
 /* ---- necessidade e mín./máx. ---- */
-function necessidades(){const sem=new Set(S.t.sols.filter(s=>s.status!=='cancelada').map(s=>s.item).concat(S.t.ocs.filter(o=>!['cancelada','reprovada'].includes(o.status)).map(o=>o.item)));
+function necessidades(){const sem=new Set(S.t.sols.filter(s=>s.status!=='cancelada').flatMap(s=>itensDe(s)).concat(S.t.ocs.filter(o=>!['cancelada','reprovada'].includes(o.status)).flatMap(o=>itensDe(o))));
   const look=new Set(S.t.atvs.filter(a=>a.status!=='feita').map(a=>a.item));
   return S.D.items.filter(i=>look.has(i.codigo)&&!sem.has(i.codigo)&&(S.sd[i.codigo]?.livre||0)>0).map(i=>({i,livre:S.sd[i.codigo].livre}))}
 function minMax(){return S.t.inss.filter(i=>i.estMin!=null&&saldoIns(i.cod)<i.estMin).map(i=>({i,saldo:saldoIns(i.cod),sug:Math.max(0,r2((i.estMax!=null?i.estMax:i.estMin*2)-saldoIns(i.cod)))}))}
@@ -2809,7 +3090,7 @@ function aplicaExtrato(t,ex){const lote='extrato-'+ex.obra;t.lfxs=(t.lfxs||[]).f
 async function seedExtrato(){const cod=S.D.obra.codigo,ex=await extratoDe(cod);if(!ex||S.t.par.extratoSeed)return;
   aplicaExtrato(S.t,ex);S.t.par.extratoSeed=true;log('extrato',cod,'importar','',ex.nat.length+' naturezas, '+(ex.lanc||[]).length+' lançamentos (corte '+ex.corte+')');save()}
 /* pedido aprovado sem nota (provisão): vem de contaObra() (05_motor_de_regras.js), a conta única */
-const provOcsSplit=t=>{const r={prod:0,serv:0};contaObra(t).ocs.forEach(({oc:o,comp:v})=>{if(['MO','EQP','TER'].includes(o.nat))r.serv+=v;else r.prod+=v});r.prod=r2(r.prod);r.serv=r2(r.serv);return r};
+const provOcsSplit=t=>{const r={prod:0,serv:0};contaObra(t).lin.forEach(({nat,comp:v})=>{if(['MO','EQP','TER'].includes(nat))r.serv+=v;else r.prod+=v});r.prod=r2(r.prod);r.serv=r2(r.serv);return r};
 const provOcs=t=>r2(contaObra(t).ocs.reduce((s,x)=>s+x.comp,0));
 /* roda uma função "como se" a obra de outro estado estivesse aberta (sem tocar em nada que fica gravado) */
 function comObra(t,O,fn){const pv=provLigada(),sv={t:S.t,D:S.D,X:S.X,m:S.memo,p:S.provTmp};S.provTmp=pv;S.t=t;S.D={obra:O,items:[]};S.X={venda:O.valor_contrato,comp:provOcs(t)};S.memo=null;
@@ -3010,7 +3291,7 @@ const PROV_COLS=[['origem','Origem','t'],['desc','Descrição','t'],['tipo','Tip
 const NF_COLS=[['num','Nota','t'],['emitente','Emitente','t'],['emissao','Emissão','d'],['valor','Valor','n'],['status','Situação','t']];
 const PEDF_COLS=[['nrPedido','Pedido','t'],['parceiro','Parceiro','t'],['produto','Produto','t'],['vlrTotal','Vlr. total','n'],['qtdPend','Qtd. pendente','q'],['situacao','Situação','t']];
 function provLinhas(){const R=[];natDe().filter(n=>+n.prov>0).forEach(n=>R.push({origem:'Extrato por natureza',desc:n.nome,tipo:servRe2.test(n.nome)?'Serviço':'Produto',valor:+n.prov}));
-  contaObra(S.t).ocs.forEach(({oc:o,comp})=>{const v=r2(comp);if(v)R.push({origem:'Pedido sem nota',desc:o.num+' · '+o.forn,tipo:['MO','EQP','TER'].includes(o.nat)?'Serviço':'Produto',valor:v})});
+  contaObra(S.t).lin.forEach(({oc:o,nat,comp})=>{const v=r2(comp);if(v)R.push({origem:'Pedido sem nota',desc:o.num+' · '+o.forn,tipo:['MO','EQP','TER'].includes(nat)?'Serviço':'Produto',valor:v})});
   lfxDe('provisao').forEach(l=>R.push({origem:'Provisão importada',desc:l.desc||l.forn||'',tipo:'Produto',valor:l.valor}));return R}
 function fichaCorpo(f,O,k){const t=S.fi.tab,c=cadDe(O.codigo,S.t);
   if(t==='geral')return `<div class="g3"><div><label>Tipo contrato obra</label>${fsel('tipo',f.tipo,CAD_LISTAS.tipo)}</div><div><label>Centro de resultado</label><div class="g2" style="grid-template-columns:1fr 2fr">${fi('crCod',f.crCod)}${fi('crNome',f.crNome)}</div></div><div><label>Empresa</label><div class="g2" style="grid-template-columns:1fr 2fr">${fi('empresaCod',f.empresaCod)}<input value="${esc(c.empresa)}" readonly></div></div>
@@ -3048,6 +3329,10 @@ const PED_ST={cancelada:1,rejeitada:1};
 function pedRowsT(){const O=S.D.obra,cd=cadDe(O.codigo,S.t),R=[];
   S.t.ocs.forEach(o=>{const ins=(S.t.inss||[]).find(i=>i.cod===o.ins),sol=(S.t.sols||[]).find(s=>s.id===o.sol),cot=sol&&sol.cots?sol.cots.find(c=>c.forn===o.forn):null,pz=cot&&/^\d+$/.test(String(cot.prazo||'').trim())?+cot.prazo:null,
     prev=pz!=null&&o.criado?addDias(o.criado,pz):'',fo=(S.t.forns||[]).find(f=>f.nome===o.forn),rec=o.recebido||0,canc=!!PED_ST[o.status],pq=canc?0:Math.max(0,o.qtd-rec);
+    const base={nrUnico:o.num,nrPedido:o.num,dtNeg:o.criado||'',prev,codEmp:'1',empresa:cd.empresa,codParc:fo?String(fo.cnpj||'').replace(/\D/g,''):'',parceiro:o.forn,nContrato:O.codigo,obra:O.nome,situacao:o.status};
+    /* oc_linhas: pedido de várias linhas sai uma linha de consulta por linha do pedido (o recebimento é do pacote: a parte entregue de cada linha é a mesma fração) */
+    if(ocMulti(o,S.t)){const fr=o.qtd>0?rec/o.qtd:0;linhasDe(o,S.t).forEach(l=>{const it=S.byCod[l.item]||{},ql=+l.qtd||0,ent=r2(ql*fr),pl=canc?0:Math.max(0,r2(ql-ent));
+      R.push({...base,pend:pl>1e-9?'S':'N',codProd:l.item,produto:it.descricao?String(it.descricao).slice(0,80):String(l.item),volume:it.unidade||'UN',vlrUnit:ql>0?r2(l.valor/ql):+l.valor,qtd:ql,vlrTotal:+l.valor,qtdEntregue:ent,qtdPend:pl,item:l.item,natureza:NATNOME[l.nat||o.nat]||l.nat||o.nat||''})});return}
     R.push({nrUnico:o.num,nrPedido:o.num,pend:pq>1e-9?'S':'N',dtNeg:o.criado||'',prev,codEmp:'1',empresa:cd.empresa,codParc:fo?String(fo.cnpj||'').replace(/\D/g,''):'',parceiro:o.forn,nContrato:O.codigo,obra:O.nome,codProd:o.ins||o.item,produto:ins?ins.desc:(o.item||''),volume:ins?ins.un:'UN',vlrUnit:o.preco,qtd:o.qtd,vlrTotal:o.valor,qtdEntregue:rec,qtdPend:pq,situacao:o.status,item:o.item,natureza:NATNOME[o.nat]||o.nat||''})});
   S.t.lfxs.filter(l=>l.tipo==='ped').forEach(l=>R.push({...l,situacao:l.situacao||'Importado',item:l.item||'',natureza:l.natureza||''}));
   return R}
@@ -3122,7 +3407,7 @@ function viewRastro(X){
   else corpo=rastroCorpo(d);
   return `<div class="head"><div><h1>Da tarefa à compra, ao custo e ao BM</h1><p class="lead">Escolha uma tarefa do cronograma e veja o que foi pedido para ela, se o material chegou, quanto já virou custo e a quais eventos de medição ela leva. Tarefa, pedido e item de BM não são um para um: aqui aparecem só os vínculos que existem.</p></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="/marko?obra=${encodeURIComponent(SB.obraId||'342')}">Tela do engenheiro</a><a class="btn" href="/ciclo?obra=${encodeURIComponent(SB.obraId||'342')}&aba=sit">Visão da gestão</a></div></div>
-   ${avisoSqlCalc()}<div class="toolbar"><select id="rs-sel" style="min-width:min(520px,100%)"><option value="">Escolha a tarefa…</option>${opt}</select></div>${corpo}`}
+   ${avisoSqlCalc()}${avisoSqlLinhas()}<div class="toolbar"><select id="rs-sel" style="min-width:min(520px,100%)"><option value="">Escolha a tarefa…</option>${opt}</select></div>${corpo}`}
 /* demandas do Ciclo que travam esta tarefa, e se cada uma já tem compra ligada (o vínculo guarda o número da demanda) */
 function rastroDemandas(d){
   const L=demDaTarefa(d.ativ.id);if(!L.length)return `<div class="card"><div class="in"><div class="panel-t">Demandas desta tarefa no Ciclo</div><div class="sub">Nenhuma demanda aberta aponta para a tarefa ${esc(d.ativ.id)}. A compra pode ser ligada mesmo assim.</div></div></div>`;
@@ -3185,7 +3470,7 @@ ACOES['rs-nova']=el=>{if(!RS.tarefa)return;const dn=+(el&&el.dataset&&el.dataset
 ACOES['rs-liga']=el=>{const ja=new Set(S.t.elos.filter(x=>x.ativ===RS.tarefa&&!x.cancelado).map(x=>x.sol)),dn=+(el&&el.dataset&&el.dataset.dem)||RS.dem||0;
   const L=S.t.sols.filter(s=>s.status!=='cancelada'&&!ja.has(s.id)),ds=demDaTarefa(RS.tarefa);
   modal(`<h3>Ligar solicitação à tarefa ${esc(RS.tarefa)}</h3><div class="sub">Só liga: a solicitação continua uma só, com o mesmo valor. Pode atender mais de uma tarefa.</div>
-   <label>Solicitação</label><select id="rl-sol">${L.map(s=>`<option value="${s.id}">${esc(s.num)} · ${esc(s.desc)} · item ${esc(s.item)}</option>`).join('')||'<option value="">Nenhuma solicitação disponível</option>'}</select>
+   <label>Solicitação</label><select id="rl-sol">${L.map(s=>`<option value="${s.id}">${esc(s.num)} · ${esc(s.desc)} · item ${esc(itensTxt(s))}</option>`).join('')||'<option value="">Nenhuma solicitação disponível</option>'}</select>
    <label>Demanda do Ciclo que esta compra atende (opcional)</label><select id="rl-dem"><option value="">nenhuma</option>${ds.map(x=>`<option value="${x.num}" ${x.num===dn?'selected':''}>D${x.num} · ${esc(String(x.oque).slice(0,70))}</option>`).join('')}</select>
    <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="rs-liga-ok" ${L.length?'':'disabled'}>Ligar</button></div>`)};
 ACOES['rs-liga-ok']=async()=>{const s=$('#rl-sol').value;if(!s)return;rastroElo(s,+$('#rl-dem').value||null);closeModal();await rastroGrava();toast('Solicitação ligada à tarefa.')};
@@ -3236,7 +3521,7 @@ function viewEventos(X){
     :`<div class="sub" style="margin-top:8px">Item dividido entre dois eventos no eventograma oficial está ligado a um evento só no ERP, então a receita desses eventos difere do eventograma${ex342}. A diferença aparece na coluna Diferença quando os valores do eventograma oficial estiverem carregados na obra; hoje o ERP ainda não os guarda.</div>`;
   return `<div class="head"><div><h1>Eventos</h1><p class="lead">${lead} Só leitura: nada aqui grava.${E.modo==='grupo'?'':' Item sem evento aparece em “Sem evento” e entra nas somas.'} O semáforo usa a regra do item: verde dentro da meta, amarelo acima da meta até o limite, vermelho acima do limite ou com a meta já acima do limite (sem folga, o mesmo “meta acima do teto” de Pacotes).</p></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill info">chave ligada nesta obra</span>${semEv?`<span class="pill warn">${semEv.n} ${semEv.n===1?'item sem evento':'itens sem evento'}</span>`:''}${semPac?`<span class="pill warn">${semPac.n} ${semPac.n===1?'item sem pacote':'itens sem pacote'}</span>`:''}</div></div>
-   ${avisoSqlCalc()}<div class="toolbar">${tabs('evt',[['evento',E.modo==='grupo'?'Por grupo':'Por evento'],['pacote','Por pacote']],tab)}<span class="sub">${S.D.items.length} itens · clique numa linha para ver os itens</span></div>
+   ${avisoSqlCalc()}${avisoSqlLinhas()}<div class="toolbar">${tabs('evt',[['evento',E.modo==='grupo'?'Por grupo':'Por evento'],['pacote','Por pacote']],tab)}<span class="sub">${S.D.items.length} itens · clique numa linha para ver os itens</span></div>
    ${tab==='pacote'?eventosTabela(P,'pacote'):eventosTabela(E,E.modo)}${tab==='pacote'?'':nota}`}
 ACOES['ev-det']=el=>{const m=el.dataset.m,k=el.dataset.k,R=m==='pacote'?agregaPacotes():agregaEventos(),g=R.grupos.find(x=>x.chave===k);if(!g)return;
   const nome=k===''?(m==='pacote'?'Sem pacote':m==='grupo'?'Sem grupo':'Sem evento'):(m==='pacote'?'Pacote ':m==='grupo'?'Grupo ':'Evento ')+k;
