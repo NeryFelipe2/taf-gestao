@@ -9,7 +9,7 @@ function ppcSemanas(){const m={};S.t.atvs.forEach(a=>{if(a.status!=='cumprida'&&
   return Object.entries(m).sort().map(([s,w])=>({semana:s,...w,ppc:w.c/(w.c+w.n)}))}
 const ppcPill=p=>`<span class="pill ${p>=.8?'ok':p>=.6?'warn':'bad'}">${Math.round(p*100)}%</span>`;
 function pareto(){const m={};S.t.atvs.filter(a=>a.status==='nao_cumprida').forEach(a=>m[a.causa||'Outro']=(m[a.causa||'Outro']||0)+1);return Object.entries(m).sort((a,b)=>b[1]-a[1])}
-function restAuto(X){return X.vencidos.map(p=>({auto:true,id:'auto-'+p.codigo,tipo:'Material',desc:`Pacote ${p.nome}: fechar até ${fdata(p.fechar_ate)} vencido, sem pedido`,dono:p.responsavel||'Compras',prazo:p.fechar_ate,valor:p.meta,status:'aberta'}))}
+function restAuto(X){return X.vencidos.map(p=>({auto:true,id:'auto-'+p.codigo,tipo:'Material',desc:`Pacote ${p.nome}: fechar até ${fdata(p.fechar_ate)} vencido, sem pedido`,dono:p.responsavel||'Compras',prazo:p.fechar_ate,valor:pacMeta(p),status:'aberta'}))}
 function viewLean(X){
   const tab=S.tab.lean||'pauta',T=S.t,ab=restAb(),esc3=ab.filter(escalada),auto=restAuto(X);
   const seg=segunda(hojeISO()),segAnt=addDias(seg,-7),pp=ppcSemanas(),ppAnt=pp.find(w=>w.semana===segAnt);

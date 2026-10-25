@@ -117,3 +117,97 @@ test('B5: chave DESLIGADA: nota rateada sem a lista rateio falha do mesmo jeito 
   assert.match(antes, /TypeError/, 'a partida falha com TypeError'); assert.equal(agora, antes, 'desligada: mesmo erro, no mesmo lugar');
   assert.equal(falha(novo, { calc_v2: true }), 'sem erro', 'ligada: segue calculando, realizado 0 para a nota sem lista');
 });
+
+/* ============ M2 do revisor: o semáforo do grupo ficava verde onde o resto da tela mostra "meta acima do teto" ============ */
+const linhaDe = (h, k, m) => h.split('<tr').find(l => l.includes(`data-k="${k}"`) && (!m || l.includes(`data-m="${m}"`)));
+test('M2: pacote e evento com meta somada acima do limite (teto) saem vermelhos no Eventos, como em Pacotes, Alertas e Hoje', () => {
+  const S = abre(novo, obra999(), estado999({ ev_agrega: true })); const X = novo.derive();
+  const P = J(novo.agregaPacotes()), E = J(novo.agregaEventos()), sem = (R, c) => R.grupos.find(g => g.chave === c).sem;
+  /* ELET: meta 18.000, teto somado 17.000 (a tela de Pacotes pinta o teto de vermelho e o alerta diz "meta acima do teto") */
+  assert.equal(S.D.pacotes.find(p => p.codigo === 'ELET')._acima, true);
+  assert.equal(sem(P, 'ELET')[0], 'vermelho'); assert.match(sem(P, 'ELET')[1], /Meta acima do limite/);
+  assert.equal(sem(E, '4.1.1')[0], 'vermelho', 'evento 4.1.1: meta 17.000, limite 16.900'); assert.equal(sem(E, '')[0], 'vermelho', 'Sem evento: meta 2.000, limite 1.500');
+  assert.equal(sem(P, 'HIDR')[0], 'verde'); assert.equal(sem(P, 'CANT')[0], 'verde'); assert.equal(sem(E, '1.1.1')[0], 'verde');
+  S.tab.evt = 'pacote'; const h = novo.viewEventos(X);
+  assert.match(linhaDe(h, 'ELET', 'pacote'), /pill bad" title="Meta acima do limite/); assert.match(linhaDe(h, 'HIDR', 'pacote'), /pill ok"/);
+  assert.match(h, /meta já acima do limite/, 'a tela explica a regra');
+});
+test('M2: ordem das regras do semáforo do grupo (acima do limite, meta acima do limite, acima da meta, dentro)', () => {
+  const g = o => ({ n: 3, venda: 0, meta: 1000, teto: 1100, temTeto: true, comp: 0, real: 0, livre: 1000, semMeta: 0, ...o }), s = o => novo.semGrupo(g(o));
+  assert.equal(s({})[0], 'verde'); assert.equal(s({ teto: 1000 })[0], 'verde', 'meta igual ao limite ainda é folga zero, não excesso');
+  assert.equal(s({ teto: 999.99 })[0], 'vermelho'); assert.match(s({ teto: 900 })[1], /Meta acima do limite/);
+  assert.match(s({ teto: 900, comp: 950 })[1], /Comprometido \+ realizado acima do limite/, 'gasto acima do limite continua a primeira razão');
+  assert.equal(s({ teto: 0, temTeto: false })[0], 'verde', 'sem teto em nenhum item não há o que comparar'); assert.equal(s({ semMeta: 3 })[0], 'sem_base');
+});
+test('M2: em 300 cenários, todo pacote que Pacotes marca "meta acima do teto" (pela soma) sai vermelho no Eventos', () => {
+  let marcados = 0;
+  for (let seed = 1; seed <= 300; seed++) {
+    const cen = cenario(seed); cen.t.par.ev_agrega = true;
+    const S = abre(novo, cen.D, cen.t); novo.derive(); const P = J(novo.agregaPacotes());
+    S.D.pacotes.filter(p => p._acima && p._temTeto && p._temMeta && p._it.length).forEach(p => { marcados++; assert.equal(P.grupos.find(g => g.chave === p.codigo).sem[0], 'vermelho', `semente ${seed}, pacote ${p.codigo}`); });
+  }
+  assert.ok(marcados > 50, 'cenários exercitam pacote acima do teto (' + marcados + ')');
+});
+
+/* ============ B1 do revisor: pacote cujos itens não têm teto mostrava teto R$ 0 e folga negativa ============ */
+const semTetoNoElet = D => { D.eap.filter(e => e.pacote === 'ELET').forEach(e => { e.teto_total = null; }); return D; };
+test('B1: itens do pacote sem teto: com a chave ligada o pacote mostra o teto do cadastro, como desligada', () => {
+  const folga = h => (h.match(/folga de <b>([^<]*)<\/b>/) || [])[1];
+  const desl = (abre(novo, semTetoNoElet(obra999()), estado999()), novo.derive()), pD = novo.S.D.pacotes.find(p => p.codigo === 'ELET'), hD = novo.viewPac(desl), tD = novo.pacTeto(pD), fD = folga(hD);
+  const lig = (abre(novo, semTetoNoElet(obra999()), estado999({ ev_agrega: true })), novo.derive()), pL = novo.S.D.pacotes.find(p => p.codigo === 'ELET'), hL = novo.viewPac(lig);
+  perto(tD, 20000, 'desligada: teto do cadastro'); perto(novo.pacTeto(pL), 20000, 'ligada: sem teto nos itens vale o cadastro, não R$ 0');
+  assert.equal(folga(hL), fD, 'o texto de folga é o mesmo');
+  assert.equal(pL._acima, false);
+  const linha = hL.split('<tr').find(l => l.includes('data-pac="ELET"')); assert.match(linha, /R\$\s18\.000,00<\/td><td class="r ">R\$\s20\.000,00/, 'colunas Meta e Teto da linha do pacote');
+  /* o Eventos continua mostrando "—" (nenhum item tem limite) e avisa o valor do cadastro */
+  const X = novo.S.X = novo.derive(); novo.S.tab.evt = 'pacote'; const he = novo.viewEventos(X); assert.match(linhaDe(he, 'ELET', 'pacote'), /cadastro do pacote: R\$\s20\.000,00/);
+});
+test('B1: sem meta em nenhum item do pacote vale o cadastro (meta e teto), igual desligada; com meta e teto nos itens vale a soma', () => {
+  const D = obra999(); D.eap.filter(e => e.pacote === 'ELET').forEach(e => { e.meta_total = null; });
+  const S = abre(novo, D, estado999({ ev_agrega: true })); novo.derive(); const p = S.D.pacotes.find(x => x.codigo === 'ELET');
+  perto(novo.pacMeta(p), 18000, 'meta do cadastro'); perto(novo.pacTeto(p), 20000, 'teto do cadastro (não mistura com a soma dos tetos dos itens)');
+  assert.equal(p._acima, false, 'cadastro: meta 18.000 < teto 20.000, como na chave desligada');
+  const q = S.D.pacotes.find(x => x.codigo === 'HIDR'); perto(novo.pacMeta(q), 45000, 'meta somada'); perto(novo.pacTeto(q), 49500, 'teto somado');
+  const e = S.D.pacotes.find(x => x.codigo === 'CANT'); assert.equal(e._acima, false);
+});
+
+/* ============ B2 do revisor: o Eventos agrupava o código do pacote com trim e a tela de Pacotes não ============ */
+test('B2: item com código de pacote "CANT " (espaço no fim): Eventos e Pacotes contam igual e o item solto aparece como "não cadastrado"', () => {
+  const D = obra999(); D.eap.find(e => e.codigo === '1.1').pacote = 'CANT ';
+  const S = abre(novo, D, estado999({ ev_agrega: true })); const X = novo.derive();
+  const P = J(novo.agregaPacotes()), canto = P.grupos.find(g => g.chave === 'CANT'), solto = P.grupos.find(g => g.chave === 'CANT ');
+  assert.equal(canto.n, S.D.pacotes.find(p => p.codigo === 'CANT')._it.length, 'mesma contagem da tela de Pacotes'); assert.equal(canto.n, 1);
+  assert.ok(solto && solto.n === 1 && solto.semCadastro === true, 'o item de "CANT " não some nem é juntado em silêncio'); assert.equal(canto.semCadastro, false);
+  assert.ok(P.confere.ok, 'continua fechando com a obra');
+  S.tab.evt = 'pacote'; const h = novo.viewEventos(X); assert.match(linhaDe(h, 'CANT ', 'pacote'), /pacote não cadastrado/); assert.match(linhaDe(h, 'CANT ', 'pacote'), /“CANT ”/);
+  assert.doesNotMatch(linhaDe(h, 'CANT', 'pacote'), /não cadastrado/);
+});
+test('B2: pacote só com espaços vira "Sem pacote"; pacote que não está no cadastro é avisado', () => {
+  const D = obra999(); D.eap.find(e => e.codigo === '1.1').pacote = '   '; D.eap.find(e => e.codigo === '1.2').pacote = 'FANTASMA';
+  abre(novo, D, estado999({ ev_agrega: true })); novo.derive(); const P = J(novo.agregaPacotes());
+  assert.ok(P.grupos.find(g => g.chave === '' && g.itens.includes('1.1')), 'só espaços fica em Sem pacote');
+  const f = P.grupos.find(g => g.chave === 'FANTASMA'); assert.ok(f && f.semCadastro);
+  assert.equal(novo.pacDe({ pacote: ' ELET' }), ' ELET', 'não corta mais o código'); assert.equal(novo.pacDe({ pacote: null }), '');
+});
+
+/* ============ B3 do revisor: dois lugares ainda usavam o valor fixo do cadastro do pacote com a chave ligada ============ */
+function vencida(par) {   /* pacote ELET vencido e sem pedido; cadastro 25.000 contra 18.000 somados dos itens */
+  const D = obra999(); D.pacotes.find(p => p.codigo === 'ELET').meta = 25000; D.pacotes.find(p => p.codigo === 'ELET').fechar_ate = '2020-01-01';
+  const t = estado999(par); t.ocs = []; t.notas = [];   /* sem pedido nenhum: vencido de verdade */
+  return abre(novo, D, t);
+}
+test('B3: alerta de pacote vencido e restrição automática usam a meta que a tela mostra (chave ligada); desligada fica como sempre', () => {
+  for (const [par, esperado] of [[{}, 25000], [{ ev_agrega: true }, 18000]]) {
+    vencida(par); const X = novo.derive();
+    const al = J(novo.alertas(X)).find(a => /Pacote ELET: fechar até/.test(a[1]));
+    assert.match(al[2], esperado === 25000 ? /R\$ 25 mil de meta/ : /R\$ 18 mil de meta/);
+    perto(novo.restAuto(X).find(r => r.id === 'auto-ELET').valor, esperado, 'valor da restrição automática');
+  }
+});
+test('B3: chaves desligadas, pacotes vencidos: alertas e restrições automáticas iguais às do ERP de partida (300 cenários)', () => {
+  for (let seed = 1; seed <= 300; seed++) {
+    const cen = cenario(seed); cen.D.pacotes.forEach((p, i) => { if ((seed + i) % 2) p.fechar_ate = '2020-0' + (i + 1) + '-10'; });
+    const f = api => { abre(api, cen.D, cen.t); const X = api.derive(); return limpa({ al: api.alertas(X), ra: api.restAuto(X), v: X.vencidos.map(p => p.codigo) }); };
+    assert.deepEqual(f(novo), f(base), 'semente ' + seed);
+  }
+});

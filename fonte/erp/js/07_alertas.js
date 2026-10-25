@@ -2,7 +2,7 @@
 function alertas(X){
   const a=[];
   if(!S.t.frozen)a.push(['bad','Linha de base não congelada','Compras bloqueadas até a Gestão congelar a versão 1 (E01).']);
-  X.vencidos.forEach(p=>a.push(['bad',`Pacote ${p.codigo}: fechar até ${fdata(p.fechar_ate)} vencido`,`${-p._dias} dia(s) de atraso, sem pedido. ${brl(p.meta,true)} de meta; vira restrição na frente.`]));
+  X.vencidos.forEach(p=>a.push(['bad',`Pacote ${p.codigo}: fechar até ${fdata(p.fechar_ate)} vencido`,`${-p._dias} dia(s) de atraso, sem pedido. ${brl(pacMeta(p),true)} de meta; vira restrição na frente.`]));
   S.D.pacotes.filter(p=>p._acima).forEach(p=>a.push(['bad',`Pacote ${p.codigo}: meta acima do teto`,`Meta ${brl(pacMeta(p))} × teto ${brl(pacTeto(p))}. Solicitação nasce vermelha.`]));
   X.pendAprov.forEach(o=>a.push([o.alcada==='diretoria'?'bad':'warn',`${o.num} aguarda ${ROLES[o.alcada].n}`,`${brl(o.valor)} · ${o.item} · ${esc(o.forn)}`]));
   X.semRateio.forEach(n=>a.push(['warn',`${n.num} sem rateio`,`${esc(n.emitente)} · ${brl(n.valor)}. Não entra no custo do item.`]));
