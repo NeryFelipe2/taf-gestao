@@ -2,7 +2,7 @@
 /* Navegação: 8 áreas com abas internas. S.view continua sendo a chave da tela; a área é derivada. Áreas sem telas ainda ficam ocultas. */
 const AREAS=[
  {k:'inicio',n:'Início',i:'hoje',tabs:[['dash','Dashboard'],['hoje','Hoje'],['pain','Painéis']]},
- {k:'obra',n:'Obra',i:'eap',tabs:[['eap','Orçamento (EAP)'],['pac','Pacotes'],['campo','Campo'],['lean','Planejamento semanal'],['rastro','Da tarefa à compra e ao BM'],['med','Medição e resultado']]},
+ {k:'obra',n:'Obra',i:'eap',tabs:[['eap','Orçamento (EAP)'],['pac','Pacotes'],['evt','Eventos'],['campo','Campo'],['lean','Planejamento semanal'],['rastro','Da tarefa à compra e ao BM'],['med','Medição e resultado']]},
  {k:'sup',n:'Suprimentos',i:'compras',tabs:[['compras','Compras'],['cdash','Dashboard de compras'],['pedc','Consulta de pedidos'],['nota','Notas e rateio'],['cad','Cadastros'],['est','Estoque']]},
  {k:'fin',n:'Financeiro',i:'fin',tabs:[['fin','Pagar e conciliar'],['fat','Faturamento e caixa']]},
  {k:'cont',n:'Contábil e fiscal',i:'plano',tabs:[['plano','Plano de contas'],['ctb','Contabilidade']]},
@@ -11,9 +11,9 @@ const AREAS=[
  {k:'adm',n:'Gestão e administração',i:'aud',tabs:[['bi','Indicadores e BI'],['admin','Administração'],['fluxo','Fluxos e SLA'],['aud','Auditoria'],['usuarios','Usuários']]},
 ];
 /* Quais telas cada papel vê no menu (as ações dentro de cada tela continuam limitadas por can()). Papéis de gestão veem tudo. */
-const TELAS_PAPEL={encarregado:['hoje','eap','campo','lean','frt','pes'],almox:['hoje','pac','rastro','compras','cdash','pedc','nota','cad','est','frt','lean'],planejamento:['hoje','pain','eap','pac','campo','lean','rastro','med','prj'],
-  compras:['hoje','pain','eap','pac','rastro','compras','cdash','pedc','nota','cad','est','lean'],adm:['hoje','rastro','compras','cdash','pedc','nota','cad','est','ctr','pat','frt','pes','sst','fluxo','fin','plano','ctb','aud'],financeiro:['hoje','pain','rastro','ctr','pat','compras','cdash','pedc','nota','cad','fin','fat','plano','ctb','aud']};
-const tabVisivel=k=>{if(k==='dash')return true;if(k==='admin')return isRole('diretoria','gestao','gerente')||S.role==='admin';if(k==='usuarios')return MODO_SB&&S.role==='admin';const l=TELAS_PAPEL[S.role];return !l||l.includes(k)};
+const TELAS_PAPEL={encarregado:['hoje','eap','campo','lean','frt','pes'],almox:['hoje','pac','rastro','compras','cdash','pedc','nota','cad','est','frt','lean'],planejamento:['hoje','pain','eap','pac','evt','campo','lean','rastro','med','prj'],
+  compras:['hoje','pain','eap','pac','evt','rastro','compras','cdash','pedc','nota','cad','est','lean'],adm:['hoje','rastro','compras','cdash','pedc','nota','cad','est','ctr','pat','frt','pes','sst','fluxo','fin','plano','ctb','aud'],financeiro:['hoje','pain','rastro','ctr','pat','compras','cdash','pedc','nota','cad','fin','fat','plano','ctb','aud']};
+const tabVisivel=k=>{if(k==='dash')return true;if(k==='evt'&&!chaveLigada('ev_agrega'))return false;if(k==='admin')return isRole('diretoria','gestao','gerente')||S.role==='admin';if(k==='usuarios')return MODO_SB&&S.role==='admin';const l=TELAS_PAPEL[S.role];return !l||l.includes(k)};
 const areasVisiveis=()=>AREAS.map(a=>({...a,tabs:a.tabs.filter(t=>tabVisivel(t[0]))})).filter(a=>a.tabs.length);
 const areaDe=v=>areasVisiveis().find(a=>a.tabs.some(t=>t[0]===v))||areasVisiveis()[0];
 const NAV_BASE=AREAS.flatMap(a=>a.tabs.map(t=>[t[0],t[1],a.i]));
