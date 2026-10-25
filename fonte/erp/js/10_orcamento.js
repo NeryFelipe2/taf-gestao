@@ -39,10 +39,12 @@ function doRemanejar(){
   if(de===pa)return err('Escolha itens diferentes.');if(!(v>0))return err('Informe o valor.');if(!m)return err('Motivo obrigatório.');
   const a=S.byCod[de],b=S.byCod[pa],sa=S.sd[de];
   if(a.meta_total-v<sa.comp+sa.real)return err('O item de origem não tem saldo livre suficiente ('+brl(sa.livre)+').');
-  const t0=S.D.items.reduce((s,i)=>s+i.meta_total,0);
+  const t0=S.D.items.reduce((s,i)=>s+i.meta_total,0),mu0={[de]:a.meta_unit,[pa]:b.meta_unit};
   log('item_eap',de,'meta_total',a.meta_total,r2(a.meta_total-v),m);log('item_eap',pa,'meta_total',b.meta_total,r2(b.meta_total+v),m);
   S.t.metaOv[de]=r2(a.meta_total-v);S.t.metaOv[pa]=r2(b.meta_total+v);S.t.versao++;S.t.hist.push({versao:S.t.versao,motivo:`${de} → ${pa} ${brl(v)}: ${m}`,quando:new Date().toISOString(),quem:user()});
   prep();const X=derive();if(Math.abs(X.meta-t0)>0.01)console.warn('total mudou');
+  /* calc_v2 [SUPOSIÇÃO, plano M1]: meta_unit acompanha o remanejamento (prep() recalcula); o antes e depois vai para a auditoria */
+  if(calcV2(S.t))[de,pa].forEach(c=>{if(mu0[c]!==S.byCod[c].meta_unit)log('item_eap',c,'meta_unit',mu0[c],S.byCod[c].meta_unit,m)});
   save();closeModal();toast('Remanejado · linha de base v'+S.t.versao);render();
 }
 

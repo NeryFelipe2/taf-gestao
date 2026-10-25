@@ -90,5 +90,12 @@ function cancelarFim(o,m){
 function modalParams(){modal(`<h3>Parâmetros</h3><div class="sub">Valores de alçada ainda são decisão da Diretoria (seção 18 do doc). Os padrões abaixo são sugestão e valem para as próximas OCs.</div>
   <div class="g3"><div><label>Verde sem confirmação até (R$)</label><input id="p-l" type="number" value="${S.t.par.limite}"></div><div><label>Gerente aprova até (R$)</label><input id="p-g" type="number" value="${gerAte()}"></div><div><label>Tolerância nota × pedido (%)</label><input id="p-t" type="number" step="0.1" value="${S.t.par.tol*100}"></div></div>
   <div class="sub" style="margin-top:8px">Regra: verde até o limite é aprovada sozinha; verde acima do limite e amarelo vão ao Gerente; acima do valor do Gerente, ou acima do teto, vai à Diretoria.</div>
-  <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="params-ok">Salvar</button></div>`)}
+  <div class="panel-t" style="margin-top:16px">Chaves desta obra · regras novas, desligadas por padrão</div>
+  <div class="sub">Cada chave vale só para esta obra. Desligada, o ERP calcula e mostra exatamente como antes. As regras novas ainda são suposição do plano, até o ok da Diretoria.</div>
+  ${CHAVES_OBRA.map(c=>`<label style="display:flex;gap:8px;align-items:flex-start;text-transform:none;font-family:inherit;letter-spacing:0;margin-top:8px"><input type="checkbox" id="ch-${c.k}" style="width:auto;margin-top:3px" ${chaveLigada(c.k)?'checked':''}><span><b>${c.n}</b><br><span class="sub">${c.d}</span></span></label>`).join('')}
+  <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn" data-act="chaves-ok">Salvar só as chaves</button><button class="btn dark" data-act="params-ok">Salvar</button></div>`)}
+/* grava só as chaves liga/desliga; não mexe nas alçadas (por isso não marca "alçadas definidas") */
+ACOES['chaves-ok']=()=>{if(!can('param'))return toast('Só Diretoria ou Gestão');
+  CHAVES_OBRA.forEach(c=>{const e=$('#ch-'+c.k);if(!e)return;const novo=!!e.checked,ant=chaveLigada(c.k);if(novo===ant)return;S.t.par[c.k]=novo;log('parametros','chave',c.k,ant?'ligada':'desligada',novo?'ligada':'desligada')});
+  prep();save();closeModal();toast('Chaves salvas');render()};
 
