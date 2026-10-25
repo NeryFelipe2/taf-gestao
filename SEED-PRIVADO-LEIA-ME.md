@@ -24,7 +24,7 @@ Branch: `fix/seed-privado` (base 243d676). **Nada foi publicado, enviado nem apl
 ```
 node --test "testes/*.test.js"
 ```
-Node 18+, nenhum pacote, nenhuma rede. Supabase e `fetch` são simulados; a leitura é fictícia; a chave de teste é sorteada a cada execução e só existe na memória. Resultado esperado: 76 testes, 0 falhas.
+Node 18+, nenhum pacote, nenhuma rede. Supabase e `fetch` são simulados; a leitura é fictícia; a chave de teste é sorteada a cada execução e só existe na memória. Resultado esperado: 78 testes, 0 falhas.
 
 Cobre exatamente o pedido:
 - **GET recusado** (405 + `Allow: POST`, também o formato antigo `?k=`), e HEAD/PUT/DELETE/OPTIONS.
@@ -32,6 +32,7 @@ Cobre exatamente o pedido:
 - **Chave errada recusada** (403, o banco simulado confere o SHA-256 como o real; nada gravado).
 - **Corpo inválido recusado** (21 casos: JSON quebrado, vazio, lista, sem `snap`, sem `restricoes`, tipo errado, itens demais, campo extra, fonte/quem fora do limite) e tamanho (413 por Content-Length, por objeto, por texto e por fluxo mentindo no Content-Length).
 - **POST válido grava**: o banco simulado recebe a leitura idêntica, `apikey`/`Authorization` com a chave publicável, `redirect: 'error'`, chave de acesso só no corpo para o banco, nunca na URL.
+- Corpo `null` já lido pela Vercel responde 400 na hora (antes o endpoint esperava um fluxo já consumido e travava até estourar o tempo); corpo grande recusado pelo ajudante da Vercel responde 413.
 - Extras: chave na URL recusada mesmo com cabeçalho certo; `Authorization: Bearer`; banco fora do ar (502); banco recusa o formato (422); servidor sem configuração (500); **a chave nunca aparece em log nem em resposta**; script local (`--enviar`, `--salvar`, recusa gravar em `public/`, recusa `http` fora de localhost e URL com `?`); **ponta a ponta** (script, HTTP real em 127.0.0.1, endpoint, Supabase simulado) com chave certa e errada.
 - Trava de higiene (`testes/repositorio.test.js`): falha se `seed*.js` voltar a ser rastreado, se algo grande aparecer em `public/api`, se o código carregar chave/endereço do banco, ou se o `.gitignore` deixar de cobrir leitura, planilha e chave.
 
@@ -83,21 +84,24 @@ O BFG protege o commit atual (HEAD): só rode depois do passo (1), com `seed.js`
 
 Pelo E2 e pela regra de "nada de SQL em produção", fica para ele. A tabela guarda só o hash (SHA-256), então a chave antiga não aparece nela.
 
-1. Gerar uma chave nova e longa **no seu computador** (não colar em chat, URL nem arquivo do repositório):
-   `node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))"`
+1. Gerar a chave nova **e o hash dela no seu computador**. A chave nunca vai para o SQL Editor (ele guarda o histórico do que foi digitado), nem para chat, URL ou arquivo do repositório; só o hash vai para o banco. A chave aparece uma vez na tela: guardar no gerenciador de senhas.
+```
+node -e "const c=require('crypto');const k=c.randomBytes(24).toString('base64url');console.log('CHAVE (guardar):',k);console.log('HASH (vai para o banco):',c.createHash('sha256').update(k).digest('hex'))"
+```
 2. No SQL Editor do Supabase:
 ```sql
 -- ver o que existe (nome e data; o hash não revela a chave)
 select nome, criado_em, left(hash, 8) as inicio_do_hash from public.taf_chave order by criado_em;
 
--- criar a nova (troque os textos entre < >)
-insert into public.taf_chave(hash, nome)
-values (encode(extensions.digest('<NOVA-CHAVE>', 'sha256'), 'hex'), '<quem usa>');
+-- criar a nova (troque os textos entre < >; <HASH> é o da tela, não a chave)
+insert into public.taf_chave(hash, nome) values ('<HASH>', '<quem usa>');
 ```
-3. Testar a nova no site e no script (`TAF_CHAVE`). Só então apagar a antiga:
+   O banco calcula `sha256(chave)` em hexadecimal minúsculo (`_taf_ok`); o hash do passo 1 é o mesmo cálculo.
+3. Testar a nova no site e no script (`TAF_CHAVE`). Só então apagar a antiga, **pelo início do hash** e não pelo nome (se a nova tiver o mesmo nome da antiga, apagar por nome leva as duas e ninguém mais entra):
 ```sql
-delete from public.taf_chave where nome = '<nome da chave antiga>';
+delete from public.taf_chave where hash like '<inicio_do_hash da antiga>%' returning nome, criado_em;
 ```
+   O `returning` mostra o que saiu: tem que ser uma linha só, a da chave antiga.
 4. Cada pessoa que usa o site digita a chave nova uma vez (o navegador guarda a antiga). As chaves de página pessoal (`taf_pessoa_chave`) são outras e só precisam de troca se também tiverem circulado em URL.
 
 ## 6. Riscos e pontos de atenção

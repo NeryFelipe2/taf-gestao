@@ -92,8 +92,14 @@ function lerStream(req, limite) {
 
 async function lerCorpo(req) {
   let b;
-  try { b = req.body; } catch (e) { throw new ErroHttp(400, 'JSON inválido'); } // a Vercel já lê e converte o JSON
-  if ((b === undefined || b === null) && typeof req.on === 'function') b = await lerStream(req, LIMITE_BYTES);
+  try { b = req.body; } // a Vercel já lê e converte o JSON
+  catch (e) {
+    if (e && e.statusCode === 413) throw new ErroHttp(413, 'corpo grande demais (máx. ' + LIMITE_BYTES + ' bytes)');
+    throw new ErroHttp(400, 'JSON inválido');
+  }
+  // Só lê o fluxo se ninguém leu antes (Node puro). Com a Vercel o fluxo já foi consumido, e o JSON "null"
+  // chega como body null: esperar o fluxo de novo travaria a função até estourar o tempo.
+  if (b === undefined && typeof req.on === 'function' && !req.readableEnded) b = await lerStream(req, LIMITE_BYTES);
   if (Buffer.isBuffer(b)) b = b.toString('utf8');
   if (typeof b === 'string') {
     if (Buffer.byteLength(b) > LIMITE_BYTES) throw new ErroHttp(413, 'corpo grande demais (máx. ' + LIMITE_BYTES + ' bytes)');

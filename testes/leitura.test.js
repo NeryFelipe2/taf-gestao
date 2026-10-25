@@ -147,7 +147,27 @@ describe('POST /api/leitura (Supabase simulado)', () => {
       });
     });
 
+    it('JSON "null" já convertido pela Vercel (body null, fluxo já consumido): 400 na hora, sem esperar o fluxo', async () => {
+      const { fazerReq, fazerRes } = require('./_apoio.js');
+      const req = fazerReq({ headers: { 'x-chave': chave }, corpo: null });
+      req.on = function () { return this; }; // fluxo encerrado: nunca dispara 'data' nem 'end'
+      const res = fazerRes();
+      let timer;
+      const limite = new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('travou esperando o fluxo')), 1500); });
+      try { await Promise.race([handler(req, res), limite]); } finally { clearTimeout(timer); }
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.json().ok, false);
+      nada();
+    });
+
     describe('tamanho', () => {
+      it('a Vercel recusa o corpo grande ao ler (statusCode 413): responde 413, não 400', async () => {
+        const r = await chamar(handler, ok({ corpoQuebra: { statusCode: 413, message: 'Body exceeded 1mb limit' }, corpo: undefined }));
+        assert.equal(r.statusCode, 413);
+        assert.ok(!r.corpo.includes('Body exceeded'));
+        nada();
+      });
+
       it('Content-Length acima do limite: 413 sem ler o corpo', async () => {
         const r = await chamar(handler, ok({ headers: { 'x-chave': chave, 'content-length': String(handler.LIMITE_BYTES + 1) } }));
         assert.equal(r.statusCode, 413);

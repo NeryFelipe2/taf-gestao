@@ -29,6 +29,8 @@ Para o endpoint `/api/leitura` (abaixo) funcionar, cadastrar uma vez em Vercel >
 ## Atualizar os números (quem faz: o Claude)
 A leitura **não passa mais pelo Git**: sem `seed.js`, sem commit, sem push, sem chave na URL. O script lê a rev6 no computador e envia por POST; o banco confere a chave (como sempre).
 
+O envio (`--enviar`) só funciona depois que esta versão for publicada na Vercel **e** as duas variáveis acima estiverem cadastradas; antes disso responde 404 ou 500. Enquanto isso, atualizar pelo botão **Atualizar com a rev6** do site (passo 6). Nunca voltar ao `/api/seed?k=`.
+
 1. `npm i xlsx@0.18.5` (fora do repositório).
 2. Guardar a chave só na sessão do terminal (não digitar na linha do comando, nem em URL, nem em arquivo do repositório):
    - Git Bash: `read -s TAF_CHAVE; export TAF_CHAVE`

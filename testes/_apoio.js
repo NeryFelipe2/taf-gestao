@@ -70,7 +70,8 @@ function fazerReq(o) {
   } else {
     req = {};
     if (o.corpo !== undefined) req.body = o.corpo;
-    if (o.corpoQuebra) Object.defineProperty(req, 'body', { get() { throw new Error('Invalid JSON'); } });
+    // corpoQuebra: true = JSON quebrado; ou o erro que o ajudante da Vercel lançaria (ex.: { statusCode: 413 })
+    if (o.corpoQuebra) Object.defineProperty(req, 'body', { get() { throw o.corpoQuebra === true ? new Error('Invalid JSON') : o.corpoQuebra; } });
   }
   req.method = o.method || 'POST';
   req.url = o.url || '/api/leitura';
