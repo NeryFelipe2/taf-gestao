@@ -20,7 +20,7 @@ A mesma conta do comprometido está escrita em SQL em `fonte/erp/sql/02_rastro.s
 Isso é a dupla contagem de hoje. Para o banco acompanhar a chave `calc_v2`:
 
 1. a função precisa ler `par.calc_v2` da obra (está em `taf_erp_obra.estado`, a mesma chave que o navegador grava);
-2. com a chave ligada, o pedido é abatido pelo total das notas ligadas a ele (agrupando as notas só por pedido) e o valor continua no item do pedido;
+2. com a chave ligada, o pedido é abatido pelo total das notas ligadas a ele (agrupando as notas só por pedido) e o valor continua no item do pedido. **Só contam as linhas de rateio em item que existe no orçamento (EAP) da obra**: rateio para item que não existe não vira realizado de item nenhum, então não abate o pedido (o valor continua comprometido; no navegador isso vira aviso). Foi achado da revisão (B4): sem essa regra o valor sumia das duas pontas;
 3. com a chave desligada, a função tem de devolver **exatamente** o mesmo número da atual [SUPOSIÇÃO do plano, seção "Banco"];
 4. a função é a base de `taf_erp_rastro` e `taf_erp_resumo` (`02_rastro.sql:65` e `:118`): a tela "Da tarefa à compra" e o resumo do Ciclo/Marko leem esses números.
 
@@ -33,6 +33,10 @@ Isso é a dupla contagem de hoje. Para o banco acompanhar a chave `calc_v2`:
 ## Enquanto isso (importante)
 
 Com `calc_v2` ligada numa obra, o navegador conta uma vez só a nota rateada fora do item do pedido, mas o SQL do rastro continua contando como hoje. Os números da tela "Da tarefa à compra" (rastro) e os da aba Eventos/Orçamento podem diferir **nos eventos que têm nota rateada fora do item do pedido**. Por isso: só ligar `calc_v2` nas obras de teste (999) até o SQL ser aplicado, ou ligar sabendo dessa diferença.
+
+## Já avisado na tela (revisão M3)
+
+Com `calc_v2` ligada o ERP mostra, até o SQL ser aplicado: a frase na descrição da chave (Parâmetros), um alerta fixo, e uma faixa nas telas "Eventos" e "Da tarefa à compra e ao BM", dizendo que o banco ainda conta como antes. Quando o SQL for aplicado, apagar `AVISO_SQL_CALC` e `avisoSqlCalc` (`05_motor_de_regras.js`) e os pontos que os chamam (`07_alertas.js`, `50_rastro.js`, `52_eventos.js`). O texto do Ciclo (`fonte/ciclo-erp.js:92`, "nunca se somam para o mesmo valor") é de antes deste trabalho e não foi alterado.
 
 ## Como provar depois que o SQL for aplicado (na obra 999, por RPC, como na prova de 22/10)
 

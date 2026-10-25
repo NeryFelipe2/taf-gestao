@@ -18,11 +18,12 @@ Precisa de Node 20 ou mais novo e do `git` (o teste "igual ao de partida" lê o 
 | `base_igual.test.js` | Com as chaves novas desligadas (padrão), o ERP novo calcula e mostra **exatamente** o que o commit de partida mostrava: 300 cenários aleatórios + obra 999, comparando saldos, alertas, Orçamento, Pacotes, Plano de contas, painéis, semáforo, abas, remanejar e Atualizar pela planilha. |
 | `m1_conta.test.js` | M1, conta única. Cenário do plano (item A meta 1.000, OC 600 no A, NF 600 rateada 100% no B): desligada conta R$ 1.200 como hoje; ligada conta R$ 600 e avisa. As 6 cópias (05, 16, 29, 44 x2, 48) dão o mesmo número em 300 cenários, com a chave ligada e desligada. |
 | `m1_remaneja.test.js` | M1, remanejar acerta `meta_unit`; "Atualizar pela planilha" lista os itens remanejados e deixa escolher qual meta vale; Parâmetros liga e desliga as chaves. |
+| `revisao.test.js` | Correções dos achados da revisão: botão Salvar dos Parâmetros grava as chaves; rateio para item que não existe no orçamento não faz o valor sumir; nota sem lista de rateio falha como a partida (chave desligada); semáforo do grupo vermelho quando a meta já passa do limite; pacote sem teto usa o cadastro; código de pacote com espaço; meta do pacote nos alertas; aviso de que o banco não acompanha `calc_v2`; refatoração do realizado por conta e das listas de status (igual à partida em 300 cenários); texto da 342 só na 342; link direto para Eventos. |
 | `m2.test.js` | M2, a soma dos itens de cada evento e de cada pacote é o grupo; item sem evento aparece em "Sem evento"; pacotes cruzando eventos; fecha com o total da obra; a diferença de 4.1.1 e 4.1.2 aparece; obra sem evento usa o grupo; teto e alerta do pacote pela soma; aba só com a chave ligada; tela só leitura. |
 
 ## Outros arquivos
 
-- `ambiente.js`: monta o mesmo script do `build.py` num contexto do `vm` com um `document` de mentira (o `fetch` sempre recusa).
+- `ambiente.js`: monta o mesmo script do `build.py` num contexto do `vm` com um `document` de mentira (o `fetch` sempre recusa). `api.clicar('params-ok')` dispara o clique de verdade num botão `data-act`.
 - `gerador.js`: cenários aleatórios repetíveis (mesma semente, mesmo cenário).
 - `obra999.js`: a obra fictícia (itens, pacotes, eventos, um pedido e notas) e o "eventograma oficial" fictício.
 - `instantaneo.js`: "fotografia" do que o ERP calcula e mostra, para comparar partida e novo.
