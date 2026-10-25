@@ -23,7 +23,8 @@ function prep(){
 const OC_COMPROMETE=['aprovada','recebida_parcial','recebida'];
 /* Chaves liga/desliga POR OBRA, guardadas em estado.par (vão para o banco junto com os parâmetros). Todas nascem DESLIGADAS: desligada = o ERP de sempre. [SUPOSIÇÃO: mecanismo proposto no plano 00-MATRIZ-E-PLANO] */
 const CHAVES_OBRA=[
- {k:'calc_v2',n:'Cálculo único de comprometido e realizado (M1)',d:'Nota rateada em outro item não conta duas vezes: o pedido é abatido pela nota inteira, com aviso. Remanejar meta também acerta a meta unitária. Atualizar pela planilha lista os itens remanejados.'}];
+ {k:'calc_v2',n:'Cálculo único de comprometido e realizado (M1)',d:'Nota rateada em outro item não conta duas vezes: o pedido é abatido pela nota inteira, com aviso. Remanejar meta também acerta a meta unitária. Atualizar pela planilha lista os itens remanejados.'},
+ {k:'ev_agrega',n:'Eventos e pacotes pela soma dos itens (M2)',d:'O teto e o alerta do pacote passam a olhar a soma dos itens. Liga a aba Eventos (só leitura): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote.'}];
 const chaveLigada=(k,t)=>{const p=(t||S.t||{}).par;return !!(p&&p[k])};
 const calcV2=t=>chaveLigada('calc_v2',t);
 function contaObra(t){
@@ -58,7 +59,7 @@ function semaforo(cod,total,pendId){
   if(total<=s.livre)return ['verde','Cabe no saldo da meta','Saldo livre '+brl(s.livre)+'. Vira pedido sem alçada.'];
   return ['amarelo','Acima da meta, até o teto','Saldo livre '+brl(s.livre)+'. O Gerente de contrato aprova com justificativa.'];
 }
-const SEM_CLASS={verde:'ok',amarelo:'warn',vermelho:'bad',bloqueado:'bad'};
+const SEM_CLASS={verde:'ok',amarelo:'warn',vermelho:'bad',bloqueado:'bad',sem_base:'mute'};
 const semPill=s=>`<span class="pill ${SEM_CLASS[s]||'mute'}">${s||'—'}</span>`;
 const PX={sol:'SC',oc:'OC',nf:'NF',bm:'BM',apt:'AP',rst:'RE',tar:'TA',bc:'BC',fat:'FT'};
 const fmtNum=(k,n)=>PX[k]+'-'+String(n).padStart(4,'0');

@@ -3,7 +3,7 @@ function pacRow(p){
   const d=p._dias;const pill=p._temOC?'<span class="pill ok">Com pedido</span>':d==null?'':d<0?`<span class="pill bad">Vencido ${-d}d</span>`:d<=7?`<span class="pill warn">Em ${d} dias</span>`:`<span class="pill ok">Em ${d} dias</span>`;
   const c=p._acima?'var(--bad)':p._cot?'var(--warn)':'var(--ok)';
   return `<div class="row">${ring(p._pctCot,c)}<div><h4>${esc(p.nome)}<span class="mono">${p.codigo}</span></h4><p>${p._it.length} ${p._it.length===1?'item':'itens'} · ${p._cot?p._cot+' sem cotação':'todos cotados'}${p._semFolga?` · ${p._semFolga} sem folga`:''}</p></div>
-   <div>${p._acima?'<span class="pill bad">Meta &gt; teto</span> ':''}${pill}</div><div class="val"><b>${brl(p.meta,true)}</b><span>teto ${brl(p.teto,true)}</span></div></div>`}
+   <div>${p._acima?'<span class="pill bad">Meta &gt; teto</span> ':''}${pill}</div><div class="val"><b>${brl(pacMeta(p),true)}</b><span>teto ${brl(pacTeto(p),true)}</span></div></div>`}
 function minhaFila(X){
   const f=[];
   if(!S.t.frozen&&can('congelar'))f.push(['bad','Congelar a linha de base v1','Libera a abertura de compras na obra.','eap']);
