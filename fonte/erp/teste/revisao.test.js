@@ -128,7 +128,7 @@ test('M2: pacote e evento com meta somada acima do limite (teto) saem vermelhos 
   assert.equal(sem(P, 'ELET')[0], 'vermelho'); assert.match(sem(P, 'ELET')[1], /Meta acima do limite/);
   assert.equal(sem(E, '4.1.1')[0], 'vermelho', 'evento 4.1.1: meta 17.000, limite 16.900'); assert.equal(sem(E, '')[0], 'vermelho', 'Sem evento: meta 2.000, limite 1.500');
   assert.equal(sem(P, 'HIDR')[0], 'verde'); assert.equal(sem(P, 'CANT')[0], 'verde'); assert.equal(sem(E, '1.1.1')[0], 'verde');
-  S.tab.evt = 'pacote'; const h = novo.viewEventos(X);
+  S.tab.evt = 'pacote'; S.tab.evtv = 'tabela'; const h = novo.viewEventos(X);   /* linhas da tabela: vista "Ver como tabela" */
   assert.match(linhaDe(h, 'ELET', 'pacote'), /pill bad" title="Meta acima do limite/); assert.match(linhaDe(h, 'HIDR', 'pacote'), /pill ok"/);
   assert.match(h, /meta já acima do limite/, 'a tela explica a regra');
 });
@@ -160,7 +160,7 @@ test('B1: itens do pacote sem teto: com a chave ligada o pacote mostra o teto do
   assert.equal(pL._acima, false);
   const linha = hL.split('<tr').find(l => l.includes('data-pac="ELET"')); assert.match(linha, /R\$\s18\.000,00<\/td><td class="r ">R\$\s20\.000,00/, 'colunas Meta e Teto da linha do pacote');
   /* o Eventos continua mostrando "—" (nenhum item tem limite) e avisa o valor do cadastro */
-  const X = novo.S.X = novo.derive(); novo.S.tab.evt = 'pacote'; const he = novo.viewEventos(X); assert.match(linhaDe(he, 'ELET', 'pacote'), /cadastro do pacote: R\$\s20\.000,00/);
+  const X = novo.S.X = novo.derive(); novo.S.tab.evt = 'pacote'; novo.S.tab.evtv = 'tabela'; const he = novo.viewEventos(X); assert.match(linhaDe(he, 'ELET', 'pacote'), /cadastro do pacote: R\$\s20\.000,00/);
 });
 test('B1: sem meta em nenhum item do pacote vale o cadastro (meta e teto), igual desligada; com meta e teto nos itens vale a soma', () => {
   const D = obra999(); D.eap.filter(e => e.pacote === 'ELET').forEach(e => { e.meta_total = null; });
@@ -179,7 +179,7 @@ test('B2: item com código de pacote "CANT " (espaço no fim): Eventos e Pacotes
   assert.equal(canto.n, S.D.pacotes.find(p => p.codigo === 'CANT')._it.length, 'mesma contagem da tela de Pacotes'); assert.equal(canto.n, 1);
   assert.ok(solto && solto.n === 1 && solto.semCadastro === true, 'o item de "CANT " não some nem é juntado em silêncio'); assert.equal(canto.semCadastro, false);
   assert.ok(P.confere.ok, 'continua fechando com a obra');
-  S.tab.evt = 'pacote'; const h = novo.viewEventos(X); assert.match(linhaDe(h, 'CANT ', 'pacote'), /pacote não cadastrado/); assert.match(linhaDe(h, 'CANT ', 'pacote'), /“CANT ”/);
+  S.tab.evt = 'pacote'; S.tab.evtv = 'tabela'; const h = novo.viewEventos(X); assert.match(linhaDe(h, 'CANT ', 'pacote'), /pacote não cadastrado/); assert.match(linhaDe(h, 'CANT ', 'pacote'), /“CANT ”/);
   assert.doesNotMatch(linhaDe(h, 'CANT', 'pacote'), /não cadastrado/);
 });
 test('B2: pacote só com espaços vira "Sem pacote"; pacote que não está no cadastro é avisado', () => {
@@ -229,7 +229,7 @@ test('M3: com calc_v2 ligada o aviso aparece nos Alertas, em Eventos e na janela
 });
 test('M3: sem calc_v2 os Alertas e Eventos ficam iguais ao que eram (só ev_agrega)', () => {
   abre(novo, obra999(), estado999({ ev_agrega: true })); const X = novo.derive();
-  assert.ok(!J(novo.alertas(X)).some(a => /banco ainda/.test(a[1] + a[2]))); assert.doesNotMatch(novo.viewEventos(X), /atenção/);
+  assert.ok(!J(novo.alertas(X)).some(a => /banco ainda/.test(a[1] + a[2]))); assert.doesNotMatch(novo.viewEventos(X), /<span class="pill warn">atenção<\/span>/);
 });
 
 /* ============ B6 do revisor: cópias do cálculo que ficaram fora de contaObra (só refatoração: nada pode mudar) ============ */

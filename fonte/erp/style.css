@@ -237,3 +237,46 @@ html.emb body{background:transparent}
 html.emb h1,html.emb h2,html.emb h3{font-family:'Outfit','Inter',system-ui,sans-serif;font-weight:600}
 html.emb .btn.dark{background:var(--btn);color:var(--btn-ink);border-color:transparent}
 html.emb a.btn[href="/"]{display:none}
+
+/* ============ Eventos: painel por evento e por pacote (design de painel). Só variáveis de tema: vale no claro, no escuro e dentro do Centro de Gestão (embed). ============ */
+.ev-sub{color:var(--ink-2);font-size:16px;line-height:1.5;max-width:68ch;margin:4px 0 0}
+.ev-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:16px;margin:24px 0 8px}
+.ev-kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;min-width:0}
+.ev-kpi .l{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.ev-kpi .v{font-size:26px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:8px 0 4px;overflow-wrap:anywhere}
+.ev-kpi .v.neg{color:var(--bad)}
+.ev-kpi .o{font-size:12px;line-height:1.4;color:var(--ink-2)}
+.ev-bar-top{display:flex;gap:12px 24px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:24px 0 16px}
+.ev-ctl{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}
+.ev-sec{font-size:13px;color:var(--ink-2)}
+.ev-aviso{margin:8px 0 0;font-size:13px;color:var(--ink-2)}.ev-aviso summary{cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ev-aviso .sub{margin:8px 0 0}
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.ev-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0;cursor:pointer;transition:border-color .15s}
+.ev-card:hover{border-color:var(--ink-2)}
+.ev-card:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.ev-card.vermelho{box-shadow:inset 4px 0 0 var(--bad)}.ev-card.amarelo{box-shadow:inset 4px 0 0 var(--warn)}
+.ev-top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.ev-id{min-width:0;overflow-wrap:anywhere}.ev-id b{font-size:16px;font-weight:600}.ev-id .mono b{font-size:16px}
+.ev-saldo{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ev-saldo .n{font-size:26px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ev-saldo .n.neg{color:var(--bad)}.ev-saldo .t{font-size:12px;color:var(--ink-2)}
+.ev-why{font-size:12.5px;line-height:1.45;color:var(--ink-2);margin:-4px 0 0}
+.ev-bar{position:relative;display:flex;height:8px;border-radius:4px;background:var(--tick-off,var(--line))}
+.ev-bar i{display:block;height:100%}
+.ev-bar .r{background:var(--ink);border-radius:4px 0 0 4px}.ev-bar .c{background:var(--info)}.ev-bar .v{background:var(--warn)}
+.ev-bar .m,.ev-bar .l{position:absolute;top:-3px;height:14px;width:2px;background:var(--ink-2)}.ev-bar .l{background:var(--bad)}
+.ev-cap{font-size:12px;color:var(--ink-2);margin-top:-4px}
+.ev-fatos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:4px 0 0}
+.ev-fatos div{min-width:0}.ev-fatos dt{font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.ev-fatos dd{margin:2px 0 0;font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.ev-fatos dd.neg{color:var(--bad)}
+.ev-rod{font-size:12px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:12px;display:flex;gap:4px 16px;flex-wrap:wrap}.ev-rod .neg b{color:var(--bad)}
+.ev-leg{display:flex;gap:8px 20px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:20px 0 0}
+.ev-leg i{display:inline-block;width:12px;height:8px;border-radius:2px;margin-right:6px}
+.ev-leg i.r{background:var(--ink)}.ev-leg i.c{background:var(--info)}.ev-leg i.v{background:var(--warn)}
+.ev-leg i.m,.ev-leg i.l{width:2px;height:12px;border-radius:0;vertical-align:-2px;background:var(--ink-2)}.ev-leg i.l{background:var(--bad)}
+.ev-como{margin-top:24px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:12px 20px}
+.ev-como summary{cursor:pointer;font-weight:500}.ev-como p{color:var(--ink-2);font-size:13.5px;line-height:1.5;max-width:78ch;margin:8px 0}
+@media (max-width:520px){.ev-grid{grid-template-columns:minmax(0,1fr)}.ev-card{padding:16px}.ev-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ev-kpi{padding:12px 14px}.ev-kpi .v{font-size:20px}}
+.ev-card .pill{color:var(--ink)}
+.ev-card .pill::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ink-2)}
+.ev-card .pill.ok::before{background:var(--ok)}.ev-card .pill.warn::before{background:var(--warn)}.ev-card .pill.bad::before{background:var(--bad)}

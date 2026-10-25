@@ -23,6 +23,8 @@ Precisa de Node 20 ou mais novo e do `git` (o teste "igual ao de partida" lê o 
 | `m3.test.js` | M3, compra com várias linhas (chave `par.oc_linhas`). Pedido de plano "FOFO": linha sem meta bloqueia a solicitação inteira; sem ela sai amarela, vira OC de duas linhas, é aprovada, recebida e rateada nas mesmas linhas; nota menor que o pedido reparte proporcional; faturado por linha. Pedido antigo (OC-9001 da 999 e 300 cenários) sai igual com a chave ligada. Pedidos com `linhas` guardadas, chave desligada: igual ao ERP de partida em 300 cenários. Comprometido por linha contra uma conta escrita de novo no teste (300 cenários, `calc_v2` ligada e desligada). Todos os leitores de item do pedido e da solicitação. |
 | `m4.test.js` | M4, limite em três níveis (chave `par.ev_ctrl`). Cenários do plano: (a) item verde e evento sem saldo dá amarelo; (b) pacote acima do limite dá vermelho e vai à Diretoria; (c) duas OCs pendentes no mesmo item, a segunda recalcula e muda de cor ao ser aprovada (e a reserva já vale na emissão); (d) nota sem pedido acima do saldo pede alçada; (e) quem solicitou não aprova, por usuário e não por nome. Mais D2 (verdes do mesmo pacote e dia somam), D6 (item rígido), E3 (grupo acima do limite é vermelho), obra sem evento (grupo da EAP), tela de Aprovações, cor ligada nunca mais branda que desligada em 300 cenários e 150 sequências de ponta a ponta com M3 e M4 ligadas. |
 | `acoes_igual.test.js` | Gravações com as chaves novas desligadas: 150 sequências de ações na tela (solicitar, cotar, emitir OC, aprovar ou reprovar, receber, ratear a nota, conferir, liberar, nota sem pedido) deixam documentos, auditoria e mensagens iguais às do ERP de partida (`243d676`). |
+| `eventos_painel.test.js` | Tela Eventos refeita (skill design-de-painel): vista de cartões por padrão e tabela só em "Ver como tabela"; mais graves primeiro e "Sem evento" no fim; frase com a mensagem principal; cada número do topo com a origem; cor sempre com texto; filtros; reservado do M4; barra nunca passa de 100%; obra sem evento; 300 cenários sem quebrar; nenhuma cor escrita à mão no estilo do painel. |
+| `contraste.test.js` | Contraste AA (4,5:1) do texto do painel e das etiquetas de cor nas 5 paletas: ERP claro, ERP escuro, e dentro do Centro de Gestão Claro, Masterclass e Grotesk (paletas lidas do `style.css`). |
 
 ## Outros arquivos
 
@@ -31,7 +33,8 @@ Precisa de Node 20 ou mais novo e do `git` (o teste "igual ao de partida" lê o 
 - `obra999.js`: a obra fictícia (itens, pacotes, eventos, um pedido e notas) e o "eventograma oficial" fictício.
 - `instantaneo.js`: "fotografia" do que o ERP calcula e mostra, para comparar partida e novo.
 - `acoes.js`: as ações pela tela (`solicita`, `emite`, `lancaNota`): preenchem os campos do formulário e chamam a função do ERP, como o clique faria.
-- `pagina_demo.js`: gera uma página para abrir no navegador, sem rede, só com a obra 999.
+- `pagina_demo.js`: gera uma página para abrir no navegador, sem rede, só com a obra 999. Opções: `--chaves=ev_agrega,oc_linhas,ev_ctrl` liga as chaves já na página, `--vista=evt` abre direto numa tela, `--abas=evt:pacote` escolhe as abas dela, `--nome=` troca o nome do arquivo.
+- `tirar_prints.js` e `capa_temas.html`: ferramenta de conferência do visual (não faz parte do ERP). Tiram prints da tela com o Chrome sem janela, em 5 temas e 3 larguras; os temas do Centro de Gestão (Claro, Masterclass, Grotesk) são simulados com as variáveis de `public/index.html`. Instruções no começo de `tirar_prints.js`.
 
 ## Ver a tela no navegador (sem chave, sem banco)
 

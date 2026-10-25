@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Capa de teste dos temas (fora do repositório)</title>
+<style>html,body{margin:0;height:100%}body{background:var(--bg,#fff)}iframe{border:0;display:block;width:100%}</style></head>
+<body><script>
+/* Só para conferir o visual da tela Eventos nos temas do site. Não faz parte do ERP.
+   modo=solo&tema=light|dark: abre o ERP sozinho no tema claro ou escuro do próprio ERP.
+   modo=embed&estilo=claro|masterclass|grotesk: abre o ERP como o Centro de Gestão abre (?embed=1) e manda o tema e as variáveis do estilo escolhido,
+   com os valores que estão em public/index.html (:root, :root[data-theme=dark] e :root[data-estilo=grotesk]). */
+var Q = new URLSearchParams(location.search), modo = Q.get('modo') || 'solo', alvo = Q.get('alvo') || 'erp-eventos.html';
+var FONTES = { '--f-hd': "'Outfit','Inter',system-ui,sans-serif", '--f-tx': "'Inter',system-ui,sans-serif", '--f-mono': "'JetBrains Mono',ui-monospace,monospace" };
+var ESTILOS = {
+  claro: { tema: 'light', v: { '--bg': '#F6F7FA', '--panel': '#FFFFFF', '--raised': '#EEF1F6', '--hover': '#E7ECF3', '--line': 'rgba(15,118,110,.28)', '--line2': 'rgba(15,23,42,.10)', '--tx': '#1B2433', '--hd': '#0F172A', '--mu': '#4B5563', '--mu2': '#5B6472', '--ac': '#0F766E', '--ac2': '#0F766E', '--acbg': 'rgba(15,118,110,.10)', '--r': '12px' } },
+  masterclass: { tema: 'dark', v: { '--bg': '#060610', '--panel': '#0B0B19', '--raised': '#12122A', '--hover': '#17173A', '--line': 'rgba(45,212,191,.14)', '--line2': 'rgba(255,255,255,.07)', '--tx': '#E6E6EE', '--hd': '#FAFAFA', '--mu': '#A0A0B8', '--mu2': '#8B8BA5', '--ac': '#14B8A6', '--ac2': '#2DD4BF', '--acbg': 'rgba(20,184,166,.13)', '--r': '12px' } },
+  grotesk: { tema: 'light', v: { '--bg': '#F4F1EA', '--panel': '#FAF8F3', '--raised': '#EAE6DC', '--hover': '#DEDACF', '--line': 'rgba(12,11,10,.28)', '--line2': 'rgba(12,11,10,.12)', '--tx': '#161513', '--hd': '#0C0B0A', '--mu': '#4A4743', '--mu2': '#5E5B55', '--ac': '#D43D17', '--ac2': '#B2310F', '--acbg': 'rgba(212,61,23,.10)', '--f-hd': "'Archivo',system-ui,sans-serif", '--f-tx': "'Archivo',system-ui,sans-serif", '--f-mono': "'IBM Plex Mono',ui-monospace,monospace", '--r': '0px' } }
+};
+var iw = parseInt(Q.get('iw') || '0', 10), ih = parseInt(Q.get('h') || '1700', 10);
+function quadro(src, estilo) {
+  var f = document.createElement('iframe'); f.src = src; f.style.height = ih + 'px'; if (iw) f.style.width = ((estilo && iw >= 600) ? iw - 32 : iw) + 'px';
+  if (estilo) document.body.style.padding = (iw && iw < 600) ? '0' : '16px';
+  document.body.style.boxSizing = 'border-box'; document.body.appendChild(f); return f;
+}
+if (modo === 'solo') {
+  try { localStorage.setItem('taf_tema', Q.get('tema') === 'dark' ? 'dark' : 'light'); } catch (e) {}
+  quadro(alvo, false);
+} else {
+  var e = ESTILOS[Q.get('estilo')] || ESTILOS.claro, vars = Object.assign({}, FONTES, e.v);
+  Object.keys(vars).forEach(function (k) { document.documentElement.style.setProperty(k, vars[k]); });
+  var f = quadro(alvo + (alvo.indexOf('?') < 0 ? '?' : '&') + 'embed=1', true);
+  if (!iw) f.style.height = (ih - 32) + 'px';
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== location.origin || !ev.data || !ev.data.taf) return;
+    if (ev.data.pronto) f.contentWindow.postMessage({ taf: 1, tema: e.tema, vars: vars }, location.origin);
+  });
+}
+</script></body></html>

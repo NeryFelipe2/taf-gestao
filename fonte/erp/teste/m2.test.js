@@ -108,6 +108,7 @@ test('4.1.1 e 4.1.2: a diferença contra o eventograma oficial aparece na tela, 
   assert.equal(E.temRef, true);
   perto(g('4.1.1').dif, 1000, '4.1.1: o ERP soma 26.000, o oficial tem 25.000'); perto(g('4.1.2').dif, -1000, '4.1.2: o ERP soma 5.000, o oficial tem 6.000');
   perto(g('1.1.1').dif, 0, '1.1.1 bate'); perto(g('2.1.1').dif, 0, '2.1.1 bate');
+  S.tab.evtv = 'tabela';   /* as linhas da tabela só existem na vista "Ver como tabela" (a padrão é a de cartões) */
   const h = api.viewEventos(X);
   assert.match(h, /Eventograma oficial/); assert.match(h, /Diferença/);
   const lin = c => h.split('<tr').find(l => l.includes(`data-k="${c}"`));
