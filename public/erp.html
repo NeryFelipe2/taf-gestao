@@ -639,17 +639,48 @@ const dominante=i=>{const n=i.natureza||{};const k=Object.keys(n).sort((a,b)=>n[
   if(n[k]>0)return k;return /material/.test(i.tipo||'')?'MAT':'TER'};
 function prep(){
   const D=S.D;D.items=D.eap.filter(e=>e.tipo_linha==='item');
-  D.items.forEach(i=>{const ov=S.t.baseOv&&S.t.baseOv[i.codigo];if(ov){i.meta_base=ov.meta_total;i.teto_total=ov.teto_total;i.status_cotacao=ov.status_cotacao;i.meta_unit=ov.meta_unit}else i.meta_base=i.meta_base??i.meta_total;if(S.t.metaOv[i.codigo]!=null)i.meta_total=S.t.metaOv[i.codigo];else i.meta_total=i.meta_base;i.nat=dominante(i)});
+  D.items.forEach(i=>{if(!('_mu0' in i))i._mu0=i.meta_unit;   /* meta_unit como veio da carga, para a chave calc_v2 poder voltar atrás */
+    const ov=S.t.baseOv&&S.t.baseOv[i.codigo];if(ov){i.meta_base=ov.meta_total;i.teto_total=ov.teto_total;i.status_cotacao=ov.status_cotacao;i.meta_unit=ov.meta_unit}else i.meta_base=i.meta_base??i.meta_total;if(S.t.metaOv[i.codigo]!=null)i.meta_total=S.t.metaOv[i.codigo];else i.meta_total=i.meta_base;i.nat=dominante(i);
+    /* calc_v2 [SUPOSIÇÃO, plano M1]: o remanejamento grava só a meta do item; meta_unit passa a acompanhá-la (meta ÷ quantidade, mesma conta de 21_sync_planilha.js). Derivado na leitura: nada é regravado. */
+    {const mu=calcV2(S.t)&&S.t.metaOv[i.codigo]!=null&&i.qtd>0?r2(i.meta_total/i.qtd*10000)/10000:(ov?ov.meta_unit:i._mu0);if(i.meta_unit!==mu)i.meta_unit=mu}});
   D.pacotes.forEach(p=>{const o=S.t.basePac&&S.t.basePac[p.codigo];if(o)Object.assign(p,o)});
   S.byCod=Object.fromEntries(D.eap.map(e=>[e.codigo,e]));
   D.items.forEach(i=>{i.linhas=i.composicao||[{nat:i.nat,share:1}]});
   D.pacotes.forEach(p=>p._it=D.items.filter(i=>i.pacote===p.codigo));
 }
+/* ---------- conta única de comprometido, realizado e saldo (M1) ----------
+   Toda tela que mostra "pedido sem nota" (comprometido) ou "realizado" chama contaObra(): ninguém repete a conta.
+   Comprometido = pedido aprovado ainda sem nota; realizado = nota rateada (qualquer status menos "lancada"). Os dois nunca somam o mesmo valor.
+   Chave par.calc_v2 (por obra, padrão DESLIGADA, vale para o navegador; o SQL _taf_erp_valores continua como era, ver LEIA-ME-M1-SQL-PENDENTE.md):
+   - desligada: conta de sempre. A OC é abatida só pelas notas rateadas NO MESMO ITEM da OC (chave oc|item).
+   - ligada [SUPOSIÇÃO: regra do plano 00-MATRIZ-E-PLANO, M1; ainda sem ok do Felipe]: a OC é abatida pelo TOTAL das notas ligadas a ela, em qualquer item
+     do rateio. Nota rateada fora do item da OC deixa de contar duas vezes e gera aviso (contaObra().avisos). */
+const OC_COMPROMETE=['aprovada','recebida_parcial','recebida'];
+/* Chaves liga/desliga POR OBRA, guardadas em estado.par (vão para o banco junto com os parâmetros). Todas nascem DESLIGADAS: desligada = o ERP de sempre. [SUPOSIÇÃO: mecanismo proposto no plano 00-MATRIZ-E-PLANO] */
+const CHAVES_OBRA=[
+ {k:'calc_v2',n:'Cálculo único de comprometido e realizado (M1)',d:'Nota rateada em outro item não conta duas vezes: o pedido é abatido pela nota inteira, com aviso. Remanejar meta também acerta a meta unitária. Atualizar pela planilha lista os itens remanejados.'},
+ {k:'ev_agrega',n:'Eventos e pacotes pela soma dos itens (M2)',d:'O teto e o alerta do pacote passam a olhar a soma dos itens. Liga a aba Eventos (só leitura): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote.'}];
+const chaveLigada=(k,t)=>{const p=(t||S.t||{}).par;return !!(p&&p[k])};
+const calcV2=t=>chaveLigada('calc_v2',t);
+function contaObra(t){
+  t=t||S.t;const v2=calcV2(t),ocs=t.ocs||[],real=[],fatItem={},fatOC={},porId={};
+  ocs.forEach(o=>{porId[o.id]=o});
+  (t.notas||[]).forEach(n=>{if(n.status==='lancada')return;(n.rateio||[]).forEach(l=>{const v=+l.valor;real.push({n,l,v});
+    if(n.oc){const k=n.oc+'|'+l.item;fatItem[k]=(fatItem[k]||0)+v;fatOC[n.oc]=(fatOC[n.oc]||0)+v}})});
+  const comp=[],avisos=[];
+  ocs.forEach(o=>{if(!OC_COMPROMETE.includes(o.status))return;
+    const abate=v2?(fatOC[o.id]||0):(fatItem[o.id+'|'+o.item]||0);comp.push({oc:o,comp:Math.max(0,o.valor-abate),abate})});
+  /* aviso: nota rateada em item diferente do item da OC. Uma linha por nota+OC, com os itens e o valor que caiu fora. */
+  if(v2)(t.notas||[]).forEach(n=>{const o=n.status!=='lancada'&&n.oc&&porId[n.oc];if(!o||!OC_COMPROMETE.includes(o.status))return;
+    const fora=(n.rateio||[]).filter(l=>l.item!==o.item);if(!fora.length)return;
+    avisos.push({tipo:'nota_fora_do_item',oc:o.id,ocNum:o.num,itemOC:o.item,nota:n.id,notaNum:n.num,itens:[...new Set(fora.map(l=>l.item))],valor:r2(fora.reduce((s,l)=>s+ +l.valor,0))})});
+  return {v2,real,ocs:comp,avisos};
+}
 function saldos(){
   const m={};S.D.items.forEach(i=>m[i.codigo]={comp:0,real:0});
-  const fat={};
-  S.t.notas.forEach(n=>{if(n.status==='lancada')return;n.rateio.forEach(l=>{m[l.item]&&(m[l.item].real+=+l.valor);if(n.oc)fat[n.oc+'|'+l.item]=(fat[n.oc+'|'+l.item]||0)+ +l.valor})});
-  S.t.ocs.forEach(o=>{if(['aprovada','recebida_parcial','recebida'].includes(o.status)&&m[o.item])m[o.item].comp+=Math.max(0,o.valor-(fat[o.id+'|'+o.item]||0))});
+  const C=S.conta=contaObra(S.t);
+  C.real.forEach(x=>{m[x.l.item]&&(m[x.l.item].real+=x.v)});
+  C.ocs.forEach(x=>{if(m[x.oc.item])m[x.oc.item].comp+=x.comp});
   S.sd=m;S.D.items.forEach(i=>{const s=m[i.codigo];s.meta=i.meta_total;s.teto=i.teto_total;s.livre=r2(i.meta_total-s.comp-s.real)});
   return m;
 }
@@ -663,7 +694,7 @@ function semaforo(cod,total,pendId){
   if(total<=s.livre)return ['verde','Cabe no saldo da meta','Saldo livre '+brl(s.livre)+'. Vira pedido sem alçada.'];
   return ['amarelo','Acima da meta, até o teto','Saldo livre '+brl(s.livre)+'. O Gerente de contrato aprova com justificativa.'];
 }
-const SEM_CLASS={verde:'ok',amarelo:'warn',vermelho:'bad',bloqueado:'bad'};
+const SEM_CLASS={verde:'ok',amarelo:'warn',vermelho:'bad',bloqueado:'bad',sem_base:'mute'};
 const semPill=s=>`<span class="pill ${SEM_CLASS[s]||'mute'}">${s||'—'}</span>`;
 const PX={sol:'SC',oc:'OC',nf:'NF',bm:'BM',apt:'AP',rst:'RE',tar:'TA',bc:'BC',fat:'FT'};
 const fmtNum=(k,n)=>PX[k]+'-'+String(n).padStart(4,'0');
@@ -684,24 +715,71 @@ function derive(){
   D.pacotes.forEach(p=>{p._dias=diasAte(p.fechar_ate);p._cot=p._it.filter(i=>i.status_cotacao==='A cotar').length;p._pctCot=p._it.length?1-p._cot/p._it.length:1;
     p._semFolga=p._it.filter(i=>i.meta_total>i.teto_total).length;p._acima=p.meta>p.teto;
     p._meta=p._it.reduce((s,i)=>s+i.meta_total,0);p._comp=p._it.reduce((s,i)=>s+S.sd[i.codigo].comp,0);p._real=p._it.reduce((s,i)=>s+S.sd[i.codigo].real,0);
+    /* M2: teto do pacote = soma dos tetos dos itens. Com par.ev_agrega ligada o alerta "meta acima do teto" usa essa soma; desligada vale o teto fixo do pacote, como sempre. */
+    p._teto=p._it.reduce((s,i)=>s+(+i.teto_total||0),0);p._temTeto=p._it.some(i=>i.teto_total!=null);
+    if(chaveLigada('ev_agrega'))p._acima=p._temTeto&&r2(p._meta)>r2(p._teto);
     p._temOC=S.t.ocs.some(o=>S.byCod[o.item]?.pacote===p.codigo&&o.status!=='cancelada'&&o.status!=='reprovada')});
   X.vencidos=D.pacotes.filter(p=>p._dias!=null&&p._dias<0&&p._it.length&&!p._temOC);
   X.pendAprov=S.t.ocs.filter(o=>o.status==='em_alcada');
   X.semRateio=S.t.notas.filter(n=>n.status==='lancada');
   X.semPedido=S.t.notas.filter(n=>!n.oc);
   X.economia=S.t.ocs.filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status)).reduce((s,o)=>{const i=S.byCod[o.item];return s+(i.meta_unit*o.qtd-o.valor)},0);
+  if(chaveLigada('ev_agrega')){X.eventos=agregaEventos();X.pacGrupos=agregaPacotes()}
   return X;
 }
+/* meta, teto e alerta do pacote como a tela mostra: pela soma dos itens (chave ligada) ou pelo valor fixo do cadastro do pacote (desligada) */
+const pacMeta=p=>chaveLigada('ev_agrega')?p._meta:p.meta;
+const pacTeto=p=>chaveLigada('ev_agrega')?p._teto:p.teto;
+
+/* ============ M2: o que já existe por item (meta, teto, comprometido, realizado, saldo) somado por evento e por pacote ============
+   Só leitura: não grava nada. Usado pela tela Eventos (52_eventos.js). A soma dos itens de cada grupo é o grupo; item sem evento (ou sem pacote) fica
+   em "Sem evento" ("Sem pacote"), nunca some. Na obra sem nenhum evento (a 343) o grupo da EAP faz o papel do evento.
+   Cor do grupo [SUPOSIÇÃO: D1 do plano, "limite" = o teto que o ERP já tem, mesma regra do item]: verde = comprometido + realizado dentro da meta;
+   amarelo = acima da meta, até o limite; vermelho = acima do limite; "sem base" = nenhum item com meta (nunca vira verde). */
+const evDe=i=>String(i.evento==null?'':i.evento).trim();
+const pacDe=i=>String(i.pacote==null?'':i.pacote).trim();
+function grupoRaiz(i){let g=i,n=0;while(g&&g.pai&&S.byCod[g.pai]&&n++<30)g=S.byCod[g.pai];return g&&g!==i&&g.tipo_linha==='grupo'?g.codigo:String(i.codigo).split('.')[0]}
+function somaItens(its){
+  const g={n:its.length,venda:0,meta:0,teto:0,temTeto:false,comp:0,real:0,livre:0,semMeta:0,itens:its.map(i=>i.codigo)};
+  its.forEach(i=>{const s=S.sd[i.codigo]||{comp:0,real:0,livre:0};g.venda+=+i.preco_venda_total||0;g.meta+=+i.meta_total||0;if(i.teto_total!=null){g.teto+=+i.teto_total||0;g.temTeto=true}
+    if(i.meta_total==null)g.semMeta++;g.comp+=s.comp;g.real+=s.real;g.livre+=s.livre});
+  return g}
+function semGrupo(g){
+  if(!g.n||g.semMeta===g.n)return ['sem_base',g.n?'Nenhum item com meta de custo':'Nenhum item no orçamento'];
+  const gasto=r2(g.comp+g.real);
+  if(g.temTeto&&gasto>r2(g.teto))return ['vermelho','Comprometido + realizado acima do limite (teto)'];
+  if(gasto>r2(g.meta))return ['amarelo','Acima da meta, até o limite'];
+  return ['verde','Dentro da meta']}
+/* agrupa os itens por chaveDe(item); outraDe = a outra dimensão, para mostrar por onde o grupo cruza (pacotes de um evento, eventos de um pacote) */
+function agregaGrupos(chaveDe,outraDe,extras){
+  const M=new Map();S.D.items.forEach(i=>{const k=chaveDe(i);if(!M.has(k))M.set(k,[]);M.get(k).push(i)});
+  (extras||[]).forEach(k=>{if(!M.has(k))M.set(k,[])});
+  const ks=[...M.keys()].sort((a,b)=>a===''?1:b===''?-1:cmpCod(a,b));
+  const grupos=ks.map(k=>{const its=M.get(k),g=somaItens(its);g.chave=k;g.outras=[...new Set(its.map(outraDe))].sort((a,b)=>a===''?1:b===''?-1:cmpCod(a,b));g.sem=semGrupo(g);return g});
+  const total=somaItens(S.D.items);
+  const campos=['venda','meta','teto','comp','real','livre'],soma=k=>grupos.reduce((s,g)=>s+g[k],0);
+  const confere={n:grupos.reduce((s,g)=>s+g.n,0)===total.n,campos:Object.fromEntries(campos.map(k=>[k,Math.abs(soma(k)-total[k])<0.005]))};
+  confere.ok=confere.n&&campos.every(k=>confere.campos[k]);
+  return {grupos,total,confere}}
+function agregaEventos(){
+  const its=S.D.items,modo=its.length&&its.every(i=>!evDe(i))?'grupo':'evento',ref=(S.t.par&&S.t.par.evRef)||null;
+  const R=agregaGrupos(modo==='grupo'?grupoRaiz:evDe,pacDe,modo==='evento'&&ref?Object.keys(ref):[]);
+  R.modo=modo;R.temRef=modo==='evento'&&!!ref&&Object.keys(ref).length>0;
+  R.grupos.forEach(g=>{g.nome=modo==='grupo'?((S.byCod[g.chave]||{}).descricao||''):'';if(R.temRef&&ref[g.chave]!=null){g.ref=+ref[g.chave];g.dif=g.venda-g.ref}});
+  return R}
+function agregaPacotes(){
+  const R=agregaGrupos(pacDe,evDe,[]);R.grupos.forEach(g=>{const p=S.D.pacotes.find(x=>x.codigo===g.chave);g.nome=p?p.nome:'';g.cadastro=p?{meta:p.meta,teto:p.teto}:null});return R}
 /* ============ alertas ============ */
 function alertas(X){
   const a=[];
   if(!S.t.frozen)a.push(['bad','Linha de base não congelada','Compras bloqueadas até a Gestão congelar a versão 1 (E01).']);
   X.vencidos.forEach(p=>a.push(['bad',`Pacote ${p.codigo}: fechar até ${fdata(p.fechar_ate)} vencido`,`${-p._dias} dia(s) de atraso, sem pedido. ${brl(p.meta,true)} de meta; vira restrição na frente.`]));
-  S.D.pacotes.filter(p=>p._acima).forEach(p=>a.push(['bad',`Pacote ${p.codigo}: meta acima do teto`,`Meta ${brl(p.meta)} × teto ${brl(p.teto)}. Solicitação nasce vermelha.`]));
+  S.D.pacotes.filter(p=>p._acima).forEach(p=>a.push(['bad',`Pacote ${p.codigo}: meta acima do teto`,`Meta ${brl(pacMeta(p))} × teto ${brl(pacTeto(p))}. Solicitação nasce vermelha.`]));
   X.pendAprov.forEach(o=>a.push([o.alcada==='diretoria'?'bad':'warn',`${o.num} aguarda ${ROLES[o.alcada].n}`,`${brl(o.valor)} · ${o.item} · ${esc(o.forn)}`]));
   X.semRateio.forEach(n=>a.push(['warn',`${n.num} sem rateio`,`${esc(n.emitente)} · ${brl(n.valor)}. Não entra no custo do item.`]));
   X.semPedido.filter(n=>n.status!=='paga').forEach(n=>a.push(['warn',`${n.num} sem pedido`,`Alerta de governança: ${esc(n.justSemOC||'sem justificativa')}`]));
   S.t.notas.filter(n=>n.status==='divergente').forEach(n=>a.push(['bad',`${n.num} divergente do pedido`,'Pagamento bloqueado até Compras resolver.']));
+  if(calcV2())contaObra().avisos.forEach(v=>a.push(['warn',`${esc(v.notaNum)} rateada fora do item do pedido ${esc(v.ocNum)}`,`O pedido é do item ${esc(v.itemOC)}, mas ${brl(v.valor)} da nota foram para ${v.itens.map(esc).join(', ')}. Com o cálculo novo o pedido é abatido pela nota inteira (conta uma vez só); confira o item do rateio.`]));
   S.t.meds.filter(m=>m.status==='lancada').forEach(m=>a.push(['warn',`${m.num} aguarda atesto`,`${m.item} · ${num(m.qtd)} medidos por ${esc(m.quem)}`]));
   S.t.titulos.filter(t=>!t.cancelado&&t.venc<hojeISO()&&tituloInfo(t).saldo>0).forEach(t=>a.push(['bad',`Título ${t.ocNum} vencido`,`${esc(t.forn)} · saldo ${brl(tituloInfo(t).saldo)}`]));
   S.D.items.forEach(i=>{const r=resItem(i);if(r.sem==='bad')a.push(['bad',`Item ${i.codigo}: ${r.txt}`,`Receita ${brl(r.rec)} × custo ${brl(r.real)}${r.idc!=null?' · IDC '+r.idc.toFixed(2).replace('.',','):''}`])});
@@ -728,7 +806,7 @@ function alertas(X){
 /* Navegação: 8 áreas com abas internas. S.view continua sendo a chave da tela; a área é derivada. Áreas sem telas ainda ficam ocultas. */
 const AREAS=[
  {k:'inicio',n:'Início',i:'hoje',tabs:[['dash','Dashboard'],['hoje','Hoje'],['pain','Painéis']]},
- {k:'obra',n:'Obra',i:'eap',tabs:[['eap','Orçamento (EAP)'],['pac','Pacotes'],['campo','Campo'],['lean','Planejamento semanal'],['rastro','Da tarefa à compra e ao BM'],['med','Medição e resultado']]},
+ {k:'obra',n:'Obra',i:'eap',tabs:[['eap','Orçamento (EAP)'],['pac','Pacotes'],['evt','Eventos'],['campo','Campo'],['lean','Planejamento semanal'],['rastro','Da tarefa à compra e ao BM'],['med','Medição e resultado']]},
  {k:'sup',n:'Suprimentos',i:'compras',tabs:[['compras','Compras'],['cdash','Dashboard de compras'],['pedc','Consulta de pedidos'],['nota','Notas e rateio'],['cad','Cadastros'],['est','Estoque']]},
  {k:'fin',n:'Financeiro',i:'fin',tabs:[['fin','Pagar e conciliar'],['fat','Faturamento e caixa']]},
  {k:'cont',n:'Contábil e fiscal',i:'plano',tabs:[['plano','Plano de contas'],['ctb','Contabilidade']]},
@@ -737,9 +815,9 @@ const AREAS=[
  {k:'adm',n:'Gestão e administração',i:'aud',tabs:[['bi','Indicadores e BI'],['admin','Administração'],['fluxo','Fluxos e SLA'],['aud','Auditoria'],['usuarios','Usuários']]},
 ];
 /* Quais telas cada papel vê no menu (as ações dentro de cada tela continuam limitadas por can()). Papéis de gestão veem tudo. */
-const TELAS_PAPEL={encarregado:['hoje','eap','campo','lean','frt','pes'],almox:['hoje','pac','rastro','compras','cdash','pedc','nota','cad','est','frt','lean'],planejamento:['hoje','pain','eap','pac','campo','lean','rastro','med','prj'],
-  compras:['hoje','pain','eap','pac','rastro','compras','cdash','pedc','nota','cad','est','lean'],adm:['hoje','rastro','compras','cdash','pedc','nota','cad','est','ctr','pat','frt','pes','sst','fluxo','fin','plano','ctb','aud'],financeiro:['hoje','pain','rastro','ctr','pat','compras','cdash','pedc','nota','cad','fin','fat','plano','ctb','aud']};
-const tabVisivel=k=>{if(k==='dash')return true;if(k==='admin')return isRole('diretoria','gestao','gerente')||S.role==='admin';if(k==='usuarios')return MODO_SB&&S.role==='admin';const l=TELAS_PAPEL[S.role];return !l||l.includes(k)};
+const TELAS_PAPEL={encarregado:['hoje','eap','campo','lean','frt','pes'],almox:['hoje','pac','rastro','compras','cdash','pedc','nota','cad','est','frt','lean'],planejamento:['hoje','pain','eap','pac','evt','campo','lean','rastro','med','prj'],
+  compras:['hoje','pain','eap','pac','evt','rastro','compras','cdash','pedc','nota','cad','est','lean'],adm:['hoje','rastro','compras','cdash','pedc','nota','cad','est','ctr','pat','frt','pes','sst','fluxo','fin','plano','ctb','aud'],financeiro:['hoje','pain','rastro','ctr','pat','compras','cdash','pedc','nota','cad','fin','fat','plano','ctb','aud']};
+const tabVisivel=k=>{if(k==='dash')return true;if(k==='evt'&&!chaveLigada('ev_agrega'))return false;if(k==='admin')return isRole('diretoria','gestao','gerente')||S.role==='admin';if(k==='usuarios')return MODO_SB&&S.role==='admin';const l=TELAS_PAPEL[S.role];return !l||l.includes(k)};
 const areasVisiveis=()=>AREAS.map(a=>({...a,tabs:a.tabs.filter(t=>tabVisivel(t[0]))})).filter(a=>a.tabs.length);
 const areaDe=v=>areasVisiveis().find(a=>a.tabs.some(t=>t[0]===v))||areasVisiveis()[0];
 const NAV_BASE=AREAS.flatMap(a=>a.tabs.map(t=>[t[0],t[1],a.i]));
@@ -761,7 +839,7 @@ function pacRow(p){
   const d=p._dias;const pill=p._temOC?'<span class="pill ok">Com pedido</span>':d==null?'':d<0?`<span class="pill bad">Vencido ${-d}d</span>`:d<=7?`<span class="pill warn">Em ${d} dias</span>`:`<span class="pill ok">Em ${d} dias</span>`;
   const c=p._acima?'var(--bad)':p._cot?'var(--warn)':'var(--ok)';
   return `<div class="row">${ring(p._pctCot,c)}<div><h4>${esc(p.nome)}<span class="mono">${p.codigo}</span></h4><p>${p._it.length} ${p._it.length===1?'item':'itens'} · ${p._cot?p._cot+' sem cotação':'todos cotados'}${p._semFolga?` · ${p._semFolga} sem folga`:''}</p></div>
-   <div>${p._acima?'<span class="pill bad">Meta &gt; teto</span> ':''}${pill}</div><div class="val"><b>${brl(p.meta,true)}</b><span>teto ${brl(p.teto,true)}</span></div></div>`}
+   <div>${p._acima?'<span class="pill bad">Meta &gt; teto</span> ':''}${pill}</div><div class="val"><b>${brl(pacMeta(p),true)}</b><span>teto ${brl(pacTeto(p),true)}</span></div></div>`}
 function minhaFila(X){
   const f=[];
   if(!S.t.frozen&&can('congelar'))f.push(['bad','Congelar a linha de base v1','Libera a abertura de compras na obra.','eap']);
@@ -836,10 +914,12 @@ function doRemanejar(){
   if(de===pa)return err('Escolha itens diferentes.');if(!(v>0))return err('Informe o valor.');if(!m)return err('Motivo obrigatório.');
   const a=S.byCod[de],b=S.byCod[pa],sa=S.sd[de];
   if(a.meta_total-v<sa.comp+sa.real)return err('O item de origem não tem saldo livre suficiente ('+brl(sa.livre)+').');
-  const t0=S.D.items.reduce((s,i)=>s+i.meta_total,0);
+  const t0=S.D.items.reduce((s,i)=>s+i.meta_total,0),mu0={[de]:a.meta_unit,[pa]:b.meta_unit};
   log('item_eap',de,'meta_total',a.meta_total,r2(a.meta_total-v),m);log('item_eap',pa,'meta_total',b.meta_total,r2(b.meta_total+v),m);
   S.t.metaOv[de]=r2(a.meta_total-v);S.t.metaOv[pa]=r2(b.meta_total+v);S.t.versao++;S.t.hist.push({versao:S.t.versao,motivo:`${de} → ${pa} ${brl(v)}: ${m}`,quando:new Date().toISOString(),quem:user()});
   prep();const X=derive();if(Math.abs(X.meta-t0)>0.01)console.warn('total mudou');
+  /* calc_v2 [SUPOSIÇÃO, plano M1]: meta_unit acompanha o remanejamento (prep() recalcula); o antes e depois vai para a auditoria */
+  if(calcV2(S.t))[de,pa].forEach(c=>{if(mu0[c]!==S.byCod[c].meta_unit)log('item_eap',c,'meta_unit',mu0[c],S.byCod[c].meta_unit,m)});
   save();closeModal();toast('Remanejado · linha de base v'+S.t.versao);render();
 }
 /* ============ PACOTES ============ */
@@ -847,12 +927,12 @@ function viewPac(X){
   const tab=S.tab.pac||'todos';
   let L=[...S.D.pacotes].filter(p=>p._it.length).sort((a,b)=>(a.fechar_ate||'9').localeCompare(b.fechar_ate||'9'));
   if(tab==='cotar')L=L.filter(p=>p._cot);if(tab==='acima')L=L.filter(p=>p._acima||p._semFolga);if(tab==='venc')L=L.filter(p=>X.vencidos.includes(p));
-  const folgaOutros=S.D.pacotes.filter(p=>p.codigo!=='ADM').reduce((s,p)=>s+(p.teto-p.meta),0);
+  const folgaOutros=S.D.pacotes.filter(p=>p.codigo!=='ADM').reduce((s,p)=>s+(pacTeto(p)-pacMeta(p)),0);
   return `<div class="head"><div><h1>Pacotes</h1><p class="lead">Itens agrupados para comprar em escala. Sem o ADM, os demais pacotes têm folga de <b>${brl(folgaOutros,true)}</b> entre meta e teto.</p></div></div>
   <div class="toolbar">${tabs('pac',[['todos','Todos '+L.length],['venc','Vencidos',X.vencidos.length],['cotar','Sem cotação'],['acima','Meta ≥ teto']],tab)}</div>
   <div class="tw"><table class="tbl"><thead><tr><th>Pacote</th><th class="r">Itens</th><th class="r">Meta</th><th class="r">Teto</th><th class="r">Comprom.</th><th class="r">Realizado</th><th>Consumo</th><th>Fechar até</th><th>Situação</th></tr></thead><tbody>
   ${L.map(p=>{const d=p._dias;const st=p._temOC?'<span class="pill ok">com pedido</span>':d<0?`<span class="pill bad">vencido ${-d}d</span>`:d<=30?`<span class="pill warn">em ${d}d</span>`:`<span class="pill ok">em ${d}d</span>`;
-   return `<tr class="clk" data-pac="${p.codigo}"><td><b>${esc(p.nome)}</b><div class="mono mut">${p.codigo} · ${esc(p.responsavel||'')}</div></td><td class="r">${p._it.length}${p._cot?`<div class="pill warn" style="margin-top:3px">${p._cot} s/ cotação</div>`:''}</td><td class="r">${brl(p._meta)}</td><td class="r ${p._acima?'neg':''}">${brl(p.teto)}</td><td class="r">${brl(p._comp)}</td><td class="r">${brl(p._real)}</td><td>${bar(p._comp,p._real,p._meta)}</td><td>${fdata(p.fechar_ate)}</td><td>${st}</td></tr>`}).join('')}</tbody></table></div>`;
+   return `<tr class="clk" data-pac="${p.codigo}"><td><b>${esc(p.nome)}</b><div class="mono mut">${p.codigo} · ${esc(p.responsavel||'')}</div></td><td class="r">${p._it.length}${p._cot?`<div class="pill warn" style="margin-top:3px">${p._cot} s/ cotação</div>`:''}</td><td class="r">${brl(p._meta)}</td><td class="r ${p._acima?'neg':''}">${brl(pacTeto(p))}</td><td class="r">${brl(p._comp)}</td><td class="r">${brl(p._real)}</td><td>${bar(p._comp,p._real,p._meta)}</td><td>${fdata(p.fechar_ate)}</td><td>${st}</td></tr>`}).join('')}</tbody></table></div>`;
 }
 function modalPac(cod){
   const p=S.D.pacotes.find(x=>x.codigo===cod);
@@ -954,7 +1034,14 @@ function cancelarFim(o,m){
 function modalParams(){modal(`<h3>Parâmetros</h3><div class="sub">Valores de alçada ainda são decisão da Diretoria (seção 18 do doc). Os padrões abaixo são sugestão e valem para as próximas OCs.</div>
   <div class="g3"><div><label>Verde sem confirmação até (R$)</label><input id="p-l" type="number" value="${S.t.par.limite}"></div><div><label>Gerente aprova até (R$)</label><input id="p-g" type="number" value="${gerAte()}"></div><div><label>Tolerância nota × pedido (%)</label><input id="p-t" type="number" step="0.1" value="${S.t.par.tol*100}"></div></div>
   <div class="sub" style="margin-top:8px">Regra: verde até o limite é aprovada sozinha; verde acima do limite e amarelo vão ao Gerente; acima do valor do Gerente, ou acima do teto, vai à Diretoria.</div>
-  <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="params-ok">Salvar</button></div>`)}
+  <div class="panel-t" style="margin-top:16px">Chaves desta obra · regras novas, desligadas por padrão</div>
+  <div class="sub">Cada chave vale só para esta obra. Desligada, o ERP calcula e mostra exatamente como antes. As regras novas ainda são suposição do plano, até o ok da Diretoria.</div>
+  ${CHAVES_OBRA.map(c=>`<label style="display:flex;gap:8px;align-items:flex-start;text-transform:none;font-family:inherit;letter-spacing:0;margin-top:8px"><input type="checkbox" id="ch-${c.k}" style="width:auto;margin-top:3px" ${chaveLigada(c.k)?'checked':''}><span><b>${c.n}</b><br><span class="sub">${c.d}</span></span></label>`).join('')}
+  <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn" data-act="chaves-ok">Salvar só as chaves</button><button class="btn dark" data-act="params-ok">Salvar</button></div>`)}
+/* grava só as chaves liga/desliga; não mexe nas alçadas (por isso não marca "alçadas definidas") */
+ACOES['chaves-ok']=()=>{if(!can('param'))return toast('Só Diretoria ou Gestão');
+  CHAVES_OBRA.forEach(c=>{const e=$('#ch-'+c.k);if(!e)return;const novo=!!e.checked,ant=chaveLigada(c.k);if(novo===ant)return;S.t.par[c.k]=novo;log('parametros','chave',c.k,ant?'ligada':'desligada',novo?'ligada':'desligada')});
+  prep();save();closeModal();toast('Chaves salvas');render()};
 /* ============ NOTAS E RATEIO (Fase 4) ============ */
 let NF=null;
 function viewNota(X){
@@ -984,14 +1071,15 @@ function modalNF(id){
    <div class="panel-t" style="margin-top:16px">Rateio</div><div id="n-rat"></div><div style="margin-top:8px;display:flex;gap:8px"><button class="btn sm" data-act="add-lin">+ Linha</button><button class="btn sm" data-act="sug-lin">Sugerir pelo pedido</button></div>
    <div class="bar-fecha" id="n-bar"><i></i></div><div class="sub" id="n-fecha" style="margin-top:6px"></div>
    <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn" data-act="nf-ok" data-modo="lancada">Salvar sem ratear</button><button class="btn dark" data-act="nf-ok" data-modo="rateada">Salvar rateio</button></div>`);
-  $('#n-o').onchange=()=>{NF.oc=$('#n-o').value;$('#n-js').style.display=NF.oc?'none':'block'};$('#n-js').style.display=NF.oc?'none':'block';
+  $('#n-o').onchange=()=>{NF.oc=$('#n-o').value;$('#n-js').style.display=NF.oc?'none':'block';if(calcV2(S.t))pintaRat()};$('#n-js').style.display=NF.oc?'none':'block';
   $('#n-v').oninput=()=>{NF.valor=+$('#n-v').value;pintaRat()};if(!NF.rateio.length)NF.rateio.push({item:S.D.items[0].codigo,valor:0});pintaRat();
 }
 function natLin(l){const oc=NF&&NF.oc?S.t.ocs.find(o=>o.id===NF.oc):null,i=S.byCod[l.item];const nat=oc&&oc.item===l.item&&oc.nat?oc.nat:i.nat;return {n:nat,c:contaPadrao(nat,i.pacote)}}
 function pintaRat(){
+  const ocNF=calcV2(S.t)&&NF.oc?S.t.ocs.find(o=>o.id===NF.oc):null;   /* calc_v2: avisa a linha rateada fora do item do pedido */
   $('#n-rat').innerHTML=NF.rateio.map((l,k)=>{const i=S.byCod[l.item],s=S.sd[l.item];
    return `<div class="g3" style="grid-template-columns:2fr 1fr .6fr auto;align-items:end;margin-top:8px"><div><label style="margin-top:0">Item</label><select data-lin="${k}" data-f="item">${itemOptions(l.item)}</select></div><div><label style="margin-top:0">Valor (R$)</label><input type="number" step="0.01" data-lin="${k}" data-f="valor" value="${l.valor||''}"></div><div><label style="margin-top:0">Conta</label><span class="pill info" title="${esc(nomeConta(natLin(l).c))}">${natLin(l).c}</span></div><button class="btn sm no" data-act="del-lin" data-k="${k}">×</button>
-   <div class="sub" style="grid-column:1/-1;margin-top:-4px">saldo livre do item ${brl(s.livre)}${l.valor>s.livre?' · <b class="neg">acima da meta</b>':''}</div></div>`}).join('');
+   <div class="sub" style="grid-column:1/-1;margin-top:-4px">saldo livre do item ${brl(s.livre)}${l.valor>s.livre?' · <b class="neg">acima da meta</b>':''}${ocNF&&ocNF.item!==l.item?` · <b style="color:var(--warn)">fora do item do pedido (${esc(ocNF.item)}): o pedido é abatido pela nota inteira</b>`:''}</div></div>`}).join('');
   document.querySelectorAll('[data-lin]').forEach(e=>e.oninput=e.onchange=()=>{const l=NF.rateio[+e.dataset.lin];l[e.dataset.f]=e.dataset.f==='valor'?+e.value:e.value;if(e.dataset.f==='item')pintaRat();else fechaBar()});fechaBar();
 }
 function fechaBar(){const soma=r2(NF.rateio.reduce((s,l)=>s+(+l.valor||0),0)),v=r2(NF.valor);const p=v>0?Math.min(100,soma/v*100):0;
@@ -1094,11 +1182,15 @@ function doMed(){const cod=$('#m-item').value,q=+$('#m-q').value,i=S.byCod[cod];
 function doAtestar(id){const m=S.t.meds.find(x=>x.id===id);if(m.quem===user())return toast('Quem lança não atesta');if(!can('atestar'))return toast('Sem alçada');
   m.status='atestada';m.atestado=user();log('medicao',m.num,'status','lancada','atestada');save();toast(m.num+' atestada');render()}
 /* ============ PLANO DE CONTAS ============ */
+/* meta, comprometido e realizado por conta. Comprometido e realizado vêm de contaObra() (05_motor_de_regras.js): a conta é uma só. */
+function planoSaldos(){
+  const C=contaObra(S.t),real={},comp={},meta={};
+  C.real.forEach(({l,v})=>{const c=l.conta||contaPadrao(l.nat,S.byCod[l.item]?.pacote);real[c]=(real[c]||0)+v});
+  C.ocs.forEach(({oc,comp:v})=>{comp[oc.conta]=(comp[oc.conta]||0)+v});
+  S.D.items.forEach(i=>i.linhas.forEach(l=>{const c=contaPadrao(l.nat,i.pacote);meta[c]=(meta[c]||0)+i.meta_total*l.share}));
+  return {real,comp,meta}}
 function viewPlano(X){
-  const real={},comp={};
-  S.t.notas.forEach(n=>{if(n.status==='lancada')return;n.rateio.forEach(l=>{const c=l.conta||contaPadrao(l.nat,S.byCod[l.item]?.pacote);real[c]=(real[c]||0)+ +l.valor})});
-  S.t.ocs.forEach(o=>{if(!['aprovada','recebida_parcial','recebida'].includes(o.status))return;const f=S.t.notas.filter(n=>n.oc===o.id&&n.status!=='lancada').reduce((s,n)=>s+n.rateio.filter(l=>l.item===o.item).reduce((a,l)=>a+ +l.valor,0),0);comp[o.conta]=(comp[o.conta]||0)+Math.max(0,o.valor-f)});
-  const meta={};S.D.items.forEach(i=>i.linhas.forEach(l=>{const c=contaPadrao(l.nat,i.pacote);meta[c]=(meta[c]||0)+i.meta_total*l.share}));
+  const {real,comp,meta}=planoSaldos();
   const soma=(m,c)=>Object.entries(m).filter(([k])=>k===c||k.startsWith(c+'.')).reduce((s,[,v])=>s+v,0);
   const P=S.D.plano||[];
   return `<div class="head"><div><h1>Plano de contas</h1><p class="lead">Cada natureza da composição tem uma conta. Quem lança só escolhe o item: a conta vem do cadastro, em toda solicitação, OC e nota. A meta abaixo é a meta de cada item distribuída pela composição.</p></div></div>
@@ -1415,21 +1507,37 @@ function calculaDiff(L){
   const pacs=[];L.pacotes.forEach(r=>{const p=S.D.pacotes.find(x=>x.codigo===r.codigo);if(!p)return;
     if((r.meta!=null&&Math.abs(r2(r.meta)-p.meta)>0.005)||(r.teto!=null&&Math.abs(r2(r.teto)-p.teto)>0.005)||(r.fechar_ate&&r.fechar_ate!==p.fechar_ate))pacs.push({codigo:r.codigo,nome:p.nome,meta:r.meta!=null?r2(r.meta):p.meta,teto:r.teto!=null?r2(r.teto):p.teto,fechar_ate:r.fechar_ate||p.fechar_ate,antes:{meta:p.meta,teto:p.teto,fechar_ate:p.fechar_ate}})});
   const semMov=S.D.items.filter(i=>!seen.has(i.codigo)).length;
+  /* calc_v2 [SUPOSIÇÃO, plano M1]: itens com remanejamento. A meta remanejada vence a meta nova da planilha (prep(): metaOv por cima de baseOv);
+     a tela lista esses itens para o gestor escolher qual meta vale. */
+  if(calcV2(S.t))info.remanejados=L.itens.map(r=>({r,i:S.byCod[r.codigo]})).filter(({i})=>i&&i.tipo_linha==='item'&&S.t.metaOv[i.codigo]!=null)
+    .map(({r,i})=>({codigo:i.codigo,metaAtual:i.meta_total,metaBase:i.meta_base,metaPlanilha:r.meta!=null?r2(r.meta):null}));
   return {dif,pacs,info,semMov,dMeta:r2(dif.reduce((s,d)=>s+(d.novo.meta_total||0)-(S.byCod[d.codigo].meta_base||0),0))}}
 function modalSync(){SYNC=null;modal(`<h3>Atualizar metas pela planilha</h3><div class="sub">Escolha o Estudo de Obra (.xlsx, abas 11 e 12) ou o .json do importador. O app mostra o que mudou e só aplica depois da sua confirmação, como <b>nova versão da linha de base</b>. Preço licitado e quantidades do contrato não são alterados.</div>
   <label>Arquivo</label><input id="sy-f" type="file" accept=".xlsx,.xlsm,.json"><div id="sy-r" style="margin-top:10px"></div>
   <div class="acts"><button class="btn" data-act="fechar">Fechar</button><button class="btn dark" data-act="sync-ler">Comparar</button><button class="btn ok" id="sy-ap" data-act="sync-aplicar" disabled>Aplicar como nova versão</button></div>`)}
+const syncPode=()=>{const d=SYNC;return !!d&&can('congelar')&&!!(d.dif.length||d.pacs.length||Object.keys(d.usar||{}).length)};
+/* bloco "itens com remanejamento" da tela de comparação (só existe com calc_v2 ligada) */
+function syncRemanejados(d){const L=d.info.remanejados;if(!L||!L.length)return '';
+  return `<div class="panel-t" style="margin-top:12px">Itens com remanejamento (${L.length})</div>
+   <div class="sub">Nestes itens vale a meta remanejada, não a da planilha. Marque os itens em que a meta da planilha deve substituir o remanejamento: o remanejamento do item é desfeito, fica na auditoria e o total da obra pode mudar.</div>
+   <div class="tw" style="max-height:200px;overflow:auto"><table class="tbl"><thead><tr><th></th><th>Item</th><th class="r">Meta atual (remanejada)</th><th class="r">Meta da planilha</th><th class="r">Meta sem o remanejamento</th></tr></thead><tbody>${L.map(x=>`<tr><td><input type="checkbox" data-sy-rm="${esc(x.codigo)}" ${x.metaPlanilha==null?'disabled title="A planilha não traz meta para este item"':''} aria-label="Usar a meta da planilha no item ${esc(x.codigo)}"></td><td class="mono">${esc(x.codigo)}</td><td class="r">${brl(x.metaAtual)}</td><td class="r">${x.metaPlanilha==null?'—':brl(x.metaPlanilha)}</td><td class="r mut">${brl(x.metaBase)}</td></tr>`).join('')}</tbody></table></div>`}
+document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.syRm===undefined||!SYNC)return;
+  SYNC.usar=SYNC.usar||{};if(t.checked)SYNC.usar[t.dataset.syRm]=1;else delete SYNC.usar[t.dataset.syRm];const b=$('#sy-ap');if(b)b.disabled=!syncPode()});
 async function syncLer(){const f=$('#sy-f').files[0];if(!f)return toast('Escolha o arquivo');$('#sy-r').innerHTML='<div class="sub">Lendo…</div>';
   try{const L=await linhasDaPlanilha(f);SYNC=calculaDiff(L);SYNC.arquivo=f.name;
     const d=SYNC;$('#sy-r').innerHTML=`<div class="kpi4"><div><div class="k-l">Itens com mudança</div><div class="v">${d.dif.length}</div></div><div><div class="k-l">Pacotes com mudança</div><div class="v">${d.pacs.length}</div></div><div><div class="k-l">Variação da meta</div><div class="v ${d.dMeta>0?'neg':'pos'}">${brl(d.dMeta,true)}</div></div><div><div class="k-l">Itens fora do orçamento</div><div class="v">${d.info.novos.length}</div></div></div>
     ${d.dif.length?`<div class="tw" style="max-height:260px;overflow:auto"><table class="tbl"><thead><tr><th>Item</th><th>Mudança</th></tr></thead><tbody>${d.dif.slice(0,200).map(x=>`<tr><td class="mono">${x.codigo}</td><td>${x.mudou.map(m=>`${m[0]}: ${typeof m[1]==='number'?brl(m[1]):esc(m[1]||'—')} → <b>${typeof m[2]==='number'?brl(m[2]):esc(m[2])}</b>`).join(' · ')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="sub">Nenhuma diferença de meta, teto ou status nos itens.</div>'}
+    ${syncRemanejados(d)}
     ${d.pacs.length?`<div class="sub" style="margin-top:8px">Pacotes: ${d.pacs.map(p=>esc(p.codigo)).join(', ')}</div>`:''}${d.info.semQtd.length?`<div class="sub neg" style="margin-top:8px">Quantidade diferente do orçamento (não aplicada): ${d.info.semQtd.slice(0,5).map(esc).join('; ')}${d.info.semQtd.length>5?'…':''}</div>`:''}${d.info.novos.length?`<div class="sub" style="margin-top:8px">Fora do orçamento (ignorados): ${d.info.novos.slice(0,8).join(', ')}${d.info.novos.length>8?'…':''}</div>`:''}`;
-    $('#sy-ap').disabled=!(d.dif.length||d.pacs.length)||!can('congelar')}catch(e){$('#sy-r').innerHTML=`<div class="neg">${esc(e.message)}</div>`}}
+    $('#sy-ap').disabled=!syncPode()}catch(e){$('#sy-r').innerHTML=`<div class="neg">${esc(e.message)}</div>`}}
 function syncAplicar(){const d=SYNC;if(!d||!can('congelar'))return;
   S.t.baseOv=S.t.baseOv||{};S.t.basePac=S.t.basePac||{};
   d.dif.forEach(x=>{const i=S.byCod[x.codigo];S.t.baseOv[x.codigo]={meta_total:x.novo.meta_total,teto_total:x.novo.teto_total,status_cotacao:x.novo.status_cotacao,meta_unit:i.qtd?r2(x.novo.meta_total/i.qtd*10000)/10000:i.meta_unit}});
   d.pacs.forEach(p=>S.t.basePac[p.codigo]={meta:p.meta,teto:p.teto,fechar_ate:p.fechar_ate});
-  const v=(S.t.versao||1)+(S.t.frozen?1:0);S.t.versao=v;S.t.hist.push({versao:v,motivo:'Atualização pela planilha '+d.arquivo+' · '+d.dif.length+' itens, '+d.pacs.length+' pacotes',quando:new Date().toISOString(),quem:user()});
+  /* calc_v2: itens em que o gestor escolheu a meta da planilha no lugar do remanejamento (o remanejamento do item é desfeito) */
+  const usar=calcV2(S.t)?(d.info.remanejados||[]).filter(x=>x.metaPlanilha!=null&&d.usar&&d.usar[x.codigo]):[];
+  usar.forEach(x=>{log('item_eap',x.codigo,'meta_total',x.metaAtual,x.metaPlanilha,'planilha vale no lugar do remanejamento · '+d.arquivo);delete S.t.metaOv[x.codigo]});
+  const v=(S.t.versao||1)+(S.t.frozen?1:0);S.t.versao=v;S.t.hist.push({versao:v,motivo:'Atualização pela planilha '+d.arquivo+' · '+d.dif.length+' itens, '+d.pacs.length+' pacotes'+(usar.length?', '+usar.length+' remanejamento(s) trocado(s) pela meta da planilha':''),quando:new Date().toISOString(),quem:user()});
   log('obra',S.D.obra.codigo,'linha_base','v'+(v-(S.t.frozen?1:0)),'v'+v+' · '+d.dif.length+' itens · variação '+brl(d.dMeta),d.arquivo);
   prep();save();closeModal();toast('Linha de base v'+v+' aplicada');render()}
 /* ============ APURAÇÃO ESTIMADA DE TRIBUTOS (Fase 11) ============ */
@@ -1530,7 +1638,7 @@ function renderCore(){
   const AR=areaDe(S.view);
   $('#nav').innerHTML=areasVisiveis().map(a=>`<button class="${a.k===AR.k?'on':''}" data-v="${a.k===AR.k?S.view:a.tabs[0][0]}">${ico(a.i)}${a.n}${badgeArea(a,X)}</button>`).join('');
   $('#crumb').textContent=AR.n+(AR.tabs.length>1?' · '+(AR.tabs.find(t=>t[0]===S.view)||AR.tabs[0])[1]:'');
-  const V={rastro:viewRastro,fat:viewFat,campo:viewCampo,lean:viewLean,hoje:viewHoje,eap:viewEap,pac:viewPac,compras:viewCompras,cdash:viewCdash,pedc:viewPedc,nota:viewNota,fin:viewFin,med:viewMed,plano:viewPlano,pain:viewPain,ctb:viewCtb,est:viewEst,dash:viewDash,pes:viewPessoas,sst:viewSst,bi:biView,admin:viewAdmin,fluxo:viewFluxo,ctr:viewCtr,prj:viewPrj,pat:viewPat,frt:viewFrt,aud:viewAud,usuarios:viewUsuarios,cad:viewCadastros}[S.view]||viewHoje;
+  const V={rastro:viewRastro,fat:viewFat,campo:viewCampo,lean:viewLean,hoje:viewHoje,eap:viewEap,pac:viewPac,evt:viewEventos,compras:viewCompras,cdash:viewCdash,pedc:viewPedc,nota:viewNota,fin:viewFin,med:viewMed,plano:viewPlano,pain:viewPain,ctb:viewCtb,est:viewEst,dash:viewDash,pes:viewPessoas,sst:viewSst,bi:biView,admin:viewAdmin,fluxo:viewFluxo,ctr:viewCtr,prj:viewPrj,pat:viewPat,frt:viewFrt,aud:viewAud,usuarios:viewUsuarios,cad:viewCadastros}[S.view]||viewHoje;
   const keepQ=document.activeElement&&document.activeElement.id==='q';
   $('#view').innerHTML=abasDaArea(AR)+V(X);
   if(keepQ){const q=$('#q');if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length)}}
@@ -1804,7 +1912,7 @@ function painelLinhas(k){const T=S.t,h=hojeISO(),R=[],add=(ref,desc,valor,data)=
   if(k==='gasto'){nt.forEach(nota);lg.forEach(lf)}
   if(k==='requisicao')T.sols.filter(s=>['enviada','em_cotacao','cotada'].includes(s.status)).forEach(s=>add(s.num,s.desc,s.qtd*s.preco,s.data));
   if(k==='custoFixo'){nt.forEach(n=>{const v=n.rateio.filter(l=>l.nat==='ADM').reduce((a,l)=>a+ +l.valor,0);if(v)add(n.num,n.emitente+' (rateio ADM)',v,n.emissao)});lfxDe('custo_fixo').forEach(lf)}
-  if(k==='prov'){T.ocs.filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status)).forEach(o=>{const f=T.notas.filter(n=>n.oc===o.id&&n.status!=='lancada').reduce((s,n)=>s+n.rateio.filter(l=>l.item===o.item).reduce((a,l)=>a+ +l.valor,0),0),v=Math.max(0,o.valor-f);if(v)add(o.num,o.forn+' · pedido sem nota',v,o.data)});lfxDe('provisao').forEach(lf)}
+  if(k==='prov'){contaObra(T).ocs.forEach(({oc:o,comp:v})=>{if(v)add(o.num,o.forn+' · pedido sem nota',v,o.data)});lfxDe('provisao').forEach(lf)}
   return R}
 ACOES['pc-det']=el=>{const k=el.dataset.k,R=painelLinhas(k),tot=r2(R.reduce((s,x)=>s+x.valor,0));
   modal(`<h3>Composição · ${esc(k)}</h3><div class="sub">${R.length} registros · total ${brl(tot)}</div>${R.length?`<div class="tw"><table class="tbl"><tbody>${R.map(x=>`<tr><td class="mono">${esc(x.ref)}</td><td>${esc(x.desc)}</td><td>${fdata(x.data)}</td><td class="r">${brl(x.valor)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Nada compõe este número.</div>'}<div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`)};
@@ -2663,8 +2771,9 @@ function aplicaExtrato(t,ex){const lote='extrato-'+ex.obra;t.lfxs=(t.lfxs||[]).f
   t.par=t.par||{};t.par.extratoCorte=ex.corte}
 async function seedExtrato(){const cod=S.D.obra.codigo,ex=await extratoDe(cod);if(!ex||S.t.par.extratoSeed)return;
   aplicaExtrato(S.t,ex);S.t.par.extratoSeed=true;log('extrato',cod,'importar','',ex.nat.length+' naturezas, '+(ex.lanc||[]).length+' lançamentos (corte '+ex.corte+')');save()}
-const provOcsSplit=t=>{const r={prod:0,serv:0};(t.ocs||[]).filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status)).forEach(o=>{const f=(t.notas||[]).filter(n=>n.oc===o.id&&n.status!=='lancada').reduce((a,n)=>a+n.rateio.filter(l=>l.item===o.item).reduce((b,l)=>b+ +l.valor,0),0),v=Math.max(0,o.valor-f);if(['MO','EQP','TER'].includes(o.nat))r.serv+=v;else r.prod+=v});r.prod=r2(r.prod);r.serv=r2(r.serv);return r};
-const provOcs=t=>r2((t.ocs||[]).filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status)).reduce((s,o)=>{const f=(t.notas||[]).filter(n=>n.oc===o.id&&n.status!=='lancada').reduce((a,n)=>a+n.rateio.filter(l=>l.item===o.item).reduce((b,l)=>b+ +l.valor,0),0);return s+Math.max(0,o.valor-f)},0));
+/* pedido aprovado sem nota (provisão): vem de contaObra() (05_motor_de_regras.js), a conta única */
+const provOcsSplit=t=>{const r={prod:0,serv:0};contaObra(t).ocs.forEach(({oc:o,comp:v})=>{if(['MO','EQP','TER'].includes(o.nat))r.serv+=v;else r.prod+=v});r.prod=r2(r.prod);r.serv=r2(r.serv);return r};
+const provOcs=t=>r2(contaObra(t).ocs.reduce((s,x)=>s+x.comp,0));
 /* roda uma função "como se" a obra de outro estado estivesse aberta (sem tocar em nada que fica gravado) */
 function comObra(t,O,fn){const pv=provLigada(),sv={t:S.t,D:S.D,X:S.X,m:S.memo,p:S.provTmp};S.provTmp=pv;S.t=t;S.D={obra:O,items:[]};S.X={venda:O.valor_contrato,comp:provOcs(t)};S.memo=null;
   try{return fn()}finally{S.t=sv.t;S.D=sv.D;S.X=sv.X;S.memo=sv.m;S.provTmp=sv.p}}
@@ -2864,7 +2973,7 @@ const PROV_COLS=[['origem','Origem','t'],['desc','Descrição','t'],['tipo','Tip
 const NF_COLS=[['num','Nota','t'],['emitente','Emitente','t'],['emissao','Emissão','d'],['valor','Valor','n'],['status','Situação','t']];
 const PEDF_COLS=[['nrPedido','Pedido','t'],['parceiro','Parceiro','t'],['produto','Produto','t'],['vlrTotal','Vlr. total','n'],['qtdPend','Qtd. pendente','q'],['situacao','Situação','t']];
 function provLinhas(){const R=[];natDe().filter(n=>+n.prov>0).forEach(n=>R.push({origem:'Extrato por natureza',desc:n.nome,tipo:servRe2.test(n.nome)?'Serviço':'Produto',valor:+n.prov}));
-  (S.t.ocs||[]).filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status)).forEach(o=>{const f=S.t.notas.filter(n=>n.oc===o.id&&n.status!=='lancada').reduce((a,n)=>a+n.rateio.filter(l=>l.item===o.item).reduce((b,l)=>b+ +l.valor,0),0),v=Math.max(0,r2(o.valor-f));if(v)R.push({origem:'Pedido sem nota',desc:o.num+' · '+o.forn,tipo:['MO','EQP','TER'].includes(o.nat)?'Serviço':'Produto',valor:v})});
+  contaObra(S.t).ocs.forEach(({oc:o,comp})=>{const v=r2(comp);if(v)R.push({origem:'Pedido sem nota',desc:o.num+' · '+o.forn,tipo:['MO','EQP','TER'].includes(o.nat)?'Serviço':'Produto',valor:v})});
   lfxDe('provisao').forEach(l=>R.push({origem:'Provisão importada',desc:l.desc||l.forn||'',tipo:'Produto',valor:l.valor}));return R}
 function fichaCorpo(f,O,k){const t=S.fi.tab,c=cadDe(O.codigo,S.t);
   if(t==='geral')return `<div class="g3"><div><label>Tipo contrato obra</label>${fsel('tipo',f.tipo,CAD_LISTAS.tipo)}</div><div><label>Centro de resultado</label><div class="g2" style="grid-template-columns:1fr 2fr">${fi('crCod',f.crCod)}${fi('crNome',f.crNome)}</div></div><div><label>Empresa</label><div class="g2" style="grid-template-columns:1fr 2fr">${fi('empresaCod',f.empresaCod)}<input value="${esc(c.empresa)}" readonly></div></div>
@@ -3053,6 +3162,47 @@ if(window.TAF_EMB&&window.TAF_EMB.ativo)window.TAF_EMB.on(m=>{
   if(c.vista&&NAV_BASE.some(n=>n[0]===c.vista)){S.view=c.vista;render()}
   if(c.tarefa&&typeof rastroCarrega==='function'){S.view='rastro';RS.dem=+c.demanda||null;render();rastroCarrega(c.tarefa)}
 });
+/* ============ EVENTOS (M2): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote ============
+   Só leitura: nada daqui grava. Os números vêm de agregaEventos() e agregaPacotes() (06_derivados.js), que só somam o que o ERP já guarda por item.
+   Aparece quando a chave par.ev_agrega da obra está ligada (Compras → Parâmetros → Chaves desta obra). */
+const SEMG_TXT={verde:'verde',amarelo:'amarelo',vermelho:'vermelho',sem_base:'sem base'};
+const semGPill=s=>`<span class="pill ${SEM_CLASS[s[0]]||'mute'}" title="${esc(s[1])}">${SEMG_TXT[s[0]]||esc(s[0])}</span>`;
+function eventosRotulo(g,modo){
+  if(g.chave==='')return `<b>${modo==='pacote'?'Sem pacote':modo==='grupo'?'Sem grupo':'Sem evento'}</b><div class="mut" style="font-size:11.5px">${g.n} ${g.n===1?'item':'itens'} sem ${modo==='pacote'?'pacote':modo==='grupo'?'grupo':'evento'} · entram nas somas</div>`;
+  if(modo==='pacote')return `<b>${esc(g.nome||g.chave)}</b><div class="mono mut">${esc(g.chave)}</div>`;
+  return `<span class="mono"><b>${esc(g.chave)}</b></span>${g.nome?`<div class="mut" style="font-size:11.5px">${esc(g.nome)}</div>`:''}`}
+const eventosOutras=(L,vazio)=>L.length?L.map(c=>c===''?`<span class="mut">${vazio}</span>`:`<span class="mono">${esc(c)}</span>`).join(' '):'—';
+function eventosLinha(g,modo,temRef){
+  const dif=temRef&&modo==='evento'?(g.ref!=null?`<td class="r">${brl(g.ref)}</td><td class="r ${Math.abs(g.dif)>0.004?'neg':''}">${Math.abs(g.dif)>0.004?`<b>${g.dif>0?'+':''}${brl(g.dif)}</b>`:'—'}</td>`:'<td class="r mut">—</td><td class="r mut">—</td>'):'';
+  const cad=modo==='pacote'&&g.cadastro&&g.cadastro.teto!=null&&Math.abs(g.cadastro.teto-g.teto)>0.004?`<div class="mut" style="font-size:11.5px" title="Valor fixo do cadastro do pacote">cadastro do pacote: ${brl(g.cadastro.teto)}</div>`:'';
+  return `<tr class="clk" data-act="ev-det" data-m="${modo}" data-k="${esc(g.chave)}"><td>${eventosRotulo(g,modo)}</td><td>${eventosOutras(g.outras,modo==='pacote'?'sem evento':'sem pacote')}</td><td class="r">${g.n}</td><td class="r mut">${brl(g.venda)}</td>${dif}<td class="r">${brl(g.meta)}</td><td class="r ${g.temTeto&&g.meta>g.teto?'neg':''}">${g.temTeto?brl(g.teto):'—'}${cad}</td><td class="r">${brl(g.comp)}</td><td class="r">${brl(g.real)}</td><td class="r ${g.livre<0?'neg':''}">${brl(g.livre)}</td><td>${bar(g.comp,g.real,g.meta)}</td><td>${semGPill(g.sem)}</td></tr>`}
+function eventosTabela(R,modo){
+  const temRef=!!R.temRef&&modo==='evento',tot=R.total,cab=modo==='pacote'?'Pacote':modo==='grupo'?'Grupo da EAP':'Evento';
+  const c=R.confere,falhas=Object.keys(c.campos).filter(k=>!c.campos[k]);
+  const conf=c.ok?`<span class="pill ok">fecha com a obra</span> A soma ${modo==='pacote'?'dos pacotes':modo==='grupo'?'dos grupos':'dos eventos'} (inclusive “sem ${modo==='pacote'?'pacote':modo==='grupo'?'grupo':'evento'}”) é igual ao total da obra em receita, meta, limite, comprometido, realizado e saldo.`
+    :`<span class="pill bad">não fecha com a obra</span> Diferença em: ${falhas.join(', ')||'quantidade de itens'}. Avise a Gestão.`;
+  return `<div class="tw"><table class="tbl"><thead><tr><th>${cab}</th><th>${modo==='pacote'?'Eventos':'Pacotes'}</th><th class="r">Itens</th><th class="r">Receita (licitado)</th>${temRef?'<th class="r">Eventograma oficial</th><th class="r">Diferença</th>':''}<th class="r">Meta</th><th class="r">Limite (teto)</th><th class="r">Comprom.</th><th class="r">Realizado</th><th class="r">Saldo</th><th>Consumo</th><th>Semáforo</th></tr></thead>
+   <tbody>${R.grupos.map(g=>eventosLinha(g,modo,temRef)).join('')}</tbody>
+   <tfoot><tr class="grp"><td><b>Total da obra</b></td><td></td><td class="r">${tot.n}</td><td class="r">${brl(tot.venda)}</td>${temRef?`<td class="r">${brl(R.grupos.reduce((s,g)=>s+(g.ref||0),0))}</td><td class="r"></td>`:''}<td class="r">${brl(tot.meta)}</td><td class="r">${brl(tot.teto)}</td><td class="r">${brl(tot.comp)}</td><td class="r">${brl(tot.real)}</td><td class="r ${tot.livre<0?'neg':''}">${brl(tot.livre)}</td><td>${bar(tot.comp,tot.real,tot.meta)}</td><td></td></tr></tfoot></table></div>
+   <div class="sub" style="margin-top:8px">${conf}</div>`}
+function viewEventos(X){
+  if(!chaveLigada('ev_agrega'))return `<div class="head"><div><h1>Eventos</h1><p class="lead">Esta tela está desligada nesta obra. A Gestão ou a Diretoria liga em <b>Suprimentos → Compras → Parâmetros</b>, na chave “Eventos e pacotes pela soma dos itens”. Desligada, o ERP calcula e mostra como sempre.</p></div></div>`;
+  const tab=S.tab.evt||'evento',E=X.eventos||agregaEventos(),P=X.pacGrupos||agregaPacotes();
+  const semEv=E.modo==='evento'?E.grupos.find(g=>g.chave===''):null,semPac=P.grupos.find(g=>g.chave==='');
+  const lead=E.modo==='grupo'?'Esta obra não tem evento no orçamento: o controle é por <b>grupo da EAP</b> (e por pacote).':'Meta, limite (teto), comprometido, realizado e saldo somados dos itens do orçamento, <b>por evento</b> e <b>por pacote</b>.';
+  const nota=E.modo==='grupo'?'':E.temRef?`<div class="sub" style="margin-top:8px">A coluna <b>Diferença</b> compara a receita somada pelos itens com o valor do eventograma oficial carregado na obra. Item dividido entre dois eventos no eventograma oficial está ligado a um evento só no ERP: a diferença aparece nos dois eventos, com sinais opostos (na 342, 4.1.1 e 4.1.2).</div>`
+    :`<div class="sub" style="margin-top:8px">Item dividido entre dois eventos no eventograma oficial está ligado a um evento só no ERP, então a receita desses eventos difere do eventograma (na 342, 4.1.1 e 4.1.2). A diferença aparece na coluna Diferença quando os valores do eventograma oficial estiverem carregados na obra; hoje o ERP ainda não os guarda.</div>`;
+  return `<div class="head"><div><h1>Eventos</h1><p class="lead">${lead} Só leitura: nada aqui grava.${E.modo==='grupo'?'':' Item sem evento aparece em “Sem evento” e entra nas somas.'} O semáforo usa a regra do item: verde dentro da meta, amarelo acima da meta até o limite, vermelho acima do limite.</p></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="pill info">chave ligada nesta obra</span>${semEv?`<span class="pill warn">${semEv.n} ${semEv.n===1?'item sem evento':'itens sem evento'}</span>`:''}${semPac?`<span class="pill warn">${semPac.n} ${semPac.n===1?'item sem pacote':'itens sem pacote'}</span>`:''}</div></div>
+   <div class="toolbar">${tabs('evt',[['evento',E.modo==='grupo'?'Por grupo':'Por evento'],['pacote','Por pacote']],tab)}<span class="sub">${S.D.items.length} itens · clique numa linha para ver os itens</span></div>
+   ${tab==='pacote'?eventosTabela(P,'pacote'):eventosTabela(E,E.modo)}${tab==='pacote'?'':nota}`}
+ACOES['ev-det']=el=>{const m=el.dataset.m,k=el.dataset.k,R=m==='pacote'?agregaPacotes():agregaEventos(),g=R.grupos.find(x=>x.chave===k);if(!g)return;
+  const nome=k===''?(m==='pacote'?'Sem pacote':m==='grupo'?'Sem grupo':'Sem evento'):(m==='pacote'?'Pacote ':m==='grupo'?'Grupo ':'Evento ')+k;
+  const its=g.itens.map(c=>S.byCod[c]).filter(Boolean);
+  modal(`<h3>${esc(nome)} ${g.nome?`<span class="mut">${esc(g.nome)}</span>`:''}</h3><div class="sub">${g.n} ${g.n===1?'item':'itens'} · meta ${brl(g.meta)} · limite ${g.temTeto?brl(g.teto):'—'} · comprometido ${brl(g.comp)} · realizado ${brl(g.real)} · saldo ${brl(g.livre)} · ${semGPill(g.sem)}</div>
+   ${its.length?`<div class="tw" style="max-height:50vh"><table class="tbl"><thead><tr><th>Item</th><th>${m==='pacote'?'Evento':'Pacote'}</th><th class="r">Receita</th><th class="r">Meta</th><th class="r">Teto</th><th class="r">Comprom.</th><th class="r">Realizado</th><th class="r">Saldo</th></tr></thead><tbody>
+   ${its.map(i=>{const s=S.sd[i.codigo]||{comp:0,real:0,livre:0};return `<tr class="clk" data-item="${esc(i.codigo)}"><td><span class="mono">${esc(i.codigo)}</span><div class="mut" style="font-size:11.5px">${esc((i.descricao||'').slice(0,60))}</div></td><td class="mono">${esc((m==='pacote'?evDe(i):pacDe(i))||'—')}</td><td class="r mut">${brl(i.preco_venda_total)}</td><td class="r">${i.meta_total==null?'—':brl(i.meta_total)}</td><td class="r ${i.meta_total>i.teto_total?'neg':''}">${i.teto_total==null?'—':brl(i.teto_total)}</td><td class="r">${brl(s.comp)}</td><td class="r">${brl(s.real)}</td><td class="r ${s.livre<0?'neg':''}">${brl(s.livre)}</td></tr>`}).join('')}</tbody></table></div>`:'<div class="empty">Nenhum item neste grupo.</div>'}
+   <div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`)};
 /* ============ inicialização ============ */
 (async()=>{
   {const mk=String(CFG.marca||'Grupo Nery');$('#marca').textContent=mk;$('#marca-logo').textContent=mk.trim().charAt(0).toUpperCase()||'G'}
