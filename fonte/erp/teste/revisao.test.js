@@ -211,3 +211,23 @@ test('B3: chaves desligadas, pacotes vencidos: alertas e restrições automátic
     assert.deepEqual(f(novo), f(base), 'semente ' + seed);
   }
 });
+
+/* ============ M3 do revisor: nada na tela avisava que o banco não acompanha calc_v2 ============ */
+test('M3: com calc_v2 ligada o aviso aparece nos Alertas, em Eventos e na janela de Parâmetros; desligada não aparece nos Alertas nem em Eventos', () => {
+  const sql = /banco ainda não acompanha/;
+  for (const ligada of [false, true]) {
+    const S = abre(novo, obra999(), estado999({ ev_agrega: true, calc_v2: ligada })); const X = novo.derive();
+    const al = J(novo.alertas(X)).filter(a => /Cálculo novo ligado/.test(a[1]));
+    assert.equal(al.length, ligada ? 1 : 0, 'alerta fixo só com a chave ligada'); if (ligada) { assert.equal(al[0][0], 'warn'); assert.match(al[0][2], sql); assert.match(al[0][2], /Da tarefa à compra e ao BM/); }
+    const h = novo.viewEventos(X); assert.equal(sql.test(h), ligada, 'aviso na tela Eventos só com a chave ligada');
+    assert.equal(novo.avisoSqlCalc() !== '', ligada);
+  }
+  /* a janela de Parâmetros explica antes de ligar */
+  abre(novo, obra999(), estado999()); novo.modalParams(); assert.match(novo.el('#mbox').innerHTML, /o banco \(tela “Da tarefa à compra e ao BM”, Ciclo e Marko\) ainda não acompanha esta chave/);
+  /* a tela "Da tarefa à compra e ao BM" (só existe com a chave do site, não dá para abrir aqui) chama o aviso */
+  assert.match(String(novo.viewRastro), /avisoSqlCalc\(\)/);
+});
+test('M3: sem calc_v2 os Alertas e Eventos ficam iguais ao que eram (só ev_agrega)', () => {
+  abre(novo, obra999(), estado999({ ev_agrega: true })); const X = novo.derive();
+  assert.ok(!J(novo.alertas(X)).some(a => /banco ainda/.test(a[1] + a[2]))); assert.doesNotMatch(novo.viewEventos(X), /atenção/);
+});

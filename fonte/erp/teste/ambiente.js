@@ -70,7 +70,7 @@ const NOMES = ['S', 'novoT', 'prep', 'saldos', 'derive', 'alertas', 'semaforo', 
   'painelLinhas', 'provOcs', 'provOcsSplit', 'provLinhas', 'areasVisiveis', 'calculaDiff', 'syncAplicar', 'modalSync', 'doRemanejar', 'modalRemanejar', 'pacRow', 'viewHoje',
   'viewEventos', 'agregaEventos', 'agregaPacotes', 'agregaGrupos', 'semGrupo', 'pacTeto', 'pacMeta', 'ACOES', 'AREAS', 'tabVisivel', 'NAV_BASE', 'cmpCod', 'brl', 'r2',
   'pintaRat', 'modalParams', 'painelCalc', 'resItem', 'medAcum', 'aplicaDocs', 'estadoObra', 'log', 'save', 'user', 'can', 'ROLES', 'modalItem', 'modalPac',
-  'chavesObra', 'CHAVES_OBRA', 'DOCS', 'SEM_CLASS', 'restAuto', 'pacDe', 'evDe', 'realPorConta', 'dre', 'sugereOC', 'modalNF', 'vistaPermitida', 'chaveLigada'];
+  'chavesObra', 'CHAVES_OBRA', 'DOCS', 'SEM_CLASS', 'restAuto', 'pacDe', 'evDe', 'realPorConta', 'dre', 'sugereOC', 'modalNF', 'vistaPermitida', 'chaveLigada', 'avisoSqlCalc', 'viewRastro'];
 
 /* origem: 'trabalho' (os arquivos da cópia) ou 'base' (como era no commit de partida, lido do git) */
 function carrega(origem = 'trabalho') {

@@ -24,10 +24,13 @@ function prep(){
 const OC_COMPROMETE=['aprovada','recebida_parcial','recebida'];
 /* Chaves liga/desliga POR OBRA, guardadas em estado.par (vão para o banco junto com os parâmetros). Todas nascem DESLIGADAS: desligada = o ERP de sempre. [SUPOSIÇÃO: mecanismo proposto no plano 00-MATRIZ-E-PLANO] */
 const CHAVES_OBRA=[
- {k:'calc_v2',n:'Cálculo único de comprometido e realizado (M1)',d:'Nota rateada em outro item não conta duas vezes: o pedido é abatido pela nota inteira, com aviso. Remanejar meta também acerta a meta unitária. Atualizar pela planilha lista os itens remanejados.'},
+ {k:'calc_v2',n:'Cálculo único de comprometido e realizado (M1)',d:'Nota rateada em outro item não conta duas vezes: o pedido é abatido pela nota inteira, com aviso. Remanejar meta também acerta a meta unitária. Atualizar pela planilha lista os itens remanejados. Atenção: o banco (tela “Da tarefa à compra e ao BM”, Ciclo e Marko) ainda não acompanha esta chave e continua contando como antes; em obra real, os números desses lugares podem diferir de Orçamento, Eventos e Painéis.'},
  {k:'ev_agrega',n:'Eventos e pacotes pela soma dos itens (M2)',d:'O teto e o alerta do pacote passam a olhar a soma dos itens. Liga a aba Eventos (só leitura): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote.'}];
 const chaveLigada=(k,t)=>{const p=(t||S.t||{}).par;return !!(p&&p[k])};
 const calcV2=t=>chaveLigada('calc_v2',t);
+/* Aviso fixo enquanto o SQL (_taf_erp_valores) não acompanha calc_v2 (LEIA-ME-M1-SQL-PENDENTE.md): aparece onde o número do banco convive com o do navegador. Só com a chave ligada. */
+const AVISO_SQL_CALC='Esta obra está com o cálculo novo de comprometido e realizado ligado. O banco ainda não acompanha: “Da tarefa à compra e ao BM”, o Ciclo e o Marko continuam contando como antes. Onde há nota rateada fora do item do pedido, os números desses lugares podem diferir de Orçamento, Eventos e Painéis até o banco ser atualizado.';
+const avisoSqlCalc=()=>calcV2()?`<div class="sub" style="margin-top:10px"><span class="pill warn">atenção</span> ${AVISO_SQL_CALC}</div>`:'';
 function contaObra(t){
   t=t||S.t;const v2=calcV2(t),ocs=t.ocs||[],real=[],fatItem={},fatOC={},porId={};
   /* itens do orçamento (EAP) da obra aberta. Só vale para a obra aberta (t===S.t) e quando há EAP: nas telas que trocam S.t por outra obra (comObra, 44_painel_inicio.js)

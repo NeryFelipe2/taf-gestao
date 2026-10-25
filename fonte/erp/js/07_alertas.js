@@ -8,6 +8,7 @@ function alertas(X){
   X.semRateio.forEach(n=>a.push(['warn',`${n.num} sem rateio`,`${esc(n.emitente)} · ${brl(n.valor)}. Não entra no custo do item.`]));
   X.semPedido.filter(n=>n.status!=='paga').forEach(n=>a.push(['warn',`${n.num} sem pedido`,`Alerta de governança: ${esc(n.justSemOC||'sem justificativa')}`]));
   S.t.notas.filter(n=>n.status==='divergente').forEach(n=>a.push(['bad',`${n.num} divergente do pedido`,'Pagamento bloqueado até Compras resolver.']));
+  if(calcV2())a.push(['warn','Cálculo novo ligado: o banco ainda conta como antes',AVISO_SQL_CALC]);
   if(calcV2())contaObra().avisos.forEach(v=>a.push(['warn',`${esc(v.notaNum)} rateada fora do item do pedido ${esc(v.ocNum)}`,`O pedido é do item ${esc(v.itemOC)}, mas ${brl(v.valor)} da nota foram para ${v.itens.map(esc).join(', ')}. Com o cálculo novo o pedido é abatido pela nota inteira (conta uma vez só); confira o item do rateio.${v.orfaos?` ${brl(v.valorOrfao)} foram para ${v.orfaos.map(esc).join(', ')}, que não existe no orçamento: essa parte não abate o pedido (continua comprometido).`:''}`]));
   S.t.meds.filter(m=>m.status==='lancada').forEach(m=>a.push(['warn',`${m.num} aguarda atesto`,`${m.item} · ${num(m.qtd)} medidos por ${esc(m.quem)}`]));
   S.t.titulos.filter(t=>!t.cancelado&&t.venc<hojeISO()&&tituloInfo(t).saldo>0).forEach(t=>a.push(['bad',`Título ${t.ocNum} vencido`,`${esc(t.forn)} · saldo ${brl(tituloInfo(t).saldo)}`]));
