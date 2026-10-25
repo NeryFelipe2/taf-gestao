@@ -693,6 +693,8 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
 var URL_='https://vblfdikfobsirwpdnybw.supabase.co/rest/v1/rpc/',KEY='sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW';
 var ls={g:function(k){try{return localStorage.getItem(k)}catch(e){return null}},s:function(k,v){try{localStorage.setItem(k,v)}catch(e){}},d:function(k){try{localStorage.removeItem(k)}catch(e){}}};
 var $=function(i){return document.getElementById(i)};
+/* link com chave: #k=<chave> grava a chave neste aparelho e some da barra de endereço */
+(function(){var m=(location.hash||'').match(/^#k=([A-Za-z0-9_-]{6,80})$/);if(m){ls.s('taf-chave',m[1]);ls.d('taf-ciclo-sem-site');ls.d('taf-marko-sem-site');try{history.replaceState(null,'',location.pathname+location.search)}catch(e){location.hash=''}}})();
 window.TAF={chave:ls.g('taf-chave')||'',
   rpc:async function(fn,b){var r=await fetch(URL_+fn,{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify(b)});var t=await r.text(),j;try{j=JSON.parse(t)}catch(e){j=t}
     if(!r.ok){var e=new Error((j&&j.message)||t||('erro '+r.status));e.status=r.status;throw e}return j},
@@ -1544,7 +1546,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='7265471782',VK='taf-recarga';
+var BUILD='a6a2136ab1',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
