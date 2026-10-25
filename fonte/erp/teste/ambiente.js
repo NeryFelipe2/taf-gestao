@@ -81,7 +81,7 @@ const NOMES = ['S', 'novoT', 'prep', 'saldos', 'derive', 'alertas', 'semaforo', 
   'linhasDe', 'ocMulti', 'itensDe', 'itensTxt', 'repartir', 'repartirR', 'semaforoLinhas', 'semaforoItem', 'ocLinhasLigada', 'evCtrl', 'SOLX', 'NF', 'SB', 'CH',
   'doSol', 'doSolLinhas', 'emitirOC', 'modalMapa', 'addCot', 'decidir', 'decidirFim', 'doReceber', 'modalReceber', 'doNF', 'conferir', 'liberar', 'pagar', 'rateioDoPedido', 'pedRowsT',
   'necessidades', 'alcadaDe', 'can_aprovar', 'modalSol', 'viewCompras', 'viewNota', 'planoSaldos', 'ctxItem', 'linhasDaProposta', 'semProposta', 'cancelarFim',
-  'usuarioId', 'ehSolicitante', 'alcadaCtrl', 'semDoc', 'EV_PARAMS', 'evPar', 'pintaSolX', 'solLinhasForm', 'ocUn', 'ocFat', 'ocRecebido', 'nextNum', 'hojeISO', 'eventosFrase', 'eventosCards', 'eventosKpis', 'semBox', 'somaGrupoCtrl', 'idxCtrl', 'ajusteCtrl', 'recalculaDoc'];
+  'usuarioId', 'ehSolicitante', 'alcadaCtrl', 'semDoc', 'EV_PARAMS', 'evPar', 'pintaSolX', 'solLinhasForm', 'ocUn', 'ocFat', 'ocRecebido', 'nextNum', 'hojeISO', 'eventosFrase', 'eventosCards', 'eventosKpis', 'semBox', 'somaGrupoCtrl', 'idxCtrl', 'ajusteCtrl', 'dashPend', 'recalculaDoc', 'recalculaDoc'];
 
 /* origem: 'trabalho' (os arquivos da cópia) ou 'base' (como era no commit de partida, lido do git) */
 function carrega(origem = 'trabalho') {

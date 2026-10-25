@@ -281,3 +281,6 @@ html.emb a.btn[href="/"]{display:none}
 .ev-card .pill{color:var(--ink)}
 .ev-card .pill::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ink-2)}
 .ev-card .pill.ok::before{background:var(--ok)}.ev-card .pill.warn::before{background:var(--warn)}.ev-card .pill.bad::before{background:var(--bad)}
+/* Revisão M3: linhas extras da solicitação (compra de pacote). A grade fixa de 5 colunas deixava o preço unitário com 32 px em tela de 390 px; abaixo de 620 px a linha vira duas colunas. */
+.sol-lin{display:grid;grid-template-columns:2fr 1.4fr .7fr .8fr auto;gap:12px;align-items:end;margin-top:8px}
+@media (max-width:620px){.sol-lin{grid-template-columns:1fr 1fr}.sol-lin>div:nth-child(1),.sol-lin>div:nth-child(2),.sol-lin>.sub{grid-column:1/-1}.sol-lin>button{grid-column:1/-1;justify-self:end}}

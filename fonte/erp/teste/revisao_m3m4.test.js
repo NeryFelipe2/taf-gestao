@@ -62,7 +62,7 @@ function telas(a, S) {
   const X = a.derive(), out = {};
   S.tab.compras = 'sols'; out.sols = comp(a.viewCompras(X)); S.tab.compras = 'ocs'; out.ocs = comp(a.viewCompras(X)); S.tab.compras = 'aprov'; out.aprov = comp(a.viewCompras(X));
   S.tab.nota = 'notas'; out.notas = comp(a.viewNota(X)); S.tab.nota = 'sem'; out.sem = comp(a.viewNota(X));
-  out.hoje = comp(a.viewHoje(X)); out.alertas = limpa(a.alertas(X)); out.economia = limpa(X.economia);
+  out.hoje = comp(a.viewHoje(X)); out.alertas = limpa(a.alertas(X)); out.economia = limpa(X.economia); out.pendencias = comp(a.dashPend(X));
   out.ped = limpa(tenta(() => a.pedRowsT())); out.nec = limpa(tenta(() => a.necessidades().map(x => [x.i.codigo, x.livre])));
   out.itens = S.D.items.map(i => { a.modalItem(i.codigo); return comp(a.el('#mbox').innerHTML); });
   out.receber = S.t.ocs.filter(o => ['aprovada', 'recebida_parcial'].includes(o.status)).map(o => { a.modalReceber(o.id); return comp(a.el('#mbox').innerHTML); });
@@ -283,7 +283,7 @@ test('regras escolhidas pelo construtor (decisão na aprovação, nota reprovada
   }
   assert.deepEqual(sem, [], 'regra sem marca');
   const d = String(novo.CHAVES_OBRA.find(c => c.k === 'ev_ctrl').d);
-  assert.match(d, /só no navegador/); assert.match(d, /subempreiteiro/);
+  assert.match(d, /só no navegador/); assert.match(d, /subempreiteiro/); assert.match(d, /Ligue junto com/);
 });
 
 /* ============ PENDÊNCIAS que dependem de decisão (mostradas como "todo": aparecem na saída, não derrubam a suíte) ============ */
@@ -308,4 +308,51 @@ test('PENDENTE P2: duas notas sem pedido verdes de R$ 90.000 no mesmo pacote e d
   const S0 = () => { novo.S.role = 'engenheiro'; };
   assert.deepEqual(sai(false), ['sem alçada', 'gerente'], 'OCs: a segunda soma 180.000 no pacote');
   assert.deepEqual(sai(true), ['sem alçada', 'sem alçada'], 'notas sem pedido: hoje não somam (fica registrado para decisão)');
+});
+
+/* ============ pendências da Gestão: nota sem pedido aguardando alçada também aparece (só com ev_ctrl) ============ */
+test('Gestão > pendências: com ev_ctrl a nota sem pedido aguardando alçada entra na lista; sem a chave a lista é a de sempre', () => {
+  const S = abre(novo, obraRev(), tRev({ ev_ctrl: true }), 'adm'); novo.derive();
+  assert.ok(lancaB(novo, null, 1200000, [{ item: '1.1', valor: 1200000 }]).aprov === 'pendente');
+  assert.match(comp(novo.dashPend(novo.derive())), /Notas sem pedido aguardando alçada/);
+  const S2 = abre(novo, obraRev(), tRev({}), 'adm'); novo.derive(); lancaB(novo, null, 1200000, [{ item: '1.1', valor: 1200000 }]);
+  assert.doesNotMatch(comp(novo.dashPend(novo.derive())), /aguardando alçada/);
+});
+
+/* ============ paridade: o semáforo e a alçada da nota sem pedido são os mesmos da OC (mesmas linhas, mesmo estado) ============ */
+test('nota sem pedido e OC com as mesmas linhas, no mesmo estado, saem com a mesma cor e a mesma alçada (200 cenários, uma a três linhas)', () => {
+  const { cenario: cen0 } = require('./gerador');
+  let comparados = 0; const cores = new Set(), alc = new Set();
+  for (let seed = 1; seed <= 200; seed++) {
+    const cen = cen0(seed, seed % 6 === 0 ? { eventos: false, itemFora: false } : { itemFora: false }); cen.t.frozen = true;
+    Object.assign(cen.t.par, { oc_linhas: true, ev_ctrl: true, limite: [300, 5000, 100000][seed % 3], calc_v2: seed % 2 === 0 });
+    cen.t.ocs.forEach(o => { if (o.status === 'em_alcada') { o.solicitanteId = 'papel:engenheiro'; o.criado = hoje(); o.sem = 'verde'; } });
+    const R = rng(seed * 13 + 3), pick = l => l[Math.floor(R() * l.length)];
+    const ate = abre(novo, cen.D, J(cen.t), 'engenheiro'); novo.derive();
+    const itens = ate.D.items.filter(i => i.meta_total != null).map(i => i.codigo); if (itens.length < 3) continue;
+    const L = Array.from({ length: pick([1, 2, 3]) }, () => { const i = ate.byCod[pick(itens)]; return { item: i.codigo, valor: Math.round(i.meta_total * pick([0.05, 0.4, 0.9, 1.2]) * 100) / 100 }; });
+    const total = Math.round(L.reduce((s, l) => s + l.valor, 0) * 100) / 100; if (!(total > 0)) continue;
+    /* como OC */
+    const a = abre(novo, cen.D, J(cen.t), 'engenheiro'); novo.derive();
+    const sol = solicita(novo, L.map(l => ({ item: l.item, qtd: 1, pu: l.valor })), 'Pedido fictício'); if (!sol) continue;
+    novo.S.role = 'compras'; const o = emite(novo, sol, sol.linhas && sol.linhas.length > 1 ? total : sol.preco); if (!o) continue;
+    /* como nota sem pedido */
+    abre(novo, cen.D, J(cen.t), 'adm'); novo.derive();
+    const n = lancaNota(novo, null, total, L.map(l => ({ ...l })));
+    if (!n) continue;
+    assert.equal(n.sem, o.sem, `semente ${seed}: cor da nota ${n.sem} x da OC ${o.sem}`);
+    assert.equal(n.alcada || null, o.alcada || null, `semente ${seed}: alçada da nota ${n.alcada} x da OC ${o.alcada}`);
+    comparados++; cores.add(o.sem); alc.add(o.alcada || 'nenhuma');
+  }
+  assert.ok(comparados > 120 && cores.size === 3 && alc.size >= 2, `paridade exercitada (comparados ${comparados}, cores ${[...cores]}, alçadas ${[...alc]})`);
+});
+
+/* ============ linhas extras da solicitação em tela de celular ============ */
+test('linha extra da solicitação: a grade vem do CSS (e vira duas colunas abaixo de 620 px); não há mais grade fixa de 5 colunas escrita na linha (o preço unitário ficava com 32 px em 390 px)', () => {
+  const js = fs.readFileSync(path.join(RAIZ, 'fonte', 'erp', 'js', '12_compras.js'), 'utf8');
+  assert.match(js, /<div class="sol-lin">/); assert.doesNotMatch(js, /grid-template-columns:2fr 1\.4fr/);
+  assert.match(cssTxt, /\.sol-lin\{display:grid;grid-template-columns:2fr 1\.4fr \.7fr \.8fr auto/);
+  assert.match(cssTxt, /@media \(max-width:620px\)\{\.sol-lin\{grid-template-columns:1fr 1fr\}/);
+  abre(novo, obraRev(), tRev({ oc_linhas: true }), 'engenheiro'); novo.derive(); novo.modalSol('1.1'); novo.SOLX.push({ item: '1.2', nat: 'MAT', qtd: '', pu: '' }); novo.pintaSolX();
+  assert.match(String(novo.el('#s-lin').innerHTML), /class="sol-lin"/);
 });
