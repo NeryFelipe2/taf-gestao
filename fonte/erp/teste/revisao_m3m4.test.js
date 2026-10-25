@@ -283,7 +283,7 @@ test('regras escolhidas pelo construtor (decisão na aprovação, nota reprovada
   }
   assert.deepEqual(sem, [], 'regra sem marca');
   const d = String(novo.CHAVES_OBRA.find(c => c.k === 'ev_ctrl').d);
-  assert.match(d, /só no navegador/); assert.match(d, /subempreiteiro/); assert.match(d, /Ligue junto com/);
+  assert.match(d, /só no navegador/); assert.match(d, /subempreiteiro/); assert.match(d, /Ligue junto com/); assert.match(d, /não fica salvo no banco/);
 });
 
 /* ============ PENDÊNCIAS que dependem de decisão (mostradas como "todo": aparecem na saída, não derrubam a suíte) ============ */
@@ -355,4 +355,24 @@ test('linha extra da solicitação: a grade vem do CSS (e vira duas colunas abai
   assert.match(cssTxt, /@media \(max-width:620px\)\{\.sol-lin\{grid-template-columns:1fr 1fr\}/);
   abre(novo, obraRev(), tRev({ oc_linhas: true }), 'engenheiro'); novo.derive(); novo.modalSol('1.1'); novo.SOLX.push({ item: '1.2', nat: 'MAT', qtd: '', pu: '' }); novo.pintaSolX();
   assert.match(String(novo.el('#s-lin').innerHTML), /class="sol-lin"/);
+});
+
+/* ============ P3: o servidor não deixa Gerente nem Diretoria gravar nota (achado lendo 01_erp.sql) ============ */
+const papeisQueGravam = tipo => { const sql = fs.readFileSync(path.join(RAIZ, 'fonte', 'erp', 'sql', '01_erp.sql'), 'utf8'); const i = sql.indexOf("when '" + tipo + "'"); assert.ok(i >= 0, 'não achei o tipo ' + tipo + ' na matriz'); const m = sql.slice(i).match(/any\(array\[([^\]]*)\]\)/); assert.ok(m, 'não achei a lista de papéis de ' + tipo); return [...m[1].matchAll(/'(\w+)'/g)].map(x => x[1]); };
+test('a matriz de papéis do servidor deixa o Gerente e a Diretoria gravar OC (aprovação de pedido funciona em obra real), mas NÃO nota (aprovação de nota sem pedido não fica salva)', () => {
+  const oc = papeisQueGravam('oc'), nf = papeisQueGravam('nf');
+  assert.ok(oc.includes('gerente') && oc.includes('diretoria'), 'OC: Gerente e Diretoria gravam');
+  assert.deepEqual(nf.sort(), ['adm', 'engenheiro', 'financeiro'], 'nota: hoje só estes três gravam (se isto mudar, tirar o aviso AVISO_SQL_CTRL e o P3)');
+});
+test('PENDENTE P3: Gerente e Diretoria precisam poder gravar a decisão sobre a nota sem pedido (SQL parado por E2: LEIA-ME-M4-SQL-PENDENTE.md)', { todo: 'precisa de ok separado do Felipe para mexer no banco' }, () => {
+  const nf = papeisQueGravam('nf'); assert.ok(nf.includes('gerente') && nf.includes('diretoria'));
+});
+test('com ev_ctrl o ERP avisa do banco: alerta fixo e faixa na aba Aprovações (só quando há nota aguardando); sem a chave nada disso aparece', () => {
+  for (const ec of [false, true]) {
+    const S = abre(novo, obraRev(), tRev({ ev_ctrl: ec }), 'adm'); novo.derive(); const n = lancaB(novo, null, 1200000, [{ item: '1.1', valor: 1200000 }]); assert.ok(n);
+    const X = novo.derive(); S.tab.compras = 'aprov'; S.role = 'gerente'; const h = String(novo.viewCompras(X));
+    assert.equal(novo.alertas(X).some(a => /aprovar nota sem pedido ainda não grava no banco/.test(a[1])), ec);
+    assert.equal(/não deixa Gerente nem Diretoria gravar nota/.test(h), ec);
+  }
+  const S2 = abre(novo, obraRev(), tRev({ ev_ctrl: true }), 'gerente'); novo.derive(); S2.tab.compras = 'aprov'; assert.doesNotMatch(String(novo.viewCompras(novo.derive())), /não deixa Gerente nem Diretoria gravar nota/, 'sem nota aguardando não há faixa');
 });
