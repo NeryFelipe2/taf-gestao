@@ -1,6 +1,7 @@
 /* ============ EVENTOS (M2): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote ============
    Só leitura: nada daqui grava. Os números vêm de agregaEventos() e agregaPacotes() (06_derivados.js), que só somam o que o ERP já guarda por item.
-   Aparece quando a chave par.ev_agrega da obra está ligada (Compras → Parâmetros → Chaves desta obra). */
+   Aparece quando a chave par.ev_agrega da obra está ligada (Compras → Parâmetros → Chaves desta obra).
+   As cores seguem a regra do item aplicada ao grupo e o "limite" é o teto que o ERP já tem [SUPOSIÇÃO: D1 do plano, ainda sem ok do Felipe]. */
 const SEMG_TXT={verde:'verde',amarelo:'amarelo',vermelho:'vermelho',sem_base:'sem base'};
 const semGPill=s=>`<span class="pill ${SEM_CLASS[s[0]]||'mute'}" title="${esc(s[1])}">${SEMG_TXT[s[0]]||esc(s[0])}</span>`;
 function eventosRotulo(g,modo){

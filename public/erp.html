@@ -715,7 +715,7 @@ function derive(){
   D.pacotes.forEach(p=>{p._dias=diasAte(p.fechar_ate);p._cot=p._it.filter(i=>i.status_cotacao==='A cotar').length;p._pctCot=p._it.length?1-p._cot/p._it.length:1;
     p._semFolga=p._it.filter(i=>i.meta_total>i.teto_total).length;p._acima=p.meta>p.teto;
     p._meta=p._it.reduce((s,i)=>s+i.meta_total,0);p._comp=p._it.reduce((s,i)=>s+S.sd[i.codigo].comp,0);p._real=p._it.reduce((s,i)=>s+S.sd[i.codigo].real,0);
-    /* M2: teto do pacote = soma dos tetos dos itens. Com par.ev_agrega ligada o alerta "meta acima do teto" usa essa soma; desligada vale o teto fixo do pacote, como sempre. */
+    /* M2 [SUPOSIÇÃO, plano 00-MATRIZ-E-PLANO]: teto do pacote = soma dos tetos dos itens. Com par.ev_agrega ligada o alerta "meta acima do teto" usa essa soma; desligada vale o teto fixo do pacote, como sempre. */
     p._teto=p._it.reduce((s,i)=>s+(+i.teto_total||0),0);p._temTeto=p._it.some(i=>i.teto_total!=null);
     if(chaveLigada('ev_agrega'))p._acima=p._temTeto&&r2(p._meta)>r2(p._teto);
     p._temOC=S.t.ocs.some(o=>S.byCod[o.item]?.pacote===p.codigo&&o.status!=='cancelada'&&o.status!=='reprovada')});
@@ -733,7 +733,8 @@ const pacTeto=p=>chaveLigada('ev_agrega')?p._teto:p.teto;
 
 /* ============ M2: o que já existe por item (meta, teto, comprometido, realizado, saldo) somado por evento e por pacote ============
    Só leitura: não grava nada. Usado pela tela Eventos (52_eventos.js). A soma dos itens de cada grupo é o grupo; item sem evento (ou sem pacote) fica
-   em "Sem evento" ("Sem pacote"), nunca some. Na obra sem nenhum evento (a 343) o grupo da EAP faz o papel do evento.
+   em "Sem evento" ("Sem pacote"), nunca some. Na obra sem nenhum evento (a 343) o grupo da EAP faz o papel do evento [SUPOSIÇÃO: o plano manda usar grupo na 343;
+   grupo = linha de nível 1 da EAP].
    Cor do grupo [SUPOSIÇÃO: D1 do plano, "limite" = o teto que o ERP já tem, mesma regra do item]: verde = comprometido + realizado dentro da meta;
    amarelo = acima da meta, até o limite; vermelho = acima do limite; "sem base" = nenhum item com meta (nunca vira verde). */
 const evDe=i=>String(i.evento==null?'':i.evento).trim();
@@ -761,6 +762,8 @@ function agregaGrupos(chaveDe,outraDe,extras){
   const confere={n:grupos.reduce((s,g)=>s+g.n,0)===total.n,campos:Object.fromEntries(campos.map(k=>[k,Math.abs(soma(k)-total[k])<0.005]))};
   confere.ok=confere.n&&campos.every(k=>confere.campos[k]);
   return {grupos,total,confere}}
+/* par.evRef = {código do evento: valor do eventograma oficial (Anexo VII)}, só para comparar com a receita somada pelos itens. [SUPOSIÇÃO: formato provisório;
+   hoje nada grava essa chave, a carga definitiva da lista de eventos é o M6 do plano.] Sem ela a tela não mostra a coluna de diferença. */
 function agregaEventos(){
   const its=S.D.items,modo=its.length&&its.every(i=>!evDe(i))?'grupo':'evento',ref=(S.t.par&&S.t.par.evRef)||null;
   const R=agregaGrupos(modo==='grupo'?grupoRaiz:evDe,pacDe,modo==='evento'&&ref?Object.keys(ref):[]);
@@ -3164,7 +3167,8 @@ if(window.TAF_EMB&&window.TAF_EMB.ativo)window.TAF_EMB.on(m=>{
 });
 /* ============ EVENTOS (M2): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote ============
    Só leitura: nada daqui grava. Os números vêm de agregaEventos() e agregaPacotes() (06_derivados.js), que só somam o que o ERP já guarda por item.
-   Aparece quando a chave par.ev_agrega da obra está ligada (Compras → Parâmetros → Chaves desta obra). */
+   Aparece quando a chave par.ev_agrega da obra está ligada (Compras → Parâmetros → Chaves desta obra).
+   As cores seguem a regra do item aplicada ao grupo e o "limite" é o teto que o ERP já tem [SUPOSIÇÃO: D1 do plano, ainda sem ok do Felipe]. */
 const SEMG_TXT={verde:'verde',amarelo:'amarelo',vermelho:'vermelho',sem_base:'sem base'};
 const semGPill=s=>`<span class="pill ${SEM_CLASS[s[0]]||'mute'}" title="${esc(s[1])}">${SEMG_TXT[s[0]]||esc(s[0])}</span>`;
 function eventosRotulo(g,modo){
