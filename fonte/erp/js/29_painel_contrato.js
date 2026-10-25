@@ -157,7 +157,7 @@ function painelLinhas(k){const T=S.t,h=hojeISO(),R=[],add=(ref,desc,valor,data)=
   if(k==='gasto'){nt.forEach(nota);lg.forEach(lf)}
   if(k==='requisicao')T.sols.filter(s=>['enviada','em_cotacao','cotada'].includes(s.status)).forEach(s=>add(s.num,s.desc,s.qtd*s.preco,s.data));
   if(k==='custoFixo'){nt.forEach(n=>{const v=n.rateio.filter(l=>l.nat==='ADM').reduce((a,l)=>a+ +l.valor,0);if(v)add(n.num,n.emitente+' (rateio ADM)',v,n.emissao)});lfxDe('custo_fixo').forEach(lf)}
-  if(k==='prov'){T.ocs.filter(o=>['aprovada','recebida_parcial','recebida'].includes(o.status)).forEach(o=>{const f=T.notas.filter(n=>n.oc===o.id&&n.status!=='lancada').reduce((s,n)=>s+n.rateio.filter(l=>l.item===o.item).reduce((a,l)=>a+ +l.valor,0),0),v=Math.max(0,o.valor-f);if(v)add(o.num,o.forn+' · pedido sem nota',v,o.data)});lfxDe('provisao').forEach(lf)}
+  if(k==='prov'){contaObra(T).ocs.forEach(({oc:o,comp:v})=>{if(v)add(o.num,o.forn+' · pedido sem nota',v,o.data)});lfxDe('provisao').forEach(lf)}
   return R}
 ACOES['pc-det']=el=>{const k=el.dataset.k,R=painelLinhas(k),tot=r2(R.reduce((s,x)=>s+x.valor,0));
   modal(`<h3>Composição · ${esc(k)}</h3><div class="sub">${R.length} registros · total ${brl(tot)}</div>${R.length?`<div class="tw"><table class="tbl"><tbody>${R.map(x=>`<tr><td class="mono">${esc(x.ref)}</td><td>${esc(x.desc)}</td><td>${fdata(x.data)}</td><td class="r">${brl(x.valor)}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">Nada compõe este número.</div>'}<div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`)};

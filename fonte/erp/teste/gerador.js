@@ -51,7 +51,7 @@ function cenario(seed, opc = {}) {
   for (let k = 0; k < nNf; k++) {
     const status = pick(ST_NF), o = t.ocs.length && R() < 0.75 ? pick(t.ocs) : null, nl = status === 'lancada' ? 0 : int(1, 3), rateio = [];
     for (let j = 0; j < nl; j++) {
-      const item = o && R() < 0.6 ? o.item : (R() < 0.04 ? 'X.98' : pick(cods));
+      const item = o && R() < 0.6 ? o.item : (opc.itemFora !== false && R() < 0.04 ? 'X.98' : pick(cods));   /* X.98 = item fora da EAP; itemFora:false desliga */
       const l = { item, valor: cent(int(1000, 800000) / 100), nat: pick(['MO', 'MAT', 'EQP', 'TER', 'ADM']) };
       if (R() < 0.7) l.conta = pick(['4.1.01', '4.2.01', '4.2.08', '4.3.01', '4.4.01', '4.5.01']);
       rateio.push(l);
