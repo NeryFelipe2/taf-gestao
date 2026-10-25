@@ -19,7 +19,8 @@ function prep(){
    Chave par.calc_v2 (por obra, padrão DESLIGADA, vale para o navegador; o SQL _taf_erp_valores continua como era, ver LEIA-ME-M1-SQL-PENDENTE.md):
    - desligada: conta de sempre. A OC é abatida só pelas notas rateadas NO MESMO ITEM da OC (chave oc|item).
    - ligada [SUPOSIÇÃO: regra do plano 00-MATRIZ-E-PLANO, M1; ainda sem ok do Felipe]: a OC é abatida pelo TOTAL das notas ligadas a ela, em qualquer item
-     do rateio. Nota rateada fora do item da OC deixa de contar duas vezes e gera aviso (contaObra().avisos). */
+     do rateio que exista no orçamento. Nota rateada fora do item da OC deixa de contar duas vezes e gera aviso (contaObra().avisos).
+     Rateio para item que NÃO existe no orçamento não abate o pedido (não viraria realizado de item nenhum): o valor continua comprometido e o aviso diz isso. */
 const OC_COMPROMETE=['aprovada','recebida_parcial','recebida'];
 /* Chaves liga/desliga POR OBRA, guardadas em estado.par (vão para o banco junto com os parâmetros). Todas nascem DESLIGADAS: desligada = o ERP de sempre. [SUPOSIÇÃO: mecanismo proposto no plano 00-MATRIZ-E-PLANO] */
 const CHAVES_OBRA=[
@@ -29,16 +30,26 @@ const chaveLigada=(k,t)=>{const p=(t||S.t||{}).par;return !!(p&&p[k])};
 const calcV2=t=>chaveLigada('calc_v2',t);
 function contaObra(t){
   t=t||S.t;const v2=calcV2(t),ocs=t.ocs||[],real=[],fatItem={},fatOC={},porId={};
+  /* itens do orçamento (EAP) da obra aberta. Só vale para a obra aberta (t===S.t) e quando há EAP: nas telas que trocam S.t por outra obra (comObra, 44_painel_inicio.js)
+     S.D.items vem vazio, e aí não há como saber o que existe naquela obra (sem filtro). Usado só com a chave calc_v2 ligada. */
+  const eap=v2&&t===S.t&&S.D&&S.D.items&&S.D.items.length?new Set(S.D.items.map(i=>String(i.codigo))):null;
+  const naEAP=l=>!eap||eap.has(String(l.item));
   ocs.forEach(o=>{porId[o.id]=o});
-  (t.notas||[]).forEach(n=>{if(n.status==='lancada')return;(n.rateio||[]).forEach(l=>{const v=+l.valor;real.push({n,l,v});
-    if(n.oc){const k=n.oc+'|'+l.item;fatItem[k]=(fatItem[k]||0)+v;fatOC[n.oc]=(fatOC[n.oc]||0)+v}})});
+  /* desligada: nota rateada sem a lista rateio derruba a conta (TypeError), como no ERP de partida; ligada tolera a nota sem lista */
+  (t.notas||[]).forEach(n=>{if(n.status==='lancada')return;(v2?(n.rateio||[]):n.rateio).forEach(l=>{const v=+l.valor;real.push({n,l,v});
+    /* fatOC (só da chave ligada) soma o que a nota realiza em item que existe no orçamento: rateio para item que não existe não vira realizado do item,
+       então não pode abater o pedido (senão o valor sumia das duas pontas). Fica comprometido no pedido e vira aviso. */
+    if(n.oc){const k=n.oc+'|'+l.item;fatItem[k]=(fatItem[k]||0)+v;if(naEAP(l))fatOC[n.oc]=(fatOC[n.oc]||0)+v}})});
   const comp=[],avisos=[];
   ocs.forEach(o=>{if(!OC_COMPROMETE.includes(o.status))return;
     const abate=v2?(fatOC[o.id]||0):(fatItem[o.id+'|'+o.item]||0);comp.push({oc:o,comp:Math.max(0,o.valor-abate),abate})});
-  /* aviso: nota rateada em item diferente do item da OC. Uma linha por nota+OC, com os itens e o valor que caiu fora. */
+  /* aviso: nota rateada em item diferente do item da OC. Uma linha por nota+OC, com os itens e o valor que caiu fora.
+     orfaos/valorOrfao (só quando existem): parte que caiu em item que não está no orçamento. */
   if(v2)(t.notas||[]).forEach(n=>{const o=n.status!=='lancada'&&n.oc&&porId[n.oc];if(!o||!OC_COMPROMETE.includes(o.status))return;
     const fora=(n.rateio||[]).filter(l=>l.item!==o.item);if(!fora.length)return;
-    avisos.push({tipo:'nota_fora_do_item',oc:o.id,ocNum:o.num,itemOC:o.item,nota:n.id,notaNum:n.num,itens:[...new Set(fora.map(l=>l.item))],valor:r2(fora.reduce((s,l)=>s+ +l.valor,0))})});
+    const av={tipo:'nota_fora_do_item',oc:o.id,ocNum:o.num,itemOC:o.item,nota:n.id,notaNum:n.num,itens:[...new Set(fora.map(l=>l.item))],valor:r2(fora.reduce((s,l)=>s+ +l.valor,0))};
+    const orf=fora.filter(l=>!naEAP(l));if(orf.length){av.orfaos=[...new Set(orf.map(l=>l.item))];av.valorOrfao=r2(orf.reduce((s,l)=>s+ +l.valor,0))}
+    avisos.push(av)});
   return {v2,real,ocs:comp,avisos};
 }
 function saldos(){
