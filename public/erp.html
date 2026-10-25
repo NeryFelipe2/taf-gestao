@@ -234,14 +234,15 @@ label{display:block;font:500 10.5px var(--mono);letter-spacing:.06em;text-transf
 @media (max-width:820px){.apmenu button,.apbtn{min-height:44px}}
 
 /* dentro do Centro de Gestão (?embed=1): mesma paleta, tipografia e cartões do Centro; sem menu lateral nem topo próprios (o Centro navega) */
+/* Revisão M3 e M4: no Centro, --ink-3 e o verde das etiquetas (--ok-ink) estavam abaixo de 4,5:1 (3,9 a 4,4) nos textos de apoio, cabeçalhos de tabela, abas e etiquetas verdes da tela Eventos. Agora: --ink-3 = --mu2 do Centro (claro #5B6472, escuro #8B8BA5) e --ok-ink = #166534 no claro. */
 html.emb .side,html.emb .top{display:none}
 html.emb .app{display:block;padding:0;min-height:0}
 html.emb,html.emb body{height:auto}
 html.emb .main{padding:0}
-html:root.emb{--bg:transparent;--panel:#FFFFFF;--panel-2:#EEF1F6;--line:rgba(15,23,42,.10);--ink:#1B2433;--ink-2:#4B5563;--ink-3:#6B7280;
+html:root.emb{--bg:transparent;--panel:#FFFFFF;--panel-2:#EEF1F6;--line:rgba(15,23,42,.10);--ink:#1B2433;--ink-2:#4B5563;--ink-3:#5B6472;
   --ok:#15803D;--ok-bg:rgba(21,128,61,.10);--warn:#B45309;--warn-bg:rgba(180,83,9,.10);--bad:#B91C1C;--bad-bg:rgba(185,28,28,.09);--info:#1D4ED8;--info-bg:rgba(29,78,216,.09);
-  --ok-ink:#15803D;--warn-ink:#92400E;--bad-ink:#B91C1C;--info-ink:#1D4ED8;--btn:#0F766E;--btn-ink:#fff;--r:12px;--sh:none}
-html:root.emb[data-theme="dark"]{--bg:transparent;--panel:#0B0B19;--panel-2:#12122A;--line:rgba(255,255,255,.07);--ink:#E6E6EE;--ink-2:#A0A0B8;--ink-3:#73738C;
+  --ok-ink:#166534;--warn-ink:#92400E;--bad-ink:#B91C1C;--info-ink:#1D4ED8;--btn:#0F766E;--btn-ink:#fff;--r:12px;--sh:none}
+html:root.emb[data-theme="dark"]{--bg:transparent;--panel:#0B0B19;--panel-2:#12122A;--line:rgba(255,255,255,.07);--ink:#E6E6EE;--ink-2:#A0A0B8;--ink-3:#8B8BA5;
   --ok:#4ADE80;--ok-bg:rgba(74,222,128,.12);--warn:#FBBF24;--warn-bg:rgba(251,191,36,.10);--bad:#F87171;--bad-bg:rgba(248,113,113,.12);--info:#60A5FA;--info-bg:rgba(96,165,250,.12);
   --ok-ink:#4ADE80;--warn-ink:#FDE68A;--bad-ink:#F87171;--info-ink:#60A5FA;--btn:#14B8A6;--btn-ink:#042F2E}
 html.emb body{background:transparent}
@@ -716,7 +717,7 @@ const CHAVES_OBRA=[
  {k:'calc_v2',n:'Cálculo único de comprometido e realizado (M1)',d:'Nota rateada em outro item não conta duas vezes: o pedido é abatido pela nota inteira, com aviso. Remanejar meta também acerta a meta unitária. Atualizar pela planilha lista os itens remanejados. Atenção: o banco (tela “Da tarefa à compra e ao BM”, Ciclo e Marko) ainda não acompanha esta chave e continua contando como antes; em obra real, os números desses lugares podem diferir de Orçamento, Eventos e Painéis.'},
  {k:'ev_agrega',n:'Eventos e pacotes pela soma dos itens (M2)',d:'O teto e o alerta do pacote passam a olhar a soma dos itens. Liga a aba Eventos (só leitura): meta, limite, comprometido, realizado, saldo e semáforo por evento e por pacote.'},
  {k:'oc_linhas',n:'Compra com várias linhas (M3)',d:'Solicitação e pedido (OC) passam a ter várias linhas {item, quantidade, valor}. O comprometido e o faturado são contados por linha, o rateio da nota nasce igual às linhas do pedido e a tela mostra evento, pacote e saldo de cada item ao escolher. Pedido antigo com um item só continua igual. Atenção: o banco (tela “Da tarefa à compra e ao BM”, Ciclo e Marko) ainda lê só o item da primeira linha.'},
- {k:'ev_ctrl',n:'Limite em três níveis: item, pacote e evento (M4)',d:'O semáforo devolve a pior cor entre item, pacote e evento e vale na solicitação, no pedido e na nota sem pedido. Pedido aguardando aprovação reserva saldo; a decisão recalcula o semáforo; quem solicitou não aprova (por usuário); pedidos verdes do mesmo pacote no mesmo dia somam para a alçada. Alçadas e valores seguem provisórios.'}];
+ {k:'ev_ctrl',n:'Limite em três níveis: item, pacote e evento (M4)',d:'O semáforo devolve a pior cor entre item, pacote e evento e vale na solicitação, no pedido e na nota sem pedido. Pedido aguardando aprovação reserva saldo; a decisão recalcula o semáforo; quem solicitou não aprova (por usuário); pedidos verdes do mesmo pacote no mesmo dia somam para a alçada. Alçadas e valores seguem provisórios. Atenção: a regra vale só no navegador (o servidor ainda não confere, M5 parado) e não alcança a medição de subempreiteiro nem nota de histórico importado.'}];
 const chaveLigada=(k,t)=>{const p=(t||S.t||{}).par;return !!(p&&p[k])};
 const calcV2=t=>chaveLigada('calc_v2',t);
 const ocLinhasLigada=t=>chaveLigada('oc_linhas',t);
@@ -1355,7 +1356,7 @@ ACOES['oc-lin']=el=>{const o=S.t.ocs.find(x=>x.id===el.dataset.id),L=linhasDe(o)
    <div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`)};
 /* ---------- M4 (par.ev_ctrl): decidir OC ou nota sem pedido ----------
    A decisão RECALCULA o semáforo e a alçada com o saldo de agora (o saldo pode ter mudado desde a emissão: pedido aprovado, nota lançada, remanejamento): pedido emitido antes do seu reserva saldo,
-   pedido aprovado já conta como comprometido. Se a cor piora e quem está decidindo não tem mais a alçada, o documento fica com a cor e a alçada novas e a aprovação não acontece. */
+   pedido aprovado já conta como comprometido. Se a cor piora e quem está decidindo não tem mais a alçada, o documento fica com a cor e a alçada novas e a aprovação não acontece [SUPOSIÇÃO: o plano (cenário c) só diz que a cor é recalculada; que a aprovação não aconteça nesse caso é escolha minha, ainda sem ok do Felipe]. */
 function recalculaDoc(d){
   const oc=S.t.ocs.includes(d),L=oc?linhasDe(d).map(l=>({item:l.item,valor:+l.valor||0})):(d.rateio||[]).map(l=>({item:l.item,valor:+l.valor||0})),ctx=oc?{ocId:d.id,dia:d.criado}:{notaId:d.id,dia:d.rateadaEm};
   const sem=semaforoLinhas(L,ctx);if(sem[0]==='bloqueado')return {bloqueado:true,sem};
@@ -1372,7 +1373,7 @@ function decidirCtrl(id,ok){
     if(!can_aprovar(d)){toast(d.num+': o semáforo agora é '+r.sem[0]+' (era '+(r.antes||'—')+'). '+(motivoNaoAprova(d)||'Sem alçada'));render();return}
     toast(d.num+': semáforo recalculado, agora '+r.sem[0])}
   o?decidirFim(o,true,''):notaDecideFim(n,true,'')}
-/* nota sem pedido que passou pela alçada: aprovada, segue para conferir; reprovada, volta para a fila "sem rateio" com o rateio recusado guardado e o motivo */
+/* nota sem pedido que passou pela alçada: aprovada, segue para conferir; reprovada, volta para a fila "sem rateio" com o rateio recusado guardado e o motivo [SUPOSIÇÃO: o destino da nota reprovada é escolha minha, ainda sem ok do Felipe] */
 function notaDecideFim(n,ok,m){
   const a=n.aprov;n.aprovador=user();n.aprovadorId=usuarioId();
   if(ok){n.aprov='aprovada'}
@@ -1413,7 +1414,7 @@ function modalNF(id){
     if(calcV2(S.t)||evCtrl())pintaRat()};$('#n-js').style.display=NF.oc?'none':'block';
   $('#n-v').oninput=()=>{NF.valor=+$('#n-v').value;pintaRat()};if(!NF.rateio.length)NF.rateio.push({item:S.D.items[0].codigo,valor:0});pintaRat();
 }
-/* rateio que nasce do pedido: as linhas do pedido (mesmo item, mesmo valor). Nota de valor menor que o pedido: cada linha recebe a parte proporcional. Linhas do mesmo item somam. */
+/* rateio que nasce do pedido: as linhas do pedido (mesmo item, mesmo valor). Nota de valor menor que o pedido: cada linha recebe a parte proporcional [SUPOSIÇÃO: a divisão proporcional é escolha minha; a pessoa pode ajustar a mão]. Linhas do mesmo item somam. */
 function rateioDoPedido(o){
   const alvo=Math.min(+NF.valor||o.valor,o.valor),L=linhasDe(o);
   if(L.length<=1)return [{item:o.item,valor:alvo}];
@@ -1448,7 +1449,7 @@ function doNF(modo){
   if(modo==='rateada'){if(!lin.length||lin.some(l=>!l.item))return toast('Toda linha precisa de obra e item');
     if(Math.abs(r2(lin.reduce((s,l)=>s+ +l.valor,0))-NF.valor)>.004)return toast('O rateio não fecha 100% da nota')}
   const n={...NF,rateio:lin.map(l=>({item:l.item,valor:r2(l.valor),nat:natLin(l).n,conta:natLin(l).c})),status:modo,ocNum:NF.oc?S.t.ocs.find(o=>o.id===NF.oc).num:''};
-  /* ev_ctrl, D7: nota sem pedido passa pelo mesmo semáforo (item, pacote e evento) e pela mesma alçada de uma OC. Bloqueado (item sem meta ou fora da planilha) não grava o rateio. */
+  /* ev_ctrl, D7: nota sem pedido passa pelo mesmo semáforo (item, pacote e evento) e pela mesma alçada de uma OC. Bloqueado (item sem meta ou fora da planilha) não grava o rateio [SUPOSIÇÃO: a mesma regra da compra; nota com item sem meta não grava]. */
   let alcN=null,semN=null;
   if(modo==='rateada'&&!NF.oc&&evCtrl()&&evPar().notaSemPedido){
     const L=n.rateio.map(l=>({item:l.item,valor:l.valor})),sem=semaforoLinhas(L,{notaId:ex&&ex.status!=='lancada'?ex.id:undefined});
@@ -1459,7 +1460,7 @@ function doNF(modo){
   log('nota_fiscal',n.num||ex.num,'status','',modo+' · '+brl(NF.valor)+(semN?' · '+semN+(alcN?' · '+alcN:''):''));save();closeModal();toast('Nota '+(modo==='rateada'?'rateada':'lançada (fila sem rateio)')+(alcN?' · aguarda '+ROLES[alcN].n+' ('+semN+')':''));render();
 }
 function conferir(id){
-  const n=S.t.notas.find(x=>x.id===id);if(evCtrl()&&n.aprov==='pendente')return toast(n.num+' aguarda aprovação ('+ROLES[n.alcada].n+') antes de conferir');n.diverg='';
+  const n=S.t.notas.find(x=>x.id===id);if(evCtrl()&&n.aprov==='pendente')return toast(n.num+' aguarda aprovação ('+ROLES[n.alcada].n+') antes de conferir');   /* [SUPOSIÇÃO: nota aguardando alçada não segue para conferir nem para liberar] */n.diverg='';
   if(n.oc){const o=S.t.ocs.find(x=>x.id===n.oc);
     const outras=S.t.notas.filter(x=>x.oc===o.id&&x.id!==n.id&&x.status!=='lancada').reduce((s,x)=>s+x.valor,0);
     const esperado=r2(ocRecebido(o)-outras);
@@ -3373,7 +3374,7 @@ function pedRowsT(){const O=S.D.obra,cd=cadDe(O.codigo,S.t),R=[];
   S.t.ocs.forEach(o=>{const ins=(S.t.inss||[]).find(i=>i.cod===o.ins),sol=(S.t.sols||[]).find(s=>s.id===o.sol),cot=sol&&sol.cots?sol.cots.find(c=>c.forn===o.forn):null,pz=cot&&/^\d+$/.test(String(cot.prazo||'').trim())?+cot.prazo:null,
     prev=pz!=null&&o.criado?addDias(o.criado,pz):'',fo=(S.t.forns||[]).find(f=>f.nome===o.forn),rec=o.recebido||0,canc=!!PED_ST[o.status],pq=canc?0:Math.max(0,o.qtd-rec);
     const base={nrUnico:o.num,nrPedido:o.num,dtNeg:o.criado||'',prev,codEmp:'1',empresa:cd.empresa,codParc:fo?String(fo.cnpj||'').replace(/\D/g,''):'',parceiro:o.forn,nContrato:O.codigo,obra:O.nome,situacao:o.status};
-    /* oc_linhas: pedido de várias linhas sai uma linha de consulta por linha do pedido (o recebimento é do pacote: a parte entregue de cada linha é a mesma fração) */
+    /* oc_linhas: pedido de várias linhas sai uma linha de consulta por linha do pedido (o recebimento é do pacote: a parte entregue de cada linha é a mesma fração [SUPOSIÇÃO]) */
     if(ocMulti(o,S.t)){const fr=o.qtd>0?rec/o.qtd:0;linhasDe(o,S.t).forEach(l=>{const it=S.byCod[l.item]||{},ql=+l.qtd||0,ent=r2(ql*fr),pl=canc?0:Math.max(0,r2(ql-ent));
       R.push({...base,pend:pl>1e-9?'S':'N',codProd:l.item,produto:it.descricao?String(it.descricao).slice(0,80):String(l.item),volume:it.unidade||'UN',vlrUnit:ql>0?r2(l.valor/ql):+l.valor,qtd:ql,vlrTotal:+l.valor,qtdEntregue:ent,qtdPend:pl,item:l.item,natureza:NATNOME[l.nat||o.nat]||l.nat||o.nat||''})});return}
     R.push({nrUnico:o.num,nrPedido:o.num,pend:pq>1e-9?'S':'N',dtNeg:o.criado||'',prev,codEmp:'1',empresa:cd.empresa,codParc:fo?String(fo.cnpj||'').replace(/\D/g,''):'',parceiro:o.forn,nContrato:O.codigo,obra:O.nome,codProd:o.ins||o.item,produto:ins?ins.desc:(o.item||''),volume:ins?ins.un:'UN',vlrUnit:o.preco,qtd:o.qtd,vlrTotal:o.valor,qtdEntregue:rec,qtdPend:pq,situacao:o.status,item:o.item,natureza:NATNOME[o.nat]||o.nat||''})});
