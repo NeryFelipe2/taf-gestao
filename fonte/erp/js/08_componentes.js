@@ -10,13 +10,17 @@ const AREAS=[
  {k:'ativos',n:'Contratos e ativos',i:'eap',tabs:[['ctr','Contratos'],['prj','Projetos'],['pat','Patrimônio'],['frt','Frota']]},
  {k:'adm',n:'Gestão e administração',i:'aud',tabs:[['bi','Indicadores e BI'],['admin','Administração'],['fluxo','Fluxos e SLA'],['aud','Auditoria'],['usuarios','Usuários']]},
 ];
-/* Quais telas cada papel vê no menu (as ações dentro de cada tela continuam limitadas por can()). Papéis de gestão veem tudo. */
+/* Quais telas cada papel vê no menu (as ações dentro de cada tela continuam limitadas por can()). Papéis de gestão veem tudo.
+   [SUPOSIÇÃO, M2: decisão de permissão que veio do plano, não do Felipe] a aba Eventos (só leitura, com a chave ev_agrega) aparece para planejamento e compras (que já veem Orçamento e Pacotes)
+   e para os papéis que veem tudo; encarregado, almoxarife, administrativo e financeiro não a veem. Falta o ok do Felipe sobre quem vê. */
 const TELAS_PAPEL={encarregado:['hoje','eap','campo','lean','frt','pes'],almox:['hoje','pac','rastro','compras','cdash','pedc','nota','cad','est','frt','lean'],planejamento:['hoje','pain','eap','pac','evt','campo','lean','rastro','med','prj'],
   compras:['hoje','pain','eap','pac','evt','rastro','compras','cdash','pedc','nota','cad','est','lean'],adm:['hoje','rastro','compras','cdash','pedc','nota','cad','est','ctr','pat','frt','pes','sst','fluxo','fin','plano','ctb','aud'],financeiro:['hoje','pain','rastro','ctr','pat','compras','cdash','pedc','nota','cad','fin','fat','plano','ctb','aud']};
 const tabVisivel=k=>{if(k==='dash')return true;if(k==='evt'&&!chaveLigada('ev_agrega'))return false;if(k==='admin')return isRole('diretoria','gestao','gerente')||S.role==='admin';if(k==='usuarios')return MODO_SB&&S.role==='admin';const l=TELAS_PAPEL[S.role];return !l||l.includes(k)};
 const areasVisiveis=()=>AREAS.map(a=>({...a,tabs:a.tabs.filter(t=>tabVisivel(t[0]))})).filter(a=>a.tabs.length);
 const areaDe=v=>areasVisiveis().find(a=>a.tabs.some(t=>t[0]===v))||areasVisiveis()[0];
 const NAV_BASE=AREAS.flatMap(a=>a.tabs.map(t=>[t[0],t[1],a.i]));
+/* link direto para uma tela (?vista=… ou mensagem do Centro de Gestão): vale se a tela existe; Eventos só com a chave ev_agrega ligada (desligada ela não está no menu e abriria sob "Início") */
+const vistaPermitida=v=>NAV_BASE.some(n=>n[0]===v)&&(v!=='evt'||chaveLigada('ev_agrega'));
 const navItens=()=>NAV_BASE.filter(n=>tabVisivel(n[0]));
 const badgeArea=(a,X)=>a.tabs.map(t=>badgeFor(t[0],X)).join('');
 const abasDaArea=a=>a.tabs.length<2?'':`<div class="tabs areatabs">${a.tabs.map(([k,l])=>`<button data-v="${k}" class="${S.view===k?'on':''}">${l}</button>`).join('')}</div>`;

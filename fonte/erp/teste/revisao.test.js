@@ -256,3 +256,31 @@ test('B6: com a chave ligada o realizado por conta continua igual (o realizado n
     assert.deepEqual(f(true), f(false), 'semente ' + seed);
   }
 });
+
+/* ============ B7 do revisor: texto fixo da 342 aparecia em todas as obras ============ */
+test('B7: o exemplo "(na 342, 4.1.1 e 4.1.2)" só aparece na obra 342, com ou sem o eventograma oficial carregado', () => {
+  for (const [cod, com] of [['999', false], ['342', true]]) {
+    for (const ref of [false, true]) {
+      const D = obra999(); D.obra.codigo = cod;
+      abre(novo, D, estado999(ref ? { ev_agrega: true, evRef: { '4.1.1': 25000, '4.1.2': 6000 } } : { ev_agrega: true })); const X = novo.derive(); const h = novo.viewEventos(X);
+      assert.equal(/\(na 342, 4\.1\.1 e 4\.1\.2\)/.test(h), com, `obra ${cod}, eventograma ${ref ? 'carregado' : 'não carregado'}`);
+      assert.match(h, /dividido entre dois eventos|aparece nos dois eventos/, 'o texto genérico continua explicando');
+    }
+  }
+});
+
+/* ============ B8 do revisor: link direto para Eventos com a chave desligada ============ */
+test('B8: link direto (vista=evt) só vale com a chave ligada; as outras telas continuam valendo como antes', () => {
+  abre(novo, obra999(), estado999());
+  assert.equal(novo.vistaPermitida('evt'), false, 'chave desligada: Eventos não abre por link'); assert.equal(novo.vistaPermitida('xyz'), false, 'tela que não existe');
+  for (const v of ['eap', 'pac', 'rastro', 'compras', 'hoje', 'admin', 'usuarios']) assert.equal(novo.vistaPermitida(v), true, v + ' continua aceita, como a lista antiga');
+  novo.S.t.par.ev_agrega = true; assert.equal(novo.vistaPermitida('evt'), true);
+  /* os dois pontos de entrada usam a mesma regra */
+  const ler = n => require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'js', n), 'utf8');
+  assert.match(ler('51_embed.js'), /vistaPermitida\(c\.vista\)/); assert.match(ler('03b_chave.js'), /vistaPermitida\(pv\)/);
+});
+test('B8: a lista de telas aceitas por link com a chave desligada é a de partida (nada além de Eventos muda)', () => {
+  abre(novo, obra999(), estado999()); abre(base, obra999(), estado999());
+  const antes = J(base.NAV_BASE).map(n => n[0]), agora = J(novo.NAV_BASE).map(n => n[0]).filter(v => novo.vistaPermitida(v));
+  assert.deepEqual(agora, antes);
+});

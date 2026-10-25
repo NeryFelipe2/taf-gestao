@@ -113,11 +113,11 @@ test('4.1.1 e 4.1.2: a diferença contra o eventograma oficial aparece na tela, 
   const lin = c => h.split('<tr').find(l => l.includes(`data-k="${c}"`));
   assert.match(lin('4.1.1'), /<b>\+R\$\s1\.000,00<\/b>/); assert.match(lin('4.1.2'), /<b>-R\$\s1\.000,00<\/b>/);
   assert.doesNotMatch(lin('1.1.1'), /<b>[+-]R\$/);
-  assert.match(h, /4\.1\.1 e 4\.1\.2/);
+  assert.doesNotMatch(h, /na 342/, 'o exemplo da 342 não aparece em outra obra (revisão B7)');
 });
 test('4.1.1 e 4.1.2: sem o eventograma oficial carregado a tela diz que a diferença existe e por que ainda não aparece', () => {
   abre(api, obra999(), estado999({ ev_agrega: true })); const X = api.derive(); const h = api.viewEventos(X);
-  assert.doesNotMatch(h, /<th class="r">Diferença<\/th>/); assert.match(h, /dividido entre dois eventos/); assert.match(h, /4\.1\.1 e 4\.1\.2/);
+  assert.doesNotMatch(h, /<th class="r">Diferença<\/th>/); assert.match(h, /dividido entre dois eventos/); assert.doesNotMatch(h, /na 342/);
 });
 test('evento só do eventograma oficial (sem item no ERP) aparece com a diferença inteira', () => {
   abre(api, obra999(), estado999({ ev_agrega: true, evRef: { ...EV_REF_999, '9.9.9': 500 } })); api.derive();

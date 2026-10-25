@@ -86,7 +86,7 @@ async function chCarregar(ob){
   if(!CH.leitura)Object.keys(PX).forEach(k=>{if(!(SB.pool[k]||[]).length||SB.pool[k].length<5)chPool(k)});
   /* o extrato financeiro histórico da obra (quando existe na base) NÃO é lançado sozinho: só entra quando alguém conferir e mandar */
   {const P=new URLSearchParams(location.search),pv=P.get('vista');   /* vindo do Centro de Gestão ou de um link: abre a tela pedida */
-    if(!CH.linkFeito&&(pv||P.get('tarefa'))){CH.linkFeito=1;S.view=(pv&&NAV_BASE.some(n=>n[0]===pv))?pv:'rastro'}}
+    if(!CH.linkFeito&&(pv||P.get('tarefa'))){CH.linkFeito=1;S.view=(pv&&vistaPermitida(pv))?pv:'rastro'}}
   render();chOutras();
 }
 /* estado das outras obras, só para ler (painel da carteira, RH, comparativo): nunca é gravado por aqui */
