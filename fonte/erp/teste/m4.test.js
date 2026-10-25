@@ -32,7 +32,7 @@ function obraCtrl() {
   return D;
 }
 const est = (par, ocs = [], notas = []) => ({ frozen: true, par: { tol: 0.02, limite: 100000, ...par }, ocs, notas });
-const pend = (num, item, valor, extra = {}) => oc(num, item, valor, 'em_alcada', { alcada: 'gerente', sem: 'verde', criado: hoje(), solicitante: 'Marko Aurélio', solicitanteId: 'papel:engenheiro', ...extra });
+const pend = (num, item, valor, extra = {}) => oc(num, item, valor, 'em_alcada', { alcada: 'gerente', sem: 'verde', criado: hoje(), solicitante: 'José Fictício', solicitanteId: 'papel:engenheiro', ...extra });
 const nivel = (r, n) => (r[3] || []).filter(x => x.nivel === n).map(x => x.cor);
 
 /* ============ (a) item verde, evento sem saldo, resultado amarelo ============ */
@@ -158,10 +158,10 @@ test('(e) quem solicitou tenta aprovar o próprio pedido: bloqueado, com o motiv
 });
 
 test('(e) por usuário e não por nome: mesmo usuário com o nome escrito diferente é bloqueado; nome igual de outro usuário não é', () => {
-  const SB = api.SB; SB.perfil = { nome: 'Marko Aurelio', papel: 'gerente', fixo: true, uid: 'pessoa:marko aurelio' };
+  const SB = api.SB; SB.perfil = { nome: 'Jose Ficticio', papel: 'gerente', fixo: true, uid: 'pessoa:jose ficticio' };
   try {
     for (const ec of [false, true]) {
-      const S = abre(api, obraCtrl(), est({ ev_ctrl: ec }, [pend('OC-9001', '1.1', 600, { solicitante: 'Marko Aurélio', solicitanteId: 'pessoa:marko aurelio' })]), 'gerente'); api.derive();
+      const S = abre(api, obraCtrl(), est({ ev_ctrl: ec }, [pend('OC-9001', '1.1', 600, { solicitante: 'José Fictício', solicitanteId: 'pessoa:jose ficticio' })]), 'gerente'); api.derive();
       assert.equal(api.can_aprovar(S.t.ocs[0]), !ec, 'mesmo usuário (nome com acento): ' + (ec ? 'bloqueado' : 'a chave desligada compara nome e deixa passar'));
     }
     for (const ec of [false, true]) {   /* o nome é igual ao do usuário (Gerente), mas é outra pessoa */

@@ -223,14 +223,15 @@ label{display:block;font:500 10.5px var(--mono);letter-spacing:.06em;text-transf
 @media (max-width:820px){.apmenu button,.apbtn{min-height:44px}}
 
 /* dentro do Centro de Gestão (?embed=1): mesma paleta, tipografia e cartões do Centro; sem menu lateral nem topo próprios (o Centro navega) */
+/* Revisão M3 e M4: no Centro, --ink-3 e o verde das etiquetas (--ok-ink) estavam abaixo de 4,5:1 (3,9 a 4,4) nos textos de apoio, cabeçalhos de tabela, abas e etiquetas verdes da tela Eventos. Agora: --ink-3 = --mu2 do Centro (claro #5B6472, escuro #8B8BA5) e --ok-ink = #166534 no claro. */
 html.emb .side,html.emb .top{display:none}
 html.emb .app{display:block;padding:0;min-height:0}
 html.emb,html.emb body{height:auto}
 html.emb .main{padding:0}
-html:root.emb{--bg:transparent;--panel:#FFFFFF;--panel-2:#EEF1F6;--line:rgba(15,23,42,.10);--ink:#1B2433;--ink-2:#4B5563;--ink-3:#6B7280;
+html:root.emb{--bg:transparent;--panel:#FFFFFF;--panel-2:#EEF1F6;--line:rgba(15,23,42,.10);--ink:#1B2433;--ink-2:#4B5563;--ink-3:#5B6472;
   --ok:#15803D;--ok-bg:rgba(21,128,61,.10);--warn:#B45309;--warn-bg:rgba(180,83,9,.10);--bad:#B91C1C;--bad-bg:rgba(185,28,28,.09);--info:#1D4ED8;--info-bg:rgba(29,78,216,.09);
-  --ok-ink:#15803D;--warn-ink:#92400E;--bad-ink:#B91C1C;--info-ink:#1D4ED8;--btn:#0F766E;--btn-ink:#fff;--r:12px;--sh:none}
-html:root.emb[data-theme="dark"]{--bg:transparent;--panel:#0B0B19;--panel-2:#12122A;--line:rgba(255,255,255,.07);--ink:#E6E6EE;--ink-2:#A0A0B8;--ink-3:#73738C;
+  --ok-ink:#166534;--warn-ink:#92400E;--bad-ink:#B91C1C;--info-ink:#1D4ED8;--btn:#0F766E;--btn-ink:#fff;--r:12px;--sh:none}
+html:root.emb[data-theme="dark"]{--bg:transparent;--panel:#0B0B19;--panel-2:#12122A;--line:rgba(255,255,255,.07);--ink:#E6E6EE;--ink-2:#A0A0B8;--ink-3:#8B8BA5;
   --ok:#4ADE80;--ok-bg:rgba(74,222,128,.12);--warn:#FBBF24;--warn-bg:rgba(251,191,36,.10);--bad:#F87171;--bad-bg:rgba(248,113,113,.12);--info:#60A5FA;--info-bg:rgba(96,165,250,.12);
   --ok-ink:#4ADE80;--warn-ink:#FDE68A;--bad-ink:#F87171;--info-ink:#60A5FA;--btn:#14B8A6;--btn-ink:#042F2E}
 html.emb body{background:transparent}

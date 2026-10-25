@@ -33,7 +33,7 @@ function modalNF(id){
     if(calcV2(S.t)||evCtrl())pintaRat()};$('#n-js').style.display=NF.oc?'none':'block';
   $('#n-v').oninput=()=>{NF.valor=+$('#n-v').value;pintaRat()};if(!NF.rateio.length)NF.rateio.push({item:S.D.items[0].codigo,valor:0});pintaRat();
 }
-/* rateio que nasce do pedido: as linhas do pedido (mesmo item, mesmo valor). Nota de valor menor que o pedido: cada linha recebe a parte proporcional. Linhas do mesmo item somam. */
+/* rateio que nasce do pedido: as linhas do pedido (mesmo item, mesmo valor). Nota de valor menor que o pedido: cada linha recebe a parte proporcional [SUPOSIÇÃO: a divisão proporcional é escolha minha; a pessoa pode ajustar a mão]. Linhas do mesmo item somam. */
 function rateioDoPedido(o){
   const alvo=Math.min(+NF.valor||o.valor,o.valor),L=linhasDe(o);
   if(L.length<=1)return [{item:o.item,valor:alvo}];
@@ -68,7 +68,7 @@ function doNF(modo){
   if(modo==='rateada'){if(!lin.length||lin.some(l=>!l.item))return toast('Toda linha precisa de obra e item');
     if(Math.abs(r2(lin.reduce((s,l)=>s+ +l.valor,0))-NF.valor)>.004)return toast('O rateio não fecha 100% da nota')}
   const n={...NF,rateio:lin.map(l=>({item:l.item,valor:r2(l.valor),nat:natLin(l).n,conta:natLin(l).c})),status:modo,ocNum:NF.oc?S.t.ocs.find(o=>o.id===NF.oc).num:''};
-  /* ev_ctrl, D7: nota sem pedido passa pelo mesmo semáforo (item, pacote e evento) e pela mesma alçada de uma OC. Bloqueado (item sem meta ou fora da planilha) não grava o rateio. */
+  /* ev_ctrl, D7: nota sem pedido passa pelo mesmo semáforo (item, pacote e evento) e pela mesma alçada de uma OC. Bloqueado (item sem meta ou fora da planilha) não grava o rateio [SUPOSIÇÃO: a mesma regra da compra; nota com item sem meta não grava]. */
   let alcN=null,semN=null;
   if(modo==='rateada'&&!NF.oc&&evCtrl()&&evPar().notaSemPedido){
     const L=n.rateio.map(l=>({item:l.item,valor:l.valor})),sem=semaforoLinhas(L,{notaId:ex&&ex.status!=='lancada'?ex.id:undefined});
@@ -79,7 +79,7 @@ function doNF(modo){
   log('nota_fiscal',n.num||ex.num,'status','',modo+' · '+brl(NF.valor)+(semN?' · '+semN+(alcN?' · '+alcN:''):''));save();closeModal();toast('Nota '+(modo==='rateada'?'rateada':'lançada (fila sem rateio)')+(alcN?' · aguarda '+ROLES[alcN].n+' ('+semN+')':''));render();
 }
 function conferir(id){
-  const n=S.t.notas.find(x=>x.id===id);if(evCtrl()&&n.aprov==='pendente')return toast(n.num+' aguarda aprovação ('+ROLES[n.alcada].n+') antes de conferir');n.diverg='';
+  const n=S.t.notas.find(x=>x.id===id);if(evCtrl()&&n.aprov==='pendente')return toast(n.num+' aguarda aprovação ('+ROLES[n.alcada].n+') antes de conferir');   /* [SUPOSIÇÃO: nota aguardando alçada não segue para conferir nem para liberar] */n.diverg='';
   if(n.oc){const o=S.t.ocs.find(x=>x.id===n.oc);
     const outras=S.t.notas.filter(x=>x.oc===o.id&&x.id!==n.id&&x.status!=='lancada').reduce((s,x)=>s+x.valor,0);
     const esperado=r2(ocRecebido(o)-outras);

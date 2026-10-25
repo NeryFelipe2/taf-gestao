@@ -185,7 +185,7 @@ ACOES['oc-lin']=el=>{const o=S.t.ocs.find(x=>x.id===el.dataset.id),L=linhasDe(o)
    <div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`)};
 /* ---------- M4 (par.ev_ctrl): decidir OC ou nota sem pedido ----------
    A decisão RECALCULA o semáforo e a alçada com o saldo de agora (o saldo pode ter mudado desde a emissão: pedido aprovado, nota lançada, remanejamento): pedido emitido antes do seu reserva saldo,
-   pedido aprovado já conta como comprometido. Se a cor piora e quem está decidindo não tem mais a alçada, o documento fica com a cor e a alçada novas e a aprovação não acontece. */
+   pedido aprovado já conta como comprometido. Se a cor piora e quem está decidindo não tem mais a alçada, o documento fica com a cor e a alçada novas e a aprovação não acontece [SUPOSIÇÃO: o plano (cenário c) só diz que a cor é recalculada; que a aprovação não aconteça nesse caso é escolha minha, ainda sem ok do Felipe]. */
 function recalculaDoc(d){
   const oc=S.t.ocs.includes(d),L=oc?linhasDe(d).map(l=>({item:l.item,valor:+l.valor||0})):(d.rateio||[]).map(l=>({item:l.item,valor:+l.valor||0})),ctx=oc?{ocId:d.id,dia:d.criado}:{notaId:d.id,dia:d.rateadaEm};
   const sem=semaforoLinhas(L,ctx);if(sem[0]==='bloqueado')return {bloqueado:true,sem};
@@ -202,7 +202,7 @@ function decidirCtrl(id,ok){
     if(!can_aprovar(d)){toast(d.num+': o semáforo agora é '+r.sem[0]+' (era '+(r.antes||'—')+'). '+(motivoNaoAprova(d)||'Sem alçada'));render();return}
     toast(d.num+': semáforo recalculado, agora '+r.sem[0])}
   o?decidirFim(o,true,''):notaDecideFim(n,true,'')}
-/* nota sem pedido que passou pela alçada: aprovada, segue para conferir; reprovada, volta para a fila "sem rateio" com o rateio recusado guardado e o motivo */
+/* nota sem pedido que passou pela alçada: aprovada, segue para conferir; reprovada, volta para a fila "sem rateio" com o rateio recusado guardado e o motivo [SUPOSIÇÃO: o destino da nota reprovada é escolha minha, ainda sem ok do Felipe] */
 function notaDecideFim(n,ok,m){
   const a=n.aprov;n.aprovador=user();n.aprovadorId=usuarioId();
   if(ok){n.aprov='aprovada'}
