@@ -1,2 +1,17 @@
 node_modules
 __pycache__
+
+# Leitura da rev6 = dado real. O repositório é PÚBLICO: nada disso entra.
+public/api/seed.js
+public/api/seed*.js
+leitura*.json
+*.leitura.json
+seed*.json
+snap*.json
+*.xlsx
+*.xls
+
+# Chaves e configuração local
+.env
+.env.*
+CHAVES*
