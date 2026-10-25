@@ -376,3 +376,19 @@ test('com ev_ctrl o ERP avisa do banco: alerta fixo e faixa na aba Aprovações 
   }
   const S2 = abre(novo, obraRev(), tRev({ ev_ctrl: true }), 'gerente'); novo.derive(); S2.tab.compras = 'aprov'; assert.doesNotMatch(String(novo.viewCompras(novo.derive())), /não deixa Gerente nem Diretoria gravar nota/, 'sem nota aguardando não há faixa');
 });
+
+/* ============ pedido de duas linhas com números à mão: nota parcial nas linhas e nota fora das linhas ============ */
+test('pedido de 2 linhas (A 600 + B 400): nota parcial nas linhas abate cada linha; nota fora das linhas só deixa de contar em dobro com calc_v2 (e avisa)', () => {
+  const mk = (par, nota) => { const o = oc('OC-9001', '3.1', 1000, 'aprovada', { linhas: [{ item: '3.1', nat: 'MAT', conta: '4.2.08', qtd: 1, valor: 600 }, { item: '3.2', nat: 'MAT', conta: '4.2.08', qtd: 1, valor: 400 }], qtd: 1, preco: 1000 });
+    return { ...tRev({ oc_linhas: true, ...par }), ocs: [o], notas: nota ? [nf('NF-9001', o, nota.valor, nota.rateio)] : [] }; };
+  const sd = (par, nota) => { abre(novo, obraRev(), mk(par, nota), 'gestao'); novo.derive(); return J(novo.S.sd); };
+  /* sem nota: cada linha no seu item */
+  let s = sd({}, null); perto(s['3.1'].comp, 600, 'A'); perto(s['3.2'].comp, 400, 'B');
+  /* nota parcial de 500 rateada 300 em A e 200 em B (a divisão que a tela sugere): sobram 300 e 200, com ou sem calc_v2 */
+  for (const v2 of [false, true]) { s = sd({ calc_v2: v2 }, { valor: 500, rateio: [['3.1', 300], ['3.2', 200]] }); perto(s['3.1'].comp, 300, 'A calc_v2 ' + v2); perto(s['3.2'].comp, 200, 'B calc_v2 ' + v2); perto(s['3.1'].real + s['3.2'].real, 500, 'realizado ' + v2); }
+  /* nota de 500 rateada 100% fora das linhas (item 1.1): sem calc_v2 conta em dobro (1.000 + 500); com calc_v2 o pedido é abatido na proporção das linhas (300 e 200) */
+  s = sd({}, { valor: 500, rateio: [['1.1', 500]] }); perto(s['3.1'].comp + s['3.2'].comp, 1000, 'dupla contagem de sempre, sem calc_v2'); perto(s['1.1'].real, 500, 'realizado no item de fora');
+  s = sd({ calc_v2: true }, { valor: 500, rateio: [['1.1', 500]] }); perto(s['3.1'].comp, 300, 'A'); perto(s['3.2'].comp, 200, 'B'); perto(s['3.1'].comp + s['3.2'].comp + s['1.1'].real, 1000, 'nada conta duas vezes');
+  abre(novo, obraRev(), mk({ calc_v2: true }, { valor: 500, rateio: [['1.1', 500]] }), 'gestao'); novo.derive();
+  const av = novo.contaObra().avisos; assert.equal(av.length, 1); assert.deepEqual(J(av[0].itensOC), ['3.1', '3.2']); assert.deepEqual(J(av[0].itens), ['1.1']);
+});
