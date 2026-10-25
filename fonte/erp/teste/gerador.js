@@ -62,4 +62,23 @@ function cenario(seed, opc = {}) {
   return { D, t };
 }
 
-module.exports = { cenario, rng, PLANO };
+/* M3: converte parte dos pedidos em pedidos de várias linhas (mesmo valor total) e faz parte das notas ratear nas linhas do pedido.
+   Usa outra semente: o cenário base não muda. O pedido de várias linhas guarda qtd 1 e preço = valor, e item = primeira linha, como o ERP grava. */
+function comLinhas(cen, seed) {
+  const R = rng(seed * 7919 + 13), pick = a => a[Math.floor(R() * a.length)], int = (a, b) => a + Math.floor(R() * (b - a + 1));
+  const itens = cen.D.eap.filter(e => e.tipo_linha === 'item').map(i => i.codigo);
+  cen.t.ocs.forEach(o => {
+    if (R() < 0.55 && itens.length > 3) {
+      const n = int(1, 3), outros = []; let tent = 0;
+      while (outros.length < n && tent++ < 30) { const c = pick(itens); if (c !== o.item && !outros.includes(c)) outros.push(c); }
+      const partes = outros.map(() => cent(o.valor * (0.1 + R() * 0.2))), resto = cent(o.valor - partes.reduce((s, x) => s + x, 0));
+      if (resto <= 0 || !outros.length) return;
+      o.linhas = [{ item: o.item, nat: o.nat, conta: o.conta, qtd: 1, valor: resto }, ...outros.map((c, k) => ({ item: c, nat: pick(['MO', 'MAT', 'EQP', 'TER', 'ADM']), conta: pick(['4.1.01', '4.2.01', '4.2.08', '4.3.01']), qtd: 1, valor: partes[k] }))];
+      o.qtd = 1; o.preco = o.valor;
+    }
+  });
+  cen.t.notas.forEach(n => { const o = n.oc && cen.t.ocs.find(x => x.id === n.oc); if (o && o.linhas && n.rateio.length && R() < 0.6) n.rateio[0].item = pick(o.linhas).item; });
+  return cen;
+}
+
+module.exports = { cenario, comLinhas, rng, PLANO };

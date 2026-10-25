@@ -12,12 +12,12 @@ function derive(){
        A soma só vale quando os itens do pacote têm meta E teto (pacSoma). Se nenhum item tem teto (ou meta) não há soma para mostrar: vale o cadastro do pacote, igual à chave desligada (antes saía R$ 0 e folga negativa). */
     p._teto=p._it.reduce((s,i)=>s+(+i.teto_total||0),0);p._temTeto=p._it.some(i=>i.teto_total!=null);p._temMeta=p._it.some(i=>i.meta_total!=null);
     if(pacSoma(p))p._acima=r2(p._meta)>r2(p._teto);
-    p._temOC=S.t.ocs.some(o=>S.byCod[o.item]?.pacote===p.codigo&&o.status!=='cancelada'&&o.status!=='reprovada')});
+    p._temOC=S.t.ocs.some(o=>linhasDe(o).some(l=>S.byCod[l.item]?.pacote===p.codigo)&&o.status!=='cancelada'&&o.status!=='reprovada')});
   X.vencidos=D.pacotes.filter(p=>p._dias!=null&&p._dias<0&&p._it.length&&!p._temOC);
   X.pendAprov=S.t.ocs.filter(o=>o.status==='em_alcada');
   X.semRateio=S.t.notas.filter(n=>n.status==='lancada');
   X.semPedido=S.t.notas.filter(n=>!n.oc);
-  X.economia=S.t.ocs.filter(o=>OC_COMPROMETE.includes(o.status)).reduce((s,o)=>{const i=S.byCod[o.item];return s+(i.meta_unit*o.qtd-o.valor)},0);
+  X.economia=S.t.ocs.filter(o=>OC_COMPROMETE.includes(o.status)).reduce((s,o)=>s+linhasDe(o).reduce((a,l)=>{const i=S.byCod[l.item];return a+(i.meta_unit*l.qtd-l.valor)},0),0);
   if(chaveLigada('ev_agrega')){X.eventos=agregaEventos();X.pacGrupos=agregaPacotes()}
   return X;
 }

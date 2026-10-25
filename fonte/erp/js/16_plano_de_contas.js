@@ -3,7 +3,7 @@
 function planoSaldos(){
   const C=contaObra(S.t),real={},comp={},meta={};
   C.real.forEach(({l,v})=>{const c=l.conta||contaPadrao(l.nat,S.byCod[l.item]?.pacote);real[c]=(real[c]||0)+v});
-  C.ocs.forEach(({oc,comp:v})=>{comp[oc.conta]=(comp[oc.conta]||0)+v});
+  C.lin.forEach(({conta,comp:v})=>{comp[conta]=(comp[conta]||0)+v});
   S.D.items.forEach(i=>i.linhas.forEach(l=>{const c=contaPadrao(l.nat,i.pacote);meta[c]=(meta[c]||0)+i.meta_total*l.share}));
   return {real,comp,meta}}
 function viewPlano(X){

@@ -19,11 +19,11 @@ function viewEap(X){
 }
 function modalItem(cod){
   const i=S.byCod[cod],s=S.sd[cod];
-  const ocs=S.t.ocs.filter(o=>o.item===cod);const rat=S.t.notas.flatMap(n=>n.rateio.filter(l=>l.item===cod).map(l=>({n,l})));
+  const ocs=S.t.ocs.filter(o=>itensDe(o).includes(cod));const rat=S.t.notas.flatMap(n=>n.rateio.filter(l=>l.item===cod).map(l=>({n,l})));
   modal(`<h3>${cod} <span class="mut">${esc(i.unidade||'')}</span></h3><div class="sub">${esc(i.descricao)}</div>
    <div class="kpi4"><div><div class="k-l">Meta</div><div class="v">${brl(i.meta_total)}</div></div><div><div class="k-l">Teto</div><div class="v ${i.meta_total>i.teto_total?'neg':''}">${brl(i.teto_total)}</div></div><div><div class="k-l">Comprometido</div><div class="v">${brl(s.comp)}</div></div><div><div class="k-l">Saldo livre</div><div class="v ${s.livre<0?'neg':''}">${brl(s.livre)}</div></div></div>
    <div class="sub" style="margin-top:10px">Pacote ${i.pacote||'—'} · evento ${i.evento||'—'} · natureza ${i.nat} · fonte da meta: ${esc(i.fonte_meta||'—')} · ${esc(i.status_cotacao||'')}</div>
-   ${ocs.length?`<div class="panel-t" style="margin-top:14px">Pedidos</div>${ocs.map(o=>`<div class="sub">${o.num} · ${esc(o.forn)} · ${brl(o.valor)} · ${o.status}</div>`).join('')}`:''}
+   ${ocs.length?`<div class="panel-t" style="margin-top:14px">Pedidos</div>${ocs.map(o=>`<div class="sub">${o.num} · ${esc(o.forn)} · ${ocMulti(o)?brl(linhasDe(o).filter(l=>l.item===cod).reduce((s,l)=>s+ +l.valor,0))+' deste item (pedido de '+brl(o.valor)+')':brl(o.valor)} · ${o.status}</div>`).join('')}`:''}
    ${rat.length?`<div class="panel-t" style="margin-top:14px">Notas rateadas</div>${rat.map(x=>`<div class="sub">${x.n.num} · ${esc(x.n.emitente)} · ${brl(x.l.valor)}</div>`).join('')}`:''}
    <div class="acts"><button class="btn" data-act="fechar">Fechar</button><button class="btn dark" data-act="nova-sol" data-item="${cod}" ${can('solicitar')?'':'disabled title="Só Engenheiro ou Gerente"'}>Solicitar compra</button></div>`);
 }

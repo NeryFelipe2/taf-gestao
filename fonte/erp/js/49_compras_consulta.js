@@ -7,6 +7,10 @@ const PED_ST={cancelada:1,rejeitada:1};
 function pedRowsT(){const O=S.D.obra,cd=cadDe(O.codigo,S.t),R=[];
   S.t.ocs.forEach(o=>{const ins=(S.t.inss||[]).find(i=>i.cod===o.ins),sol=(S.t.sols||[]).find(s=>s.id===o.sol),cot=sol&&sol.cots?sol.cots.find(c=>c.forn===o.forn):null,pz=cot&&/^\d+$/.test(String(cot.prazo||'').trim())?+cot.prazo:null,
     prev=pz!=null&&o.criado?addDias(o.criado,pz):'',fo=(S.t.forns||[]).find(f=>f.nome===o.forn),rec=o.recebido||0,canc=!!PED_ST[o.status],pq=canc?0:Math.max(0,o.qtd-rec);
+    const base={nrUnico:o.num,nrPedido:o.num,dtNeg:o.criado||'',prev,codEmp:'1',empresa:cd.empresa,codParc:fo?String(fo.cnpj||'').replace(/\D/g,''):'',parceiro:o.forn,nContrato:O.codigo,obra:O.nome,situacao:o.status};
+    /* oc_linhas: pedido de várias linhas sai uma linha de consulta por linha do pedido (o recebimento é do pacote: a parte entregue de cada linha é a mesma fração) */
+    if(ocMulti(o,S.t)){const fr=o.qtd>0?rec/o.qtd:0;linhasDe(o,S.t).forEach(l=>{const it=S.byCod[l.item]||{},ql=+l.qtd||0,ent=r2(ql*fr),pl=canc?0:Math.max(0,r2(ql-ent));
+      R.push({...base,pend:pl>1e-9?'S':'N',codProd:l.item,produto:it.descricao?String(it.descricao).slice(0,80):String(l.item),volume:it.unidade||'UN',vlrUnit:ql>0?r2(l.valor/ql):+l.valor,qtd:ql,vlrTotal:+l.valor,qtdEntregue:ent,qtdPend:pl,item:l.item,natureza:NATNOME[l.nat||o.nat]||l.nat||o.nat||''})});return}
     R.push({nrUnico:o.num,nrPedido:o.num,pend:pq>1e-9?'S':'N',dtNeg:o.criado||'',prev,codEmp:'1',empresa:cd.empresa,codParc:fo?String(fo.cnpj||'').replace(/\D/g,''):'',parceiro:o.forn,nContrato:O.codigo,obra:O.nome,codProd:o.ins||o.item,produto:ins?ins.desc:(o.item||''),volume:ins?ins.un:'UN',vlrUnit:o.preco,qtd:o.qtd,vlrTotal:o.valor,qtdEntregue:rec,qtdPend:pq,situacao:o.status,item:o.item,natureza:NATNOME[o.nat]||o.nat||''})});
   S.t.lfxs.filter(l=>l.tipo==='ped').forEach(l=>R.push({...l,situacao:l.situacao||'Importado',item:l.item||'',natureza:l.natureza||''}));
   return R}

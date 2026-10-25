@@ -36,6 +36,12 @@ function el() {
   return e;
 }
 
+/* relógio do ERP de teste: Date.now() nunca repete (o ERP monta ids com Date.now(); duas ações no mesmo milissegundo davam o mesmo id e o teste achava diferença que não existe) */
+let _ultimo = 0;
+class DataTeste extends Date {
+  static now() { _ultimo = Math.max(_ultimo + 1, Date.now()); return _ultimo; }
+}
+
 function criaContexto() {
   const mem = new Map();
   const ouvintes = {};   /* addEventListener do document guarda aqui, para o teste disparar o clique de verdade (api.clicar) */
@@ -53,7 +59,7 @@ function criaContexto() {
     fetch: () => Promise.reject(new Error('sem rede (ambiente de teste)')),
     setTimeout: () => 0, clearTimeout() {}, setInterval: () => 0, clearInterval() {},
     matchMedia: () => ({ matches: false, addEventListener() {} }),
-    URLSearchParams, Blob, TextEncoder, TextDecoder, atob, btoa, Intl, Date, Math, JSON, Promise,
+    URLSearchParams, Blob, TextEncoder, TextDecoder, atob, btoa, Intl, Date: DataTeste, Math, JSON, Promise,
   };
   sb.window = sb;
   sb.__dom = dom;
@@ -70,7 +76,12 @@ const NOMES = ['S', 'novoT', 'prep', 'saldos', 'derive', 'alertas', 'semaforo', 
   'painelLinhas', 'provOcs', 'provOcsSplit', 'provLinhas', 'areasVisiveis', 'calculaDiff', 'syncAplicar', 'modalSync', 'doRemanejar', 'modalRemanejar', 'pacRow', 'viewHoje',
   'viewEventos', 'agregaEventos', 'agregaPacotes', 'agregaGrupos', 'semGrupo', 'pacTeto', 'pacMeta', 'ACOES', 'AREAS', 'tabVisivel', 'NAV_BASE', 'cmpCod', 'brl', 'r2',
   'pintaRat', 'modalParams', 'painelCalc', 'resItem', 'medAcum', 'aplicaDocs', 'estadoObra', 'log', 'save', 'user', 'can', 'ROLES', 'modalItem', 'modalPac',
-  'chavesObra', 'CHAVES_OBRA', 'DOCS', 'SEM_CLASS', 'restAuto', 'pacDe', 'evDe', 'realPorConta', 'dre', 'sugereOC', 'modalNF', 'vistaPermitida', 'chaveLigada', 'avisoSqlCalc', 'viewRastro'];
+  'chavesObra', 'CHAVES_OBRA', 'DOCS', 'SEM_CLASS', 'restAuto', 'pacDe', 'evDe', 'realPorConta', 'dre', 'sugereOC', 'modalNF', 'vistaPermitida', 'chaveLigada', 'avisoSqlCalc', 'viewRastro',
+  /* M3 e M4 (no código de partida não existem: vêm como undefined) */
+  'linhasDe', 'ocMulti', 'itensDe', 'itensTxt', 'repartir', 'repartirR', 'semaforoLinhas', 'semaforoItem', 'ocLinhasLigada', 'evCtrl', 'SOLX', 'NF', 'SB', 'CH',
+  'doSol', 'doSolLinhas', 'emitirOC', 'modalMapa', 'addCot', 'decidir', 'decidirFim', 'doReceber', 'modalReceber', 'doNF', 'conferir', 'liberar', 'pagar', 'rateioDoPedido', 'pedRowsT',
+  'necessidades', 'alcadaDe', 'can_aprovar', 'modalSol', 'viewCompras', 'viewNota', 'planoSaldos', 'ctxItem', 'linhasDaProposta', 'semProposta', 'cancelarFim',
+  'usuarioId', 'ehSolicitante', 'alcadaCtrl', 'semDoc', 'EV_PARAMS', 'evPar', 'pintaSolX', 'solLinhasForm', 'ocUn', 'ocFat', 'ocRecebido', 'nextNum', 'hojeISO'];
 
 /* origem: 'trabalho' (os arquivos da cópia) ou 'base' (como era no commit de partida, lido do git) */
 function carrega(origem = 'trabalho') {
@@ -82,6 +93,10 @@ function carrega(origem = 'trabalho') {
   vm.runInContext(partes.join('\n'), ctx, { filename: 'erp-' + origem + '.js' });
   const expr = '({' + NOMES.map(n => `get ${n}(){return typeof ${n}!=='undefined'?${n}:undefined}`).join(',') + '})';
   const api = vm.runInContext(expr, ctx);
+  /* guarda as mensagens (toast) que o ERP mostraria, para o teste conferir o que a pessoa leria na tela */
+  vm.runInContext('var __toastOrig=toast;toast=function(m){(globalThis.__msgs=globalThis.__msgs||[]).push(String(m));return __toastOrig(m)}', ctx);
+  api.msgs = () => (ctx.__msgs || []).slice();
+  api.limpaMsgs = () => { ctx.__msgs = []; };
   api.ctx = ctx;
   api.dom = ctx.__dom;
   api.el = sel => ctx.document.querySelector(sel);   /* cria (se preciso) e devolve o elemento do seletor */

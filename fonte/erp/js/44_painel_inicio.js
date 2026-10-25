@@ -21,7 +21,7 @@ function aplicaExtrato(t,ex){const lote='extrato-'+ex.obra;t.lfxs=(t.lfxs||[]).f
 async function seedExtrato(){const cod=S.D.obra.codigo,ex=await extratoDe(cod);if(!ex||S.t.par.extratoSeed)return;
   aplicaExtrato(S.t,ex);S.t.par.extratoSeed=true;log('extrato',cod,'importar','',ex.nat.length+' naturezas, '+(ex.lanc||[]).length+' lançamentos (corte '+ex.corte+')');save()}
 /* pedido aprovado sem nota (provisão): vem de contaObra() (05_motor_de_regras.js), a conta única */
-const provOcsSplit=t=>{const r={prod:0,serv:0};contaObra(t).ocs.forEach(({oc:o,comp:v})=>{if(['MO','EQP','TER'].includes(o.nat))r.serv+=v;else r.prod+=v});r.prod=r2(r.prod);r.serv=r2(r.serv);return r};
+const provOcsSplit=t=>{const r={prod:0,serv:0};contaObra(t).lin.forEach(({nat,comp:v})=>{if(['MO','EQP','TER'].includes(nat))r.serv+=v;else r.prod+=v});r.prod=r2(r.prod);r.serv=r2(r.serv);return r};
 const provOcs=t=>r2(contaObra(t).ocs.reduce((s,x)=>s+x.comp,0));
 /* roda uma função "como se" a obra de outro estado estivesse aberta (sem tocar em nada que fica gravado) */
 function comObra(t,O,fn){const pv=provLigada(),sv={t:S.t,D:S.D,X:S.X,m:S.memo,p:S.provTmp};S.provTmp=pv;S.t=t;S.D={obra:O,items:[]};S.X={venda:O.valor_contrato,comp:provOcs(t)};S.memo=null;

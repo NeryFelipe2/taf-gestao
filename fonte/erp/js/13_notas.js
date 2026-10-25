@@ -27,15 +27,24 @@ function modalNF(id){
    <div class="panel-t" style="margin-top:16px">Rateio</div><div id="n-rat"></div><div style="margin-top:8px;display:flex;gap:8px"><button class="btn sm" data-act="add-lin">+ Linha</button><button class="btn sm" data-act="sug-lin">Sugerir pelo pedido</button></div>
    <div class="bar-fecha" id="n-bar"><i></i></div><div class="sub" id="n-fecha" style="margin-top:6px"></div>
    <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn" data-act="nf-ok" data-modo="lancada">Salvar sem ratear</button><button class="btn dark" data-act="nf-ok" data-modo="rateada">Salvar rateio</button></div>`);
-  $('#n-o').onchange=()=>{NF.oc=$('#n-o').value;$('#n-js').style.display=NF.oc?'none':'block';if(calcV2(S.t))pintaRat()};$('#n-js').style.display=NF.oc?'none':'block';
+  $('#n-o').onchange=()=>{NF.oc=$('#n-o').value;$('#n-js').style.display=NF.oc?'none':'block';
+    /* oc_linhas: ao escolher o pedido, o rateio nasce igual às linhas do pedido (só se ainda não foi preenchido à mão) */
+    if(ocLinhasLigada()&&NF.oc&&NF.rateio.every(l=>!(+l.valor>0))){const o=S.t.ocs.find(x=>x.id===NF.oc);if(o){NF.rateio=rateioDoPedido(o);pintaRat();return}}
+    if(calcV2(S.t))pintaRat()};$('#n-js').style.display=NF.oc?'none':'block';
   $('#n-v').oninput=()=>{NF.valor=+$('#n-v').value;pintaRat()};if(!NF.rateio.length)NF.rateio.push({item:S.D.items[0].codigo,valor:0});pintaRat();
 }
-function natLin(l){const oc=NF&&NF.oc?S.t.ocs.find(o=>o.id===NF.oc):null,i=S.byCod[l.item];const nat=oc&&oc.item===l.item&&oc.nat?oc.nat:i.nat;return {n:nat,c:contaPadrao(nat,i.pacote)}}
+/* rateio que nasce do pedido: as linhas do pedido (mesmo item, mesmo valor). Nota de valor menor que o pedido: cada linha recebe a parte proporcional. Linhas do mesmo item somam. */
+function rateioDoPedido(o){
+  const alvo=Math.min(+NF.valor||o.valor,o.valor),L=linhasDe(o);
+  if(L.length<=1)return [{item:o.item,valor:alvo}];
+  const v=repartirR(alvo,L.map(l=>+l.valor||0)),M=new Map();L.forEach((l,k)=>M.set(l.item,r2((M.get(l.item)||0)+v[k])));
+  return [...M.entries()].map(([item,valor])=>({item,valor}))}
+function natLin(l){const oc=NF&&NF.oc?S.t.ocs.find(o=>o.id===NF.oc):null,i=S.byCod[l.item];const ol=oc?linhasDe(oc).find(x=>x.item===l.item):null;const nat=ol&&ol.nat?ol.nat:i.nat;return {n:nat,c:contaPadrao(nat,i.pacote)}}
 function pintaRat(){
   const ocNF=calcV2(S.t)&&NF.oc?S.t.ocs.find(o=>o.id===NF.oc):null;   /* calc_v2: avisa a linha rateada fora do item do pedido */
   $('#n-rat').innerHTML=NF.rateio.map((l,k)=>{const i=S.byCod[l.item],s=S.sd[l.item];
    return `<div class="g3" style="grid-template-columns:2fr 1fr .6fr auto;align-items:end;margin-top:8px"><div><label style="margin-top:0">Item</label><select data-lin="${k}" data-f="item">${itemOptions(l.item)}</select></div><div><label style="margin-top:0">Valor (R$)</label><input type="number" step="0.01" data-lin="${k}" data-f="valor" value="${l.valor||''}"></div><div><label style="margin-top:0">Conta</label><span class="pill info" title="${esc(nomeConta(natLin(l).c))}">${natLin(l).c}</span></div><button class="btn sm no" data-act="del-lin" data-k="${k}">×</button>
-   <div class="sub" style="grid-column:1/-1;margin-top:-4px">saldo livre do item ${brl(s.livre)}${l.valor>s.livre?' · <b class="neg">acima da meta</b>':''}${ocNF&&ocNF.item!==l.item?` · <b style="color:var(--warn)">fora do item do pedido (${esc(ocNF.item)}): o pedido é abatido pela nota inteira</b>`:''}</div></div>`}).join('');
+   <div class="sub" style="grid-column:1/-1;margin-top:-4px">saldo livre do item ${brl(s.livre)}${l.valor>s.livre?' · <b class="neg">acima da meta</b>':''}${ocNF&&!itensDe(ocNF).includes(l.item)?` · <b style="color:var(--warn)">fora do item do pedido (${esc(itensDe(ocNF).join(', '))}): o pedido é abatido pela nota inteira</b>`:''}</div></div>`}).join('');
   document.querySelectorAll('[data-lin]').forEach(e=>e.oninput=e.onchange=()=>{const l=NF.rateio[+e.dataset.lin];l[e.dataset.f]=e.dataset.f==='valor'?+e.value:e.value;if(e.dataset.f==='item')pintaRat();else fechaBar()});fechaBar();
 }
 function fechaBar(){const soma=r2(NF.rateio.reduce((s,l)=>s+(+l.valor||0),0)),v=r2(NF.valor);const p=v>0?Math.min(100,soma/v*100):0;
