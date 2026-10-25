@@ -24,7 +24,7 @@ const vistaPermitida=v=>NAV_BASE.some(n=>n[0]===v)&&(v!=='evt'||chaveLigada('ev_
 const navItens=()=>NAV_BASE.filter(n=>tabVisivel(n[0]));
 const badgeArea=(a,X)=>a.tabs.map(t=>badgeFor(t[0],X)).join('');
 const abasDaArea=a=>a.tabs.length<2?'':`<div class="tabs areatabs">${a.tabs.map(([k,l])=>`<button data-v="${k}" class="${S.view===k?'on':''}">${l}</button>`).join('')}</div>`;
-function badgeFor(k,X){return k==='compras'?(X.pendAprov.length?`<span class="badge hot">${X.pendAprov.length}</span>`:''):k==='nota'?(X.semRateio.length?`<span class="badge hot">${X.semRateio.length}</span>`:''):''}
+function badgeFor(k,X){return k==='compras'?(X.pendAprov.length+(X.pendNotas||[]).length?`<span class="badge hot">${X.pendAprov.length+(X.pendNotas||[]).length}</span>`:''):k==='nota'?(X.semRateio.length?`<span class="badge hot">${X.semRateio.length}</span>`:''):''}
 function ticks(items){return items.map(i=>`<i class="${i.meta_total>i.teto_total?'r':i.status_cotacao==='A cotar'?'w':''}" title="${i.codigo}"></i>`).join('')}
 function ring(p,c){return `<div class="ring" style="--p:${Math.round(p*100)};--c:${c}"><span>${Math.round(p*100)}</span></div>`}
 function bar(a,b,tot){const w=x=>tot>0?Math.min(100,Math.max(0,x/tot*100)):0;return `<div class="bar" title="comprometido ${brl(a)} · realizado ${brl(b)} · meta ${brl(tot)}"><i class="b" style="width:${w(b)}%"></i><i class="a" style="width:${Math.min(w(a),100-w(b))}%"></i></div>`}

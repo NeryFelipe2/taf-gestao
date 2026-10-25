@@ -32,6 +32,8 @@ const chaveLigada=(k,t)=>{const p=(t||S.t||{}).par;return !!(p&&p[k])};
 const calcV2=t=>chaveLigada('calc_v2',t);
 const ocLinhasLigada=t=>chaveLigada('oc_linhas',t);
 const evCtrl=t=>chaveLigada('ev_ctrl',t);
+/* parâmetros da chave ev_ctrl: os de partida (02_estado.js, EV_PADRAO) com o que a obra trocou em par.ev */
+const evPar=t=>({...EV_PADRAO,...(((t||S.t||{}).par||{}).ev||{})});
 /* ---------- M3: linhas de solicitação e de pedido ----------
    Com par.oc_linhas ligada, uma solicitação ou OC pode ter várias linhas [{item, nat, conta, qtd, valor}] (campo doc.linhas). O campo doc.item guarda sempre a PRIMEIRA linha
    (compatibilidade: quem não conhece linhas lê só o primeiro item). Documento sem lista (antigo) ou chave desligada: vale a linha única {item}. Nada é regravado: é derivado na leitura.
@@ -76,7 +78,7 @@ function contaObra(t){
      res (só com ev_ctrl) = pedidos aguardando aprovação, que reservam saldo. Sem oc_linhas cada pedido tem uma linha só e lin repete comp. */
   const comp=[],lin=[],res=[],avisos=[];
   ocs.forEach(o=>{
-    if(EC&&o.status==='em_alcada')linhasDe(o,t).forEach(l=>res.push({oc:o,item:l.item,valor:+l.valor||0}));
+    if(EC&&evPar(t).reservaEmAlcada&&o.status==='em_alcada')linhasDe(o,t).forEach(l=>res.push({oc:o,item:l.item,valor:+l.valor||0}));
     if(!OC_COMPROMETE.includes(o.status))return;
     const L=LN?linhasDe(o,t):null;
     /* chave desligada, ou pedido de uma linha só: a conta de sempre (a linha única é o item do pedido) */
@@ -125,17 +127,90 @@ function semaforoItem(cod,total,adj){
   if(total<=livre)return ['verde','Cabe no saldo da meta','Saldo livre '+brl(livre)+'. Vira pedido sem alçada.'];
   return ['amarelo','Acima da meta, até o teto','Saldo livre '+brl(livre)+'. O Gerente de contrato aprova com justificativa.'];
 }
-function semaforo(cod,total,pendId){return semaforoItem(cod,total)}
+function semaforo(cod,total,pendId){return evCtrl()?semaforoLinhas([{item:cod,valor:total}],{ocId:pendId}):semaforoItem(cod,total)}
 const SEV={verde:0,amarelo:1,vermelho:2,bloqueado:3};
-/* semáforo de um documento com várias linhas [{item, valor}] (M3): linhas do mesmo item somam; vale a PIOR cor entre os itens.
-   Uma linha só dá o mesmo resultado de semaforo(). A resposta é a de sempre [cor, título, texto]; com mais de um item o texto diz de qual item vem a cor. */
+
+/* ---------- M4: limite em três níveis (item, pacote, evento) ----------
+   Chave par.ev_ctrl (por obra, padrão DESLIGADA). Desligada, tudo isto fica parado e o semáforo é o de sempre (semaforoItem).
+   Ligada [SUPOSIÇÃO do plano, decisões D1, D2, D4, D6, D7 e E3 do Felipe de 25/10/2026]:
+   - a cor de uma compra é a PIOR entre o item, o pacote e o evento (obra sem evento: o grupo da EAP faz o papel do evento, como em Eventos);
+   - item continua rígido (D6): acima da meta do item é amarelo mesmo com saldo no pacote;
+   - pacote e evento usam a soma das metas e dos tetos dos itens, a mesma conta da tela Eventos: verde dentro da meta, amarelo acima da meta até o limite (teto), vermelho acima do limite;
+   - grupo com meta acima do limite (sem folga) é vermelho para qualquer compra (E3);
+   - pedido aguardando aprovação reserva saldo (par.ev.reservaEmAlcada) e a decisão recalcula tudo (12_compras.js, decidirCtrl). */
+function idxCtrl(){
+  if(S.idx)return S.idx;
+  const its=S.D.items,modo=its.length&&its.every(i=>!evDe(i))?'grupo':'evento',pac=new Map(),ev=new Map();
+  its.forEach(i=>{const p=pacDe(i),e=modo==='grupo'?grupoRaiz(i):evDe(i);
+    if(p!=='')(pac.get(p)||pac.set(p,[]).get(p)).push(i);if(e!=='')(ev.get(e)||ev.set(e,[]).get(e)).push(i)});
+  return S.idx={modo,pac,ev}}
+/* ordem de emissão do pedido (fila): o número do pedido; sem número válido, a posição na lista (a lista guarda o mais novo primeiro) */
+const ordemOC=o=>{const n=parseInt(String(o.num||'').replace(/\D/g,''));return n>0?n:(S.t.ocs.length-S.t.ocs.indexOf(o))};
+/* o que descontar do saldo na hora de calcular a cor de um documento: reserva dos pedidos aguardando aprovação (todos, para um documento novo; só os mais antigos, para um pedido já emitido)
+   e o realizado da própria nota (quando a nota que está sendo decidida já conta como realizada). ctx = {ocId, notaId} */
+function ajusteCtrl(ctx){
+  const C=S.conta||contaObra(S.t),res={},real={},P=evPar();
+  const me=ctx.ocId?S.t.ocs.find(o=>o.id===ctx.ocId):null,ord=me?ordemOC(me):Infinity;
+  (C.res||[]).forEach(x=>{if(ctx.ocId&&x.oc.id===ctx.ocId)return;if(me&&P.reservaPorOrdem&&ordemOC(x.oc)>ord)return;res[x.item]=(res[x.item]||0)+x.valor});
+  if(ctx.notaId){const n=S.t.notas.find(x=>x.id===ctx.notaId);if(n&&n.status!=='lancada')(n.rateio||[]).forEach(l=>{real[l.item]=(real[l.item]||0)+ +l.valor})}
+  return {res,real}}
+/* soma de um grupo de itens (pacote ou evento) para a conta da compra: meta, limite (teto), gasto (comprometido + realizado + reservado) e saldo */
+function somaGrupoCtrl(its,adj){
+  const g={meta:0,teto:0,temTeto:false,gasto:0};
+  its.forEach(i=>{const s=S.sd[i.codigo]||{comp:0,real:0};g.meta+=+i.meta_total||0;if(i.teto_total!=null){g.teto+=+i.teto_total||0;g.temTeto=true}
+    g.gasto+=s.comp+s.real-(adj.real[i.codigo]||0)+(adj.res[i.codigo]||0)});
+  g.meta=r2(g.meta);g.teto=r2(g.teto);g.gasto=r2(g.gasto);g.livre=r2(g.meta-g.gasto);return g}
+/* cor de uma compra de valor tot dentro de um grupo (pacote ou evento) */
+function corGrupoCtrl(rot,g,tot){
+  if(g.temTeto&&g.meta>g.teto)return ['vermelho',rot+': meta acima do limite','Meta '+brl(g.meta)+' × limite '+brl(g.teto)+' (soma dos itens): sem folga, toda compra nasce vermelha. Só a Diretoria aprova.'];
+  const novo=r2(g.gasto+tot);
+  if(g.temTeto&&novo>g.teto)return ['vermelho',rot+': acima do limite','Limite '+brl(g.teto)+' (soma dos tetos dos itens); já usado '+brl(g.gasto)+'. Só a Diretoria aprova.'];
+  if(novo>g.meta)return ['amarelo',rot+': acima da meta, até o limite','Saldo livre '+brl(g.livre)+'. O Gerente de contrato aprova com justificativa.'];
+  return ['verde',rot+': cabe no saldo da meta','Saldo livre '+brl(g.livre)+'.']}
+const PIOR=(a,b)=>SEV[b.r[0]]>SEV[a.r[0]]?b:a;
+/* semáforo de um documento com várias linhas [{item, valor}] (M3 e M4): linhas do mesmo item somam; vale a PIOR cor.
+   Sem ev_ctrl: só o nível do item. Uma linha só dá o mesmo resultado de semaforo(). A resposta é a de sempre [cor, título, texto]; com mais de um item o texto diz de qual item vem a cor.
+   Com ev_ctrl vem um quarto elemento, a lista dos níveis [{nivel, chave, rot, cor, titulo, texto}], que a tela mostra. ctx = {ocId, notaId}: documento já existente que está sendo decidido (não conta contra si mesmo). */
 function semaforoLinhas(L,ctx){
-  const porItem=new Map();(L||[]).forEach(l=>{if(l&&l.item!=null&&l.item!=='')porItem.set(l.item,(porItem.get(l.item)||0)+(+l.valor||0))});
+  ctx=ctx||{};const EC=evCtrl(),porItem=new Map();
+  (L||[]).forEach(l=>{if(l&&l.item!=null&&l.item!=='')porItem.set(l.item,(porItem.get(l.item)||0)+(+l.valor||0))});
   if(!porItem.size)return ['bloqueado','Pedido sem linha','Informe ao menos um item com quantidade e preço.'];
-  const rs=[...porItem.entries()].map(([cod,tot])=>({cod,r:semaforoItem(cod,tot)}));
-  const pior=rs.reduce((a,b)=>SEV[b.r[0]]>SEV[a.r[0]]?b:a);
-  return rs.length>1?[pior.r[0],pior.r[1],pior.r[2]+' (item '+pior.cod+')']:pior.r;
-}
+  const adj=EC?ajusteCtrl(ctx):null;
+  const rs=[...porItem.entries()].map(([cod,tot])=>({cod,tot,r:semaforoItem(cod,tot,EC?{res:adj.res[cod]||0,real:adj.real[cod]||0}:null)}));
+  const multi=rs.length>1,txt=x=>multi?[x.r[0],x.r[1],x.r[2]+' (item '+x.cod+')']:x.r;
+  const bl=rs.find(x=>x.r[0]==='bloqueado');if(bl)return txt(bl);
+  const pior=rs.reduce(PIOR);
+  if(!EC)return txt(pior);
+  /* pacote e evento: soma dos itens de cada grupo que as linhas tocam */
+  const ix=idxCtrl(),niveis=rs.map(x=>({nivel:'item',chave:x.cod,rot:'Item '+x.cod,cor:x.r[0],titulo:x.r[1],texto:x.r[2]}));
+  const piorN=[{r:txt(pior),n:niveis[rs.indexOf(pior)]}];
+  const grupo=(nivel,mapa,rotulo,chaveDe)=>{const tot=new Map();rs.forEach(x=>{const i=S.byCod[x.cod],k=chaveDe(i);if(k!=='')tot.set(k,(tot.get(k)||0)+x.tot)});
+    tot.forEach((t,k)=>{const its=mapa.get(k)||[],g=somaGrupoCtrl(its,adj),rot=rotulo+' '+k,r=corGrupoCtrl(rot,g,t),n={nivel,chave:k,rot,cor:r[0],titulo:r[1],texto:r[2],meta:g.meta,teto:g.temTeto?g.teto:null,gasto:g.gasto,livre:g.livre,compra:r2(t)};niveis.push(n);
+      if(SEV[r[0]]>SEV[piorN[0].r[0]])piorN[0]={r,n}})};
+  grupo('pacote',ix.pac,'Pacote',i=>pacDe(i));
+  grupo('evento',ix.ev,ix.modo==='grupo'?'Grupo':'Evento',i=>ix.modo==='grupo'?grupoRaiz(i):evDe(i));
+  const w=piorN[0].r;return [w[0],w[1],w[2],niveis]}
+/* alçada de um documento (OC ou nota sem pedido) com a regra D2: pedidos VERDES do mesmo pacote no mesmo dia somam para a alçada (quem parte uma compra grande em várias pequenas não escapa da aprovação).
+   Só conta pedido verde, não cancelado nem reprovado, criado no mesmo dia e com linha em algum pacote que o documento também toca. ctx = {ocId, dia}. */
+function somaVerdesDia(L,ctx){
+  const pacs=new Set(L.map(l=>S.byCod[l.item]).filter(Boolean).map(pacDe).filter(Boolean));if(!pacs.size)return 0;
+  const dia=ctx.dia||hojeISO();
+  return S.t.ocs.filter(o=>o.id!==ctx.ocId&&o.sem==='verde'&&o.criado===dia&&!['cancelada','reprovada'].includes(o.status))
+    .reduce((s,o)=>s+linhasDe(o).reduce((a,l)=>{const i=S.byCod[l.item];return a+(i&&pacs.has(pacDe(i))?+l.valor||0:0)},0),0)}
+function alcadaCtrl(sem,total,L,ctx){return alcadaDe(sem,sem==='verde'&&evPar().somaDiaPacote?total+somaVerdesDia(L,ctx||{}):total)}
+/* quem é o usuário (identidade, não nome): chave pessoal -> 'pessoa:nome sem acento'; login do banco -> 'auth:id'; chave geral do site -> 'nome:nome digitado'; sem login (demonstração) -> 'papel:papel escolhido' */
+const nomeNorm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+function usuarioId(){
+  const p=(typeof SB!=='undefined'&&SB.perfil)||null;
+  if(p&&p.uid)return p.uid;
+  if(p&&p.user_id)return 'auth:'+p.user_id;
+  return 'papel:'+S.role}
+/* o usuário atual é quem solicitou este documento? Com ev_ctrl compara a identidade gravada no documento (solicitanteId); documento sem identidade (antigo) compara o nome sem acento nem caixa.
+   Sem a chave: o que sempre foi (nome igual ao do usuário). */
+function ehSolicitante(o){
+  if(!evCtrl())return o.solicitante===user();
+  if(o.solicitanteId)return o.solicitanteId===usuarioId();
+  return nomeNorm(o.solicitante)!==''&&nomeNorm(o.solicitante)===nomeNorm(user())}
 const SEM_CLASS={verde:'ok',amarelo:'warn',vermelho:'bad',bloqueado:'bad',sem_base:'mute'};
 const semPill=s=>`<span class="pill ${SEM_CLASS[s]||'mute'}">${s||'—'}</span>`;
 const PX={sol:'SC',oc:'OC',nf:'NF',bm:'BM',apt:'AP',rst:'RE',tar:'TA',bc:'BC',fat:'FT'};

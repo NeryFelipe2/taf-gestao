@@ -15,6 +15,7 @@ function derive(){
     p._temOC=S.t.ocs.some(o=>linhasDe(o).some(l=>S.byCod[l.item]?.pacote===p.codigo)&&o.status!=='cancelada'&&o.status!=='reprovada')});
   X.vencidos=D.pacotes.filter(p=>p._dias!=null&&p._dias<0&&p._it.length&&!p._temOC);
   X.pendAprov=S.t.ocs.filter(o=>o.status==='em_alcada');
+  if(evCtrl())X.pendNotas=S.t.notas.filter(n=>n.aprov==='pendente');   /* ev_ctrl, D7: nota sem pedido aguardando alçada */
   X.semRateio=S.t.notas.filter(n=>n.status==='lancada');
   X.semPedido=S.t.notas.filter(n=>!n.oc);
   X.economia=S.t.ocs.filter(o=>OC_COMPROMETE.includes(o.status)).reduce((s,o)=>s+linhasDe(o).reduce((a,l)=>{const i=S.byCod[l.item];return a+(i.meta_unit*l.qtd-l.valor)},0),0);
@@ -39,15 +40,15 @@ const evDe=i=>String(i.evento==null?'':i.evento).trim();
 const pacDe=i=>{const c=i.pacote==null?'':String(i.pacote);return c.trim()===''?'':c};
 function grupoRaiz(i){let g=i,n=0;while(g&&g.pai&&S.byCod[g.pai]&&n++<30)g=S.byCod[g.pai];return g&&g!==i&&g.tipo_linha==='grupo'?g.codigo:String(i.codigo).split('.')[0]}
 function somaItens(its){
-  const g={n:its.length,venda:0,meta:0,teto:0,temTeto:false,comp:0,real:0,livre:0,semMeta:0,itens:its.map(i=>i.codigo)};
+  const g={n:its.length,venda:0,meta:0,teto:0,temTeto:false,comp:0,real:0,livre:0,semMeta:0,itens:its.map(i=>i.codigo)};if(evCtrl())g.res=0;   /* ev_ctrl: reservado por pedidos aguardando aprovação */
   its.forEach(i=>{const s=S.sd[i.codigo]||{comp:0,real:0,livre:0};g.venda+=+i.preco_venda_total||0;g.meta+=+i.meta_total||0;if(i.teto_total!=null){g.teto+=+i.teto_total||0;g.temTeto=true}
-    if(i.meta_total==null)g.semMeta++;g.comp+=s.comp;g.real+=s.real;g.livre+=s.livre});
+    if(i.meta_total==null)g.semMeta++;g.comp+=s.comp;g.real+=s.real;g.livre+=s.livre;if(g.res!==undefined)g.res+=s.res||0});
   return g}
 /* mesma conta da coluna Limite do Eventos e do "meta acima do teto" do pacote (soma das metas dos itens contra soma dos tetos) */
 const grupoSemFolga=g=>g.temTeto&&r2(g.meta)>r2(g.teto);
 function semGrupo(g){
   if(!g.n||g.semMeta===g.n)return ['sem_base',g.n?'Nenhum item com meta de custo':'Nenhum item no orçamento'];
-  const gasto=r2(g.comp+g.real);
+  const gasto=r2(g.comp+g.real+(g.res||0));
   if(g.temTeto&&gasto>r2(g.teto))return ['vermelho','Comprometido + realizado acima do limite (teto)'];
   if(grupoSemFolga(g))return ['vermelho','Meta acima do limite (teto): sem folga, qualquer compra nasce vermelha'];
   if(gasto>r2(g.meta))return ['amarelo','Acima da meta, até o limite'];

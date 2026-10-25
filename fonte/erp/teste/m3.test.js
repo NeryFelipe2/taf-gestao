@@ -7,6 +7,8 @@ const { carrega, abre } = require('./ambiente');
 const { cenario, comLinhas } = require('./gerador');
 const { instantaneo } = require('./instantaneo');
 const { obra999, estado999, it, gr } = require('./obra999');
+const { solicita: solicita0, emite, lancaNota } = require('./acoes');
+const solicita = (a, L, desc = 'Pedido FoFo (fictício)') => solicita0(a, L, desc);
 
 const api = carrega('trabalho'), base = carrega('base');
 const J = x => JSON.parse(JSON.stringify(x));   /* tira o prototype de outro contexto do vm */
@@ -27,26 +29,6 @@ function obraFofo() {
   return D;
 }
 const estFofo = par => ({ frozen: true, par: { tol: 0.02, limite: 100000, ...par } });
-
-/* ---------- ações pela tela (o mesmo caminho do clique: campos do formulário e funções do ERP) ---------- */
-function solicita(a, L, desc = 'Pedido FoFo (fictício)') {
-  a.el('#s-item').value = L[0].item; a.el('#s-nat').value = 'MAT'; a.el('#s-qtd').value = String(L[0].qtd); a.el('#s-pu').value = String(L[0].pu);
-  a.el('#s-desc').value = desc; a.el('#s-dt').value = '2030-02-01'; a.el('#s-mot').value = 'teste'; a.el('#s-ins').value = '';
-  a.SOLX.length = 0; L.slice(1).forEach(l => a.SOLX.push({ item: l.item, nat: 'MAT', qtd: String(l.qtd), pu: String(l.pu) }));
-  const antes = a.S.t.sols.length; a.doSol();
-  return a.S.t.sols.length > antes ? a.S.t.sols[0] : null;
-}
-function emite(a, sol, preco, just = 'justificativa de teste') {
-  a.el('#c-f').value = 'FORNECEDOR FICTÍCIO LTDA'; a.el('#c-p').value = String(preco); a.el('#c-z').value = '10'; a.el('#c-j').value = just;
-  a.addCot(sol.id); a.el('input[name=esc]:checked').value = '0'; a.el('#c-em').checked = false; a.el('#c-j').value = just;
-  const antes = a.S.t.ocs.length; a.emitirOC(sol.id);
-  return a.S.t.ocs.length > antes ? a.S.t.ocs[0] : null;
-}
-function lancaNota(a, ocObj, valor, rateio) {
-  a.modalNF(); a.el('#n-e').value = 'FORNECEDOR FICTÍCIO LTDA'; a.el('#n-c').value = 'NF-TESTE'; a.el('#n-v').value = String(valor); a.el('#n-d').value = '2030-02-10'; a.el('#n-o').value = ocObj ? ocObj.id : '';
-  a.NF.oc = ocObj ? ocObj.id : ''; a.NF.valor = valor; a.NF.rateio = rateio; a.doNF('rateada');
-  return a.S.t.notas[0];
-}
 
 /* ============ (1) o pedido do plano: 3 linhas em 2 eventos (uma cabe, uma passa da meta, uma sem meta) ============ */
 test('FOFO: linha sem meta bloqueia a solicitação inteira; sem ela a solicitação sai amarela, vira OC, é aprovada, recebida e rateada nas mesmas linhas', () => {

@@ -8,6 +8,7 @@ function minhaFila(X){
   const f=[];
   if(!S.t.frozen&&can('congelar'))f.push(['bad','Congelar a linha de base v1','Libera a abertura de compras na obra.','eap']);
   if(isRole('gerente','diretoria'))X.pendAprov.filter(o=>o.alcada===S.role||(isRole('diretoria')&&o.alcada==='gerente')||S.role==='admin').forEach(o=>f.push([o.alcada==='diretoria'?'bad':'warn',`Aprovar ${o.num} · ${brl(o.valor)}`,`${itensTxt(o)} · ${esc(o.forn)}`,'compras']));
+  if(isRole('gerente','diretoria'))(X.pendNotas||[]).filter(n=>n.alcada===S.role||(isRole('diretoria')&&n.alcada==='gerente')||S.role==='admin').forEach(n=>f.push([n.alcada==='diretoria'?'bad':'warn',`Aprovar ${n.num} (nota sem pedido) · ${brl(n.valor)}`,`${esc(n.emitente)}`,'compras']));
   if(isRole('compras'))S.t.sols.filter(s=>s.status==='enviada'||s.status==='em_cotacao').forEach(s=>f.push(['warn',`Cotar ${s.num}`,`${esc(s.desc)} · ${itensTxt(s)}`,'compras']));
   if(isRole('almox'))S.t.ocs.filter(o=>['aprovada','recebida_parcial'].includes(o.status)).forEach(o=>f.push(['info',`Receber ${o.num}`,`${esc(o.forn)} · ${num(o.qtd-(o.recebido||0))} ${ocUn(o)} a receber`,'compras']));
   if(isRole('gerente','diretoria'))S.t.meds.filter(m=>m.status==='lancada'&&m.quem!==user()).forEach(m=>f.push(['warn',`Atestar ${m.num}`,`${m.item} · ${num(m.qtd)} medidos`,'med']));
