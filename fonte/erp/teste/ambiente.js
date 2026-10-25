@@ -38,10 +38,11 @@ function el() {
 
 function criaContexto() {
   const mem = new Map();
+  const ouvintes = {};   /* addEventListener do document guarda aqui, para o teste disparar o clique de verdade (api.clicar) */
   const dom = {};   /* elementos por seletor: o teste preenche dom['#rm-v'].value e a função do ERP lê o mesmo elemento */
   const doc = {
     querySelector: s => dom[s] || (dom[s] = el()), querySelectorAll: () => [], getElementById: () => el(), createElement: () => el(),
-    addEventListener() {}, removeEventListener() {}, activeElement: el(), documentElement: el(), body: el(), head: el(),
+    addEventListener(t, f) { (ouvintes[t] = ouvintes[t] || []).push(f); }, removeEventListener() {}, activeElement: el(), documentElement: el(), body: el(), head: el(),
     contains: () => false, visibilityState: 'visible', cookie: '',
   };
   const sb = {
@@ -56,6 +57,7 @@ function criaContexto() {
   };
   sb.window = sb;
   sb.__dom = dom;
+  sb.__ouvintes = ouvintes;
   sb.addEventListener = () => {};
   sb.removeEventListener = () => {};
   sb.parent = sb;
@@ -84,6 +86,12 @@ function carrega(origem = 'trabalho') {
   api.dom = ctx.__dom;
   api.el = sel => ctx.document.querySelector(sel);   /* cria (se preciso) e devolve o elemento do seletor */
   api.origem = origem;
+  /* clique de verdade num botão data-act (o mesmo caminho da tela: document click -> tabela A -> ACOES) */
+  api.clicar = (act, extra = {}) => {
+    const alvo = el();
+    alvo.closest = sel => (sel === '[data-act]' ? { dataset: { act, ...extra }, disabled: false } : null);
+    (ctx.__ouvintes.click || []).forEach(f => f({ target: alvo }));
+  };
   return api;
 }
 

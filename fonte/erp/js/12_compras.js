@@ -94,8 +94,14 @@ function modalParams(){modal(`<h3>Parâmetros</h3><div class="sub">Valores de al
   <div class="sub">Cada chave vale só para esta obra. Desligada, o ERP calcula e mostra exatamente como antes. As regras novas ainda são suposição do plano, até o ok da Diretoria.</div>
   ${CHAVES_OBRA.map(c=>`<label style="display:flex;gap:8px;align-items:flex-start;text-transform:none;font-family:inherit;letter-spacing:0;margin-top:8px"><input type="checkbox" id="ch-${c.k}" style="width:auto;margin-top:3px" ${chaveLigada(c.k)?'checked':''}><span><b>${c.n}</b><br><span class="sub">${c.d}</span></span></label>`).join('')}
   <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn" data-act="chaves-ok">Salvar só as chaves</button><button class="btn dark" data-act="params-ok">Salvar</button></div>`)}
+/* lê as caixas das chaves na janela de Parâmetros e grava só as que mudaram (com auditoria). Os dois botões usam esta função: "Salvar só as chaves" e "Salvar" (que também grava a alçada).
+   Só Diretoria ou Gestão mudam chave (can('param')); sem mudança nada é lido nem gravado. Devolve quantas chaves mudaram. */
+function gravaChaves(){
+  const mud=CHAVES_OBRA.map(c=>{const e=$('#ch-'+c.k);if(!e)return null;const novo=!!e.checked,ant=chaveLigada(c.k);return novo===ant?null:{k:c.k,ant,novo}}).filter(Boolean);
+  if(!mud.length||!can('param'))return 0;
+  mud.forEach(m=>{S.t.par[m.k]=m.novo;log('parametros','chave',m.k,m.ant?'ligada':'desligada',m.novo?'ligada':'desligada')});
+  return mud.length}
 /* grava só as chaves liga/desliga; não mexe nas alçadas (por isso não marca "alçadas definidas") */
 ACOES['chaves-ok']=()=>{if(!can('param'))return toast('Só Diretoria ou Gestão');
-  CHAVES_OBRA.forEach(c=>{const e=$('#ch-'+c.k);if(!e)return;const novo=!!e.checked,ant=chaveLigada(c.k);if(novo===ant)return;S.t.par[c.k]=novo;log('parametros','chave',c.k,ant?'ligada':'desligada',novo?'ligada':'desligada')});
-  prep();save();closeModal();toast('Chaves salvas');render()};
+  gravaChaves();prep();save();closeModal();toast('Chaves salvas');render()};
 
