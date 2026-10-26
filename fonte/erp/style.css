@@ -223,17 +223,64 @@ label{display:block;font:500 10.5px var(--mono);letter-spacing:.06em;text-transf
 @media (max-width:820px){.apmenu button,.apbtn{min-height:44px}}
 
 /* dentro do Centro de Gestão (?embed=1): mesma paleta, tipografia e cartões do Centro; sem menu lateral nem topo próprios (o Centro navega) */
+/* Revisão M3 e M4: no Centro, --ink-3 e o verde das etiquetas (--ok-ink) estavam abaixo de 4,5:1 (3,9 a 4,4) nos textos de apoio, cabeçalhos de tabela, abas e etiquetas verdes da tela Eventos. Agora: --ink-3 = --mu2 do Centro (claro #5B6472, escuro #8B8BA5) e --ok-ink = #166534 no claro. */
 html.emb .side,html.emb .top{display:none}
 html.emb .app{display:block;padding:0;min-height:0}
 html.emb,html.emb body{height:auto}
 html.emb .main{padding:0}
-html:root.emb{--bg:transparent;--panel:#FFFFFF;--panel-2:#EEF1F6;--line:rgba(15,23,42,.10);--ink:#1B2433;--ink-2:#4B5563;--ink-3:#6B7280;
+html:root.emb{--bg:transparent;--panel:#FFFFFF;--panel-2:#EEF1F6;--line:rgba(15,23,42,.10);--ink:#1B2433;--ink-2:#4B5563;--ink-3:#5B6472;
   --ok:#15803D;--ok-bg:rgba(21,128,61,.10);--warn:#B45309;--warn-bg:rgba(180,83,9,.10);--bad:#B91C1C;--bad-bg:rgba(185,28,28,.09);--info:#1D4ED8;--info-bg:rgba(29,78,216,.09);
-  --ok-ink:#15803D;--warn-ink:#92400E;--bad-ink:#B91C1C;--info-ink:#1D4ED8;--btn:#0F766E;--btn-ink:#fff;--r:12px;--sh:none}
-html:root.emb[data-theme="dark"]{--bg:transparent;--panel:#0B0B19;--panel-2:#12122A;--line:rgba(255,255,255,.07);--ink:#E6E6EE;--ink-2:#A0A0B8;--ink-3:#73738C;
+  --ok-ink:#166534;--warn-ink:#92400E;--bad-ink:#B91C1C;--info-ink:#1D4ED8;--btn:#0F766E;--btn-ink:#fff;--r:12px;--sh:none}
+html:root.emb[data-theme="dark"]{--bg:transparent;--panel:#0B0B19;--panel-2:#12122A;--line:rgba(255,255,255,.07);--ink:#E6E6EE;--ink-2:#A0A0B8;--ink-3:#8B8BA5;
   --ok:#4ADE80;--ok-bg:rgba(74,222,128,.12);--warn:#FBBF24;--warn-bg:rgba(251,191,36,.10);--bad:#F87171;--bad-bg:rgba(248,113,113,.12);--info:#60A5FA;--info-bg:rgba(96,165,250,.12);
   --ok-ink:#4ADE80;--warn-ink:#FDE68A;--bad-ink:#F87171;--info-ink:#60A5FA;--btn:#14B8A6;--btn-ink:#042F2E}
 html.emb body{background:transparent}
 html.emb h1,html.emb h2,html.emb h3{font-family:'Outfit','Inter',system-ui,sans-serif;font-weight:600}
 html.emb .btn.dark{background:var(--btn);color:var(--btn-ink);border-color:transparent}
 html.emb a.btn[href="/"]{display:none}
+
+/* ============ Eventos: painel por evento e por pacote (design de painel). Só variáveis de tema: vale no claro, no escuro e dentro do Centro de Gestão (embed). ============ */
+.ev-sub{color:var(--ink-2);font-size:16px;line-height:1.5;max-width:68ch;margin:4px 0 0}
+.ev-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:16px;margin:24px 0 8px}
+.ev-kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 20px;min-width:0}
+.ev-kpi .l{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.ev-kpi .v{font-size:26px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin:8px 0 4px;overflow-wrap:anywhere}
+.ev-kpi .v.neg{color:var(--bad)}
+.ev-kpi .o{font-size:12px;line-height:1.4;color:var(--ink-2)}
+.ev-bar-top{display:flex;gap:12px 24px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin:24px 0 16px}
+.ev-ctl{display:flex;gap:8px 12px;align-items:center;flex-wrap:wrap}
+.ev-sec{font-size:13px;color:var(--ink-2)}
+.ev-aviso{margin:8px 0 0;font-size:13px;color:var(--ink-2)}.ev-aviso summary{cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap}.ev-aviso .sub{margin:8px 0 0}
+.ev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px}
+.ev-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:12px;min-width:0;cursor:pointer;transition:border-color .15s}
+.ev-card:hover{border-color:var(--ink-2)}
+.ev-card:focus-visible{outline:2px solid var(--info);outline-offset:2px}
+.ev-card.vermelho{box-shadow:inset 4px 0 0 var(--bad)}.ev-card.amarelo{box-shadow:inset 4px 0 0 var(--warn)}
+.ev-top{display:flex;gap:12px;align-items:flex-start;justify-content:space-between}
+.ev-id{min-width:0;overflow-wrap:anywhere}.ev-id b{font-size:16px;font-weight:600}.ev-id .mono b{font-size:16px}
+.ev-saldo{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.ev-saldo .n{font-size:26px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ev-saldo .n.neg{color:var(--bad)}.ev-saldo .t{font-size:12px;color:var(--ink-2)}
+.ev-why{font-size:12.5px;line-height:1.45;color:var(--ink-2);margin:-4px 0 0}
+.ev-bar{position:relative;display:flex;height:8px;border-radius:4px;background:var(--tick-off,var(--line))}
+.ev-bar i{display:block;height:100%}
+.ev-bar .r{background:var(--ink);border-radius:4px 0 0 4px}.ev-bar .c{background:var(--info)}.ev-bar .v{background:var(--warn)}
+.ev-bar .m,.ev-bar .l{position:absolute;top:-3px;height:14px;width:2px;background:var(--ink-2)}.ev-bar .l{background:var(--bad)}
+.ev-cap{font-size:12px;color:var(--ink-2);margin-top:-4px}
+.ev-fatos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:4px 0 0}
+.ev-fatos div{min-width:0}.ev-fatos dt{font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2)}
+.ev-fatos dd{margin:2px 0 0;font-size:13px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}.ev-fatos dd.neg{color:var(--bad)}
+.ev-rod{font-size:12px;color:var(--ink-2);border-top:1px solid var(--line);padding-top:12px;display:flex;gap:4px 16px;flex-wrap:wrap}.ev-rod .neg b{color:var(--bad)}
+.ev-leg{display:flex;gap:8px 20px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:20px 0 0}
+.ev-leg i{display:inline-block;width:12px;height:8px;border-radius:2px;margin-right:6px}
+.ev-leg i.r{background:var(--ink)}.ev-leg i.c{background:var(--info)}.ev-leg i.v{background:var(--warn)}
+.ev-leg i.m,.ev-leg i.l{width:2px;height:12px;border-radius:0;vertical-align:-2px;background:var(--ink-2)}.ev-leg i.l{background:var(--bad)}
+.ev-como{margin-top:24px;border:1px solid var(--line);border-radius:var(--r);background:var(--panel);padding:12px 20px}
+.ev-como summary{cursor:pointer;font-weight:500}.ev-como p{color:var(--ink-2);font-size:13.5px;line-height:1.5;max-width:78ch;margin:8px 0}
+@media (max-width:520px){.ev-grid{grid-template-columns:minmax(0,1fr)}.ev-card{padding:16px}.ev-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.ev-kpi{padding:12px 14px}.ev-kpi .v{font-size:20px}}
+.ev-card .pill{color:var(--ink)}
+.ev-card .pill::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--ink-2)}
+.ev-card .pill.ok::before{background:var(--ok)}.ev-card .pill.warn::before{background:var(--warn)}.ev-card .pill.bad::before{background:var(--bad)}
+/* Revisão M3: linhas extras da solicitação (compra de pacote). A grade fixa de 5 colunas deixava o preço unitário com 32 px em tela de 390 px; abaixo de 620 px a linha vira duas colunas. */
+.sol-lin{display:grid;grid-template-columns:2fr 1.4fr .7fr .8fr auto;gap:12px;align-items:end;margin-top:8px}
+@media (max-width:620px){.sol-lin{grid-template-columns:1fr 1fr}.sol-lin>div:nth-child(1),.sol-lin>div:nth-child(2),.sol-lin>.sub{grid-column:1/-1}.sol-lin>button{grid-column:1/-1;justify-self:end}}

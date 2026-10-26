@@ -1,9 +1,13 @@
 /* ============ PLANO DE CONTAS ============ */
+/* meta, comprometido e realizado por conta. Comprometido e realizado vêm de contaObra() (05_motor_de_regras.js): a conta é uma só. */
+function planoSaldos(){
+  const C=contaObra(S.t),real={},comp={},meta={};
+  C.real.forEach(({l,v})=>{const c=l.conta||contaPadrao(l.nat,S.byCod[l.item]?.pacote);real[c]=(real[c]||0)+v});
+  C.lin.forEach(({conta,comp:v})=>{comp[conta]=(comp[conta]||0)+v});
+  S.D.items.forEach(i=>i.linhas.forEach(l=>{const c=contaPadrao(l.nat,i.pacote);meta[c]=(meta[c]||0)+i.meta_total*l.share}));
+  return {real,comp,meta}}
 function viewPlano(X){
-  const real={},comp={};
-  S.t.notas.forEach(n=>{if(n.status==='lancada')return;n.rateio.forEach(l=>{const c=l.conta||contaPadrao(l.nat,S.byCod[l.item]?.pacote);real[c]=(real[c]||0)+ +l.valor})});
-  S.t.ocs.forEach(o=>{if(!['aprovada','recebida_parcial','recebida'].includes(o.status))return;const f=S.t.notas.filter(n=>n.oc===o.id&&n.status!=='lancada').reduce((s,n)=>s+n.rateio.filter(l=>l.item===o.item).reduce((a,l)=>a+ +l.valor,0),0);comp[o.conta]=(comp[o.conta]||0)+Math.max(0,o.valor-f)});
-  const meta={};S.D.items.forEach(i=>i.linhas.forEach(l=>{const c=contaPadrao(l.nat,i.pacote);meta[c]=(meta[c]||0)+i.meta_total*l.share}));
+  const {real,comp,meta}=planoSaldos();
   const soma=(m,c)=>Object.entries(m).filter(([k])=>k===c||k.startsWith(c+'.')).reduce((s,[,v])=>s+v,0);
   const P=S.D.plano||[];
   return `<div class="head"><div><h1>Plano de contas</h1><p class="lead">Cada natureza da composição tem uma conta. Quem lança só escolhe o item: a conta vem do cadastro, em toda solicitação, OC e nota. A meta abaixo é a meta de cada item distribuída pela composição.</p></div></div>

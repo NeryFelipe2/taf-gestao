@@ -2,12 +2,17 @@
 function alertas(X){
   const a=[];
   if(!S.t.frozen)a.push(['bad','Linha de base não congelada','Compras bloqueadas até a Gestão congelar a versão 1 (E01).']);
-  X.vencidos.forEach(p=>a.push(['bad',`Pacote ${p.codigo}: fechar até ${fdata(p.fechar_ate)} vencido`,`${-p._dias} dia(s) de atraso, sem pedido. ${brl(p.meta,true)} de meta; vira restrição na frente.`]));
-  S.D.pacotes.filter(p=>p._acima).forEach(p=>a.push(['bad',`Pacote ${p.codigo}: meta acima do teto`,`Meta ${brl(p.meta)} × teto ${brl(p.teto)}. Solicitação nasce vermelha.`]));
-  X.pendAprov.forEach(o=>a.push([o.alcada==='diretoria'?'bad':'warn',`${o.num} aguarda ${ROLES[o.alcada].n}`,`${brl(o.valor)} · ${o.item} · ${esc(o.forn)}`]));
+  X.vencidos.forEach(p=>a.push(['bad',`Pacote ${p.codigo}: fechar até ${fdata(p.fechar_ate)} vencido`,`${-p._dias} dia(s) de atraso, sem pedido. ${brl(pacMeta(p),true)} de meta; vira restrição na frente.`]));
+  S.D.pacotes.filter(p=>p._acima).forEach(p=>a.push(['bad',`Pacote ${p.codigo}: meta acima do teto`,`Meta ${brl(pacMeta(p))} × teto ${brl(pacTeto(p))}. Solicitação nasce vermelha.`]));
+  X.pendAprov.forEach(o=>a.push([o.alcada==='diretoria'?'bad':'warn',`${o.num} aguarda ${ROLES[o.alcada].n}`,`${brl(o.valor)} · ${itensTxt(o)} · ${esc(o.forn)}`]));
+  (X.pendNotas||[]).forEach(n=>a.push([n.alcada==='diretoria'?'bad':'warn',`${n.num} (nota sem pedido) aguarda ${ROLES[n.alcada].n}`,`${brl(n.valor)} · ${esc(n.emitente)} · ${esc(n.justSemOC||'sem justificativa')}`]));
   X.semRateio.forEach(n=>a.push(['warn',`${n.num} sem rateio`,`${esc(n.emitente)} · ${brl(n.valor)}. Não entra no custo do item.`]));
   X.semPedido.filter(n=>n.status!=='paga').forEach(n=>a.push(['warn',`${n.num} sem pedido`,`Alerta de governança: ${esc(n.justSemOC||'sem justificativa')}`]));
   S.t.notas.filter(n=>n.status==='divergente').forEach(n=>a.push(['bad',`${n.num} divergente do pedido`,'Pagamento bloqueado até Compras resolver.']));
+  if(calcV2())a.push(['warn','Cálculo novo ligado: o banco ainda conta como antes',AVISO_SQL_CALC]);
+  if(ocLinhasLigada())a.push(['warn','Compra de várias linhas ligada: o banco ainda lê só a primeira linha',AVISO_SQL_LINHAS]);
+  if(evCtrl())a.push(['warn','Limite em três níveis ligado: aprovar nota sem pedido ainda não grava no banco',AVISO_SQL_CTRL]);
+  if(calcV2())contaObra().avisos.forEach(v=>a.push(['warn',`${esc(v.notaNum)} rateada fora do item do pedido ${esc(v.ocNum)}`,`O pedido é d${v.itensOC?'os itens '+v.itensOC.map(esc).join(', '):'o item '+esc(v.itemOC)}, mas ${brl(v.valor)} da nota foram para ${v.itens.map(esc).join(', ')}. Com o cálculo novo o pedido é abatido pela nota inteira (conta uma vez só); confira o item do rateio.${v.orfaos?` ${brl(v.valorOrfao)} foram para ${v.orfaos.map(esc).join(', ')}, que não existe no orçamento: essa parte não abate o pedido (continua comprometido).`:''}`]));
   S.t.meds.filter(m=>m.status==='lancada').forEach(m=>a.push(['warn',`${m.num} aguarda atesto`,`${m.item} · ${num(m.qtd)} medidos por ${esc(m.quem)}`]));
   S.t.titulos.filter(t=>!t.cancelado&&t.venc<hojeISO()&&tituloInfo(t).saldo>0).forEach(t=>a.push(['bad',`Título ${t.ocNum} vencido`,`${esc(t.forn)} · saldo ${brl(tituloInfo(t).saldo)}`]));
   S.D.items.forEach(i=>{const r=resItem(i);if(r.sem==='bad')a.push(['bad',`Item ${i.codigo}: ${r.txt}`,`Receita ${brl(r.rec)} × custo ${brl(r.real)}${r.idc!=null?' · IDC '+r.idc.toFixed(2).replace('.',','):''}`])});

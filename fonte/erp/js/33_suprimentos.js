@@ -66,7 +66,7 @@ ACOES['oc-dev-ok']=el=>{const o=S.t.ocs.find(x=>x.id===el.dataset.id),q=+$('#dv-
   if(o.ins&&q>saldoIns(o.ins)+1e-9)return toast('Estoque menor que a devolução');o.devolvido=r2((o.devolvido||0)+q);if(o.ins)novoMov({tipo:'dev',ins:o.ins,qtd:q,cu:cmIns(o.ins),oc:o.id,ocNum:o.num,motivo:'Devolução '+o.num+': '+m});
   (o.ocorr=o.ocorr||[]).push({data:hojeISO(),tipo:'Devolução',texto:num(q)+' un · crédito '+brl(q*o.preco)+' · '+m,quem:user()});log('ordem_compra',o.num,'devolução','',num(q)+' · '+brl(q*o.preco),m);save();closeModal();toast('Devolução registrada · crédito '+brl(q*o.preco));render()};
 /* ---- necessidade e mín./máx. ---- */
-function necessidades(){const sem=new Set(S.t.sols.filter(s=>s.status!=='cancelada').map(s=>s.item).concat(S.t.ocs.filter(o=>!['cancelada','reprovada'].includes(o.status)).map(o=>o.item)));
+function necessidades(){const sem=new Set(S.t.sols.filter(s=>s.status!=='cancelada').flatMap(s=>itensDe(s)).concat(S.t.ocs.filter(o=>!['cancelada','reprovada'].includes(o.status)).flatMap(o=>itensDe(o))));
   const look=new Set(S.t.atvs.filter(a=>a.status!=='feita').map(a=>a.item));
   return S.D.items.filter(i=>look.has(i.codigo)&&!sem.has(i.codigo)&&(S.sd[i.codigo]?.livre||0)>0).map(i=>({i,livre:S.sd[i.codigo].livre}))}
 function minMax(){return S.t.inss.filter(i=>i.estMin!=null&&saldoIns(i.cod)<i.estMin).map(i=>({i,saldo:saldoIns(i.cod),sug:Math.max(0,r2((i.estMax!=null?i.estMax:i.estMin*2)-saldoIns(i.cod)))}))}

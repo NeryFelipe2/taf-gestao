@@ -50,7 +50,7 @@ async function chEntrar(k,q,doForm){
   if(!CH.quem){if(doForm)throw new Error('Informe seu nome.');chTela('Informe seu nome.');return}
   CH.chave=k;chLs(CHK,k);if(q)chLs(CHQ,q);login().classList.remove('open');
   S.role=CH.fixo?r.papel:(pp&&ROLES[pp]&&!['admin','pendente'].includes(pp)?pp:r.papel);
-  SB.perfil={nome:CH.quem,papel:S.role};
+  SB.perfil={nome:CH.quem,papel:S.role,fixo:CH.fixo,uid:(CH.fixo?'pessoa:':'nome:')+nomeNorm(CH.quem)};   /* uid: identidade do usuário (D4, ev_ctrl); a chave geral tem nome digitado, a pessoal tem nome fixo */
   const rs=$('#role');if(CH.fixo)rs.parentNode.style.display='none';else{rs.parentNode.style.display='';rs.value=S.role}
   $('#userbox').style.display='block';
   $('#userbox').innerHTML=`<div class="note"><b>${esc(CH.quem)}</b><span>${CH.leitura?'Só leitura':CH.fixo?esc(ROLES[S.role]?.n||S.role)+' · chave pessoal':'Chave do site · papel escolhido acima'}</span><div style="margin-top:8px;display:flex;gap:6px"><a class="btn sm" href="/">Site</a><button class="btn sm" data-act="sair">Sair</button></div></div>`;
@@ -86,7 +86,7 @@ async function chCarregar(ob){
   if(!CH.leitura)Object.keys(PX).forEach(k=>{if(!(SB.pool[k]||[]).length||SB.pool[k].length<5)chPool(k)});
   /* o extrato financeiro histórico da obra (quando existe na base) NÃO é lançado sozinho: só entra quando alguém conferir e mandar */
   {const P=new URLSearchParams(location.search),pv=P.get('vista');   /* vindo do Centro de Gestão ou de um link: abre a tela pedida */
-    if(!CH.linkFeito&&(pv||P.get('tarefa'))){CH.linkFeito=1;S.view=(pv&&NAV_BASE.some(n=>n[0]===pv))?pv:'rastro'}}
+    if(!CH.linkFeito&&(pv||P.get('tarefa'))){CH.linkFeito=1;S.view=(pv&&vistaPermitida(pv))?pv:'rastro'}}
   render();chOutras();
 }
 /* estado das outras obras, só para ler (painel da carteira, RH, comparativo): nunca é gravado por aqui */

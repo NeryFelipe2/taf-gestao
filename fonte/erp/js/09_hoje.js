@@ -3,13 +3,14 @@ function pacRow(p){
   const d=p._dias;const pill=p._temOC?'<span class="pill ok">Com pedido</span>':d==null?'':d<0?`<span class="pill bad">Vencido ${-d}d</span>`:d<=7?`<span class="pill warn">Em ${d} dias</span>`:`<span class="pill ok">Em ${d} dias</span>`;
   const c=p._acima?'var(--bad)':p._cot?'var(--warn)':'var(--ok)';
   return `<div class="row">${ring(p._pctCot,c)}<div><h4>${esc(p.nome)}<span class="mono">${p.codigo}</span></h4><p>${p._it.length} ${p._it.length===1?'item':'itens'} · ${p._cot?p._cot+' sem cotação':'todos cotados'}${p._semFolga?` · ${p._semFolga} sem folga`:''}</p></div>
-   <div>${p._acima?'<span class="pill bad">Meta &gt; teto</span> ':''}${pill}</div><div class="val"><b>${brl(p.meta,true)}</b><span>teto ${brl(p.teto,true)}</span></div></div>`}
+   <div>${p._acima?'<span class="pill bad">Meta &gt; teto</span> ':''}${pill}</div><div class="val"><b>${brl(pacMeta(p),true)}</b><span>teto ${brl(pacTeto(p),true)}</span></div></div>`}
 function minhaFila(X){
   const f=[];
   if(!S.t.frozen&&can('congelar'))f.push(['bad','Congelar a linha de base v1','Libera a abertura de compras na obra.','eap']);
-  if(isRole('gerente','diretoria'))X.pendAprov.filter(o=>o.alcada===S.role||(isRole('diretoria')&&o.alcada==='gerente')||S.role==='admin').forEach(o=>f.push([o.alcada==='diretoria'?'bad':'warn',`Aprovar ${o.num} · ${brl(o.valor)}`,`${o.item} · ${esc(o.forn)}`,'compras']));
-  if(isRole('compras'))S.t.sols.filter(s=>s.status==='enviada'||s.status==='em_cotacao').forEach(s=>f.push(['warn',`Cotar ${s.num}`,`${esc(s.desc)} · ${s.item}`,'compras']));
-  if(isRole('almox'))S.t.ocs.filter(o=>['aprovada','recebida_parcial'].includes(o.status)).forEach(o=>f.push(['info',`Receber ${o.num}`,`${esc(o.forn)} · ${num(o.qtd-(o.recebido||0))} ${S.byCod[o.item].unidade||''} a receber`,'compras']));
+  if(isRole('gerente','diretoria'))X.pendAprov.filter(o=>o.alcada===S.role||(isRole('diretoria')&&o.alcada==='gerente')||S.role==='admin').forEach(o=>f.push([o.alcada==='diretoria'?'bad':'warn',`Aprovar ${o.num} · ${brl(o.valor)}`,`${itensTxt(o)} · ${esc(o.forn)}`,'compras']));
+  if(isRole('gerente','diretoria'))(X.pendNotas||[]).filter(n=>n.alcada===S.role||(isRole('diretoria')&&n.alcada==='gerente')||S.role==='admin').forEach(n=>f.push([n.alcada==='diretoria'?'bad':'warn',`Aprovar ${n.num} (nota sem pedido) · ${brl(n.valor)}`,`${esc(n.emitente)}`,'compras']));
+  if(isRole('compras'))S.t.sols.filter(s=>s.status==='enviada'||s.status==='em_cotacao').forEach(s=>f.push(['warn',`Cotar ${s.num}`,`${esc(s.desc)} · ${itensTxt(s)}`,'compras']));
+  if(isRole('almox'))S.t.ocs.filter(o=>['aprovada','recebida_parcial'].includes(o.status)).forEach(o=>f.push(['info',`Receber ${o.num}`,`${esc(o.forn)} · ${num(o.qtd-(o.recebido||0))} ${ocUn(o)} a receber`,'compras']));
   if(isRole('gerente','diretoria'))S.t.meds.filter(m=>m.status==='lancada'&&m.quem!==user()).forEach(m=>f.push(['warn',`Atestar ${m.num}`,`${m.item} · ${num(m.qtd)} medidos`,'med']));
   if(isRole('adm'))X.semRateio.forEach(n=>f.push(['warn',`Ratear ${n.num}`,`${esc(n.emitente)} · ${brl(n.valor)}`,'nota']));
   if(isRole('financeiro'))S.t.notas.filter(n=>n.status==='conferida'||n.status==='liberada').forEach(n=>f.push(['info',`${n.status==='conferida'?'Liberar':'Pagar'} ${n.num}`,`${esc(n.emitente)} · ${brl(n.valor)}`,'nota']));

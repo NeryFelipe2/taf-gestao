@@ -2,6 +2,6 @@
 if(window.TAF_EMB&&window.TAF_EMB.ativo)window.TAF_EMB.on(m=>{
   const c=m.ir||m;
   if(!S.D)return;
-  if(c.vista&&NAV_BASE.some(n=>n[0]===c.vista)){S.view=c.vista;render()}
+  if(c.vista&&vistaPermitida(c.vista)){S.view=c.vista;render()}
   if(c.tarefa&&typeof rastroCarrega==='function'){S.view='rastro';RS.dem=+c.demanda||null;render();rastroCarrega(c.tarefa)}
 });

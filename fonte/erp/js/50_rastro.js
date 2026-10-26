@@ -39,7 +39,7 @@ function viewRastro(X){
   else corpo=rastroCorpo(d);
   return `<div class="head"><div><h1>Da tarefa à compra, ao custo e ao BM</h1><p class="lead">Escolha uma tarefa do cronograma e veja o que foi pedido para ela, se o material chegou, quanto já virou custo e a quais eventos de medição ela leva. Tarefa, pedido e item de BM não são um para um: aqui aparecem só os vínculos que existem.</p></div>
    <div style="display:flex;gap:8px;flex-wrap:wrap"><a class="btn" href="/marko?obra=${encodeURIComponent(SB.obraId||'342')}">Tela do engenheiro</a><a class="btn" href="/ciclo?obra=${encodeURIComponent(SB.obraId||'342')}&aba=sit">Visão da gestão</a></div></div>
-   <div class="toolbar"><select id="rs-sel" style="min-width:min(520px,100%)"><option value="">Escolha a tarefa…</option>${opt}</select></div>${corpo}`}
+   ${avisoSqlCalc()}${avisoSqlLinhas()}<div class="toolbar"><select id="rs-sel" style="min-width:min(520px,100%)"><option value="">Escolha a tarefa…</option>${opt}</select></div>${corpo}`}
 /* demandas do Ciclo que travam esta tarefa, e se cada uma já tem compra ligada (o vínculo guarda o número da demanda) */
 function rastroDemandas(d){
   const L=demDaTarefa(d.ativ.id);if(!L.length)return `<div class="card"><div class="in"><div class="panel-t">Demandas desta tarefa no Ciclo</div><div class="sub">Nenhuma demanda aberta aponta para a tarefa ${esc(d.ativ.id)}. A compra pode ser ligada mesmo assim.</div></div></div>`;
@@ -102,7 +102,7 @@ ACOES['rs-nova']=el=>{if(!RS.tarefa)return;const dn=+(el&&el.dataset&&el.dataset
 ACOES['rs-liga']=el=>{const ja=new Set(S.t.elos.filter(x=>x.ativ===RS.tarefa&&!x.cancelado).map(x=>x.sol)),dn=+(el&&el.dataset&&el.dataset.dem)||RS.dem||0;
   const L=S.t.sols.filter(s=>s.status!=='cancelada'&&!ja.has(s.id)),ds=demDaTarefa(RS.tarefa);
   modal(`<h3>Ligar solicitação à tarefa ${esc(RS.tarefa)}</h3><div class="sub">Só liga: a solicitação continua uma só, com o mesmo valor. Pode atender mais de uma tarefa.</div>
-   <label>Solicitação</label><select id="rl-sol">${L.map(s=>`<option value="${s.id}">${esc(s.num)} · ${esc(s.desc)} · item ${esc(s.item)}</option>`).join('')||'<option value="">Nenhuma solicitação disponível</option>'}</select>
+   <label>Solicitação</label><select id="rl-sol">${L.map(s=>`<option value="${s.id}">${esc(s.num)} · ${esc(s.desc)} · item ${esc(itensTxt(s))}</option>`).join('')||'<option value="">Nenhuma solicitação disponível</option>'}</select>
    <label>Demanda do Ciclo que esta compra atende (opcional)</label><select id="rl-dem"><option value="">nenhuma</option>${ds.map(x=>`<option value="${x.num}" ${x.num===dn?'selected':''}>D${x.num} · ${esc(String(x.oque).slice(0,70))}</option>`).join('')}</select>
    <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="rs-liga-ok" ${L.length?'':'disabled'}>Ligar</button></div>`)};
 ACOES['rs-liga-ok']=async()=>{const s=$('#rl-sol').value;if(!s)return;rastroElo(s,+$('#rl-dem').value||null);closeModal();await rastroGrava();toast('Solicitação ligada à tarefa.')};

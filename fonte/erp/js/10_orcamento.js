@@ -19,11 +19,11 @@ function viewEap(X){
 }
 function modalItem(cod){
   const i=S.byCod[cod],s=S.sd[cod];
-  const ocs=S.t.ocs.filter(o=>o.item===cod);const rat=S.t.notas.flatMap(n=>n.rateio.filter(l=>l.item===cod).map(l=>({n,l})));
+  const ocs=S.t.ocs.filter(o=>itensDe(o).includes(cod));const rat=S.t.notas.flatMap(n=>n.rateio.filter(l=>l.item===cod).map(l=>({n,l})));
   modal(`<h3>${cod} <span class="mut">${esc(i.unidade||'')}</span></h3><div class="sub">${esc(i.descricao)}</div>
    <div class="kpi4"><div><div class="k-l">Meta</div><div class="v">${brl(i.meta_total)}</div></div><div><div class="k-l">Teto</div><div class="v ${i.meta_total>i.teto_total?'neg':''}">${brl(i.teto_total)}</div></div><div><div class="k-l">Comprometido</div><div class="v">${brl(s.comp)}</div></div><div><div class="k-l">Saldo livre</div><div class="v ${s.livre<0?'neg':''}">${brl(s.livre)}</div></div></div>
    <div class="sub" style="margin-top:10px">Pacote ${i.pacote||'—'} · evento ${i.evento||'—'} · natureza ${i.nat} · fonte da meta: ${esc(i.fonte_meta||'—')} · ${esc(i.status_cotacao||'')}</div>
-   ${ocs.length?`<div class="panel-t" style="margin-top:14px">Pedidos</div>${ocs.map(o=>`<div class="sub">${o.num} · ${esc(o.forn)} · ${brl(o.valor)} · ${o.status}</div>`).join('')}`:''}
+   ${ocs.length?`<div class="panel-t" style="margin-top:14px">Pedidos</div>${ocs.map(o=>`<div class="sub">${o.num} · ${esc(o.forn)} · ${ocMulti(o)?brl(linhasDe(o).filter(l=>l.item===cod).reduce((s,l)=>s+ +l.valor,0))+' deste item (pedido de '+brl(o.valor)+')':brl(o.valor)} · ${o.status}</div>`).join('')}`:''}
    ${rat.length?`<div class="panel-t" style="margin-top:14px">Notas rateadas</div>${rat.map(x=>`<div class="sub">${x.n.num} · ${esc(x.n.emitente)} · ${brl(x.l.valor)}</div>`).join('')}`:''}
    <div class="acts"><button class="btn" data-act="fechar">Fechar</button><button class="btn dark" data-act="nova-sol" data-item="${cod}" ${can('solicitar')?'':'disabled title="Só Engenheiro ou Gerente"'}>Solicitar compra</button></div>`);
 }
@@ -39,10 +39,12 @@ function doRemanejar(){
   if(de===pa)return err('Escolha itens diferentes.');if(!(v>0))return err('Informe o valor.');if(!m)return err('Motivo obrigatório.');
   const a=S.byCod[de],b=S.byCod[pa],sa=S.sd[de];
   if(a.meta_total-v<sa.comp+sa.real)return err('O item de origem não tem saldo livre suficiente ('+brl(sa.livre)+').');
-  const t0=S.D.items.reduce((s,i)=>s+i.meta_total,0);
+  const t0=S.D.items.reduce((s,i)=>s+i.meta_total,0),mu0={[de]:a.meta_unit,[pa]:b.meta_unit};
   log('item_eap',de,'meta_total',a.meta_total,r2(a.meta_total-v),m);log('item_eap',pa,'meta_total',b.meta_total,r2(b.meta_total+v),m);
   S.t.metaOv[de]=r2(a.meta_total-v);S.t.metaOv[pa]=r2(b.meta_total+v);S.t.versao++;S.t.hist.push({versao:S.t.versao,motivo:`${de} → ${pa} ${brl(v)}: ${m}`,quando:new Date().toISOString(),quem:user()});
   prep();const X=derive();if(Math.abs(X.meta-t0)>0.01)console.warn('total mudou');
+  /* calc_v2 [SUPOSIÇÃO, plano M1]: meta_unit acompanha o remanejamento (prep() recalcula); o antes e depois vai para a auditoria */
+  if(calcV2(S.t))[de,pa].forEach(c=>{if(mu0[c]!==S.byCod[c].meta_unit)log('item_eap',c,'meta_unit',mu0[c],S.byCod[c].meta_unit,m)});
   save();closeModal();toast('Remanejado · linha de base v'+S.t.versao);render();
 }
 
