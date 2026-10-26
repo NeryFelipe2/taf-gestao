@@ -1,6 +1,8 @@
 # M4, parte do banco: PENDENTE de ok separado do Felipe (decisão E2)
 
-Nada de SQL foi escrito, aplicado ou testado contra o banco. Este arquivo só diz o que o servidor ainda impede e por quê.
+**26/10/2026: SQL escrito, NÃO aplicado.** `03_nota_alcada.sql` (opção estreita, abaixo) e `03_teste_999.sql` (12 regras na obra 999, tudo desfeito no fim). Testado num Postgres 16 local com o `01_erp.sql` (cujas funções são iguais às do banco, conferido por md5): sem o 03 o teste falha no passo 2 (a aprovação não grava), com o 03 passa. Aplicar só com o sim do Felipe.
+
+Texto original: Este arquivo só diz o que o servidor ainda impede e por quê.
 Achado da revisão cética de M3 e M4 (lendo `01_erp.sql`; o teste no Node não enxerga a regra de papéis do servidor).
 
 ## O problema: aprovar nota sem pedido não fica salvo em obra real
