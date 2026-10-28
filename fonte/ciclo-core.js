@@ -273,7 +273,8 @@ var PODE = {
   gestor: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'reabrir', 'simular'],
   engenheiro: ['preparo', 'preparo_ok', 'comp', 'comp_tirar', 'comp_cancelar', 'fora', 'publicar', 'apont', 'apont_lote',
     'apont_apagar', 'real', 'fechar_item', 'fechar_semana', 'replan', 'efeito', 'saldo', 'demanda', 'demanda_resp', 'cobrar', 'impacto', 'simular'],
-  diretoria: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'simular']
+  diretoria: ['demanda', 'demanda_resp', 'cobrar', 'impacto', 'acordo', 'simular'],
+  encarregado: ['apont', 'apont_lote', 'apont_apagar']   // só aponta o dia (fonte/erp/sql/06_acessos.sql)
 };
 CC.pode = function (papel, acao) { return (PODE[papel] || []).indexOf(acao) >= 0; };
 // diretoria só mexe (responder, nova data, editar, cancelar) nas demandas em que é responsável ou decide
@@ -563,7 +564,7 @@ CC.ROT = {
   origem_replan: { fechamento: 'do fechamento', data_real: 'da data real', preparo: 'da preparação', manual: 'manual', revisao: 'revisão pedida no de acordo' },
   decisao: { pendente: 'Decidir depois', sem_efeito: 'Sem efeito', tudo: 'Aceitou tudo', so_esta: 'Só esta atividade' },
   acordo: { pendente: 'De acordo pendente', ok: 'De acordo', revisar: 'Pediu revisão' },
-  papel: { engenheiro: 'engenheiro', gestor: 'gestor', diretoria: 'diretoria', leitura: 'só leitura' },
+  papel: { engenheiro: 'engenheiro', gestor: 'gestor', diretoria: 'diretoria', leitura: 'só leitura', encarregado: 'encarregado' },
   tipo_ativ: { ativ: 'atividade', continua: 'contínua', marco: 'marco', evento: 'EVENTO', evento_pct: 'EVENTO %' },
   cal: { CORRIDOS: 'dias corridos', UTEIS: 'd.u.' },
   luz: { VERDE: 'VERDE', AMARELO: 'AMARELO', VERMELHO: 'VERMELHO', 'SEM BASE': 'SEM BASE' },
