@@ -1,6 +1,10 @@
 # Manual do Engenheiro residente
 **Seu dia:** acompanhar o Dashboard, aprovar apontamentos, pedir compras, medir produção e subempreiteiros.
 
+## Entrar
+- Use a sua **chave pessoal** (a Diretoria ou o gestor cria em Acessos e manda por mensagem direta). Entre em **/marko**; no ERP, **/erp**. Com a chave geral do site você entra como gestor e não planeja nem aponta.
+- A **pessoa** da sua chave tem de ter o **mesmo nome do engenheiro da obra no planejador**. Nome diferente: as demandas, as áreas e as tarefas em seu nome não aparecem como suas. (O "nome da chave" é só para achar na lista e não importa para isso.)
+
 ## Tarefas
 - **Dashboard** (Início): indicadores com meta, Curva S, funil de compras, estoque e pessoas. "Escolher o que mostrar" liga e desliga seções.
 - **Solicitar compra** (Suprimentos → Compras → Nova solicitação): nasce dentro de um item do orçamento. O semáforo compara com a meta e o teto do item.

@@ -494,7 +494,8 @@ function cabecalho(){
   $('h-nome').textContent='Obra '+CC.OBRA+' · '+(a.nome||(P&&P.pessoa)||'sem nome');
   $('h-fila').textContent=CC.estado().texto;
   var fx=$('faixa');
-  if(a.papel&&a.papel!=='engenheiro'){fx.hidden=false;fx.textContent='Você está vendo como '+CC.rot('papel',a.papel)+'; quem aponta é o engenheiro'}
+  if(a.papel==='encarregado'){fx.hidden=false;fx.textContent='Você entra como encarregado: aponta o dia. Quem prepara, monta e publica a semana é o engenheiro'}
+  else if(a.papel&&a.papel!=='engenheiro'){fx.hidden=false;fx.textContent='Você está vendo como '+CC.rot('papel',a.papel)+'; quem aponta é o engenheiro'}
   else fx.hidden=true;
 }
 
