@@ -1,5 +1,6 @@
 -- 07 (IA): limite de uso do assistente (/api/assistente), por chave, por obra e por ação, contado por dia.
 -- RASCUNHO. NÃO APLICADO. Só aplicar no banco com o sim do Felipe, depois de testar (07_teste_999.sql, obra 999 fictícia).
+-- Fora do horário de uso, o arquivo inteiro de uma vez: psql -1 -v ON_ERROR_STOP=1 -f 07_ia.sql
 --
 -- Para que serve: o assistente lê o relato do WhatsApp e propõe os apontamentos da semana (ação 'relato'), ou responde
 -- uma pergunta sobre a situação da obra (ação 'pergunta'). Cada chamada custa dinheiro na conta da IA. Antes de chamar a IA,

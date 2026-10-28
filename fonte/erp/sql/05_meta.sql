@@ -37,7 +37,8 @@
 --      (o ERP lê a cada 30 segundos e a tela de metas confere a cada minuto) ou, se nenhum estiver aberto, até alguém desses
 --      papéis abrir a obra. A correção de fundo é conferir a versão antes de gravar (taf_erp_salvar e chSync).
 --
--- Antes de aplicar: backup (PASSO A de 99_reverter.sql). Pode rodar mais de uma vez (tudo é "if not exists" ou "create or replace").
+-- Antes de aplicar: backup (PASSO A de 99_reverter.sql, salvo em arquivo fora do repositório). Fora do horário de uso.
+-- Pode rodar mais de uma vez (tudo é "if not exists" ou "create or replace"; a ligação com a obra volta se tiver saído).
 -- Para desfazer: ver o fim do arquivo.
 
 create sequence if not exists public.taf_erp_meta_ordem_seq;
@@ -71,6 +72,13 @@ create table if not exists public.taf_erp_meta_prop (
 -- uma proposta pendente por item (ou pacote) de cada vez: a segunda espera a primeira ser decidida ou cancelada
 -- o que a tela de quem decidiu mostrava (meta, teto e, no pacote, "fechar até"): o navegador só aplica sozinho se o item ainda estiver assim
 alter table public.taf_erp_meta_prop add column if not exists antes_decisao jsonb;
+-- [integração] a ligação com a obra (chave estrangeira) volta se tiver saído: o 99_reverter.sql do ERP (drop ... cascade em
+-- taf_erp_obra) tira esta ligação e deixa a tabela, e o "create table if not exists" acima não a devolveria.
+do $$ begin
+  if not exists (select 1 from pg_constraint where conrelid = 'public.taf_erp_meta_prop'::regclass and contype = 'f') then
+    alter table public.taf_erp_meta_prop add constraint taf_erp_meta_prop_obra_fkey foreign key (obra) references public.taf_erp_obra(codigo);
+  end if;
+end $$;
 create unique index if not exists taf_erp_meta_prop_pendente on public.taf_erp_meta_prop (obra, alvo, codigo) where situacao = 'pendente';
 create index if not exists taf_erp_meta_prop_obra on public.taf_erp_meta_prop (obra, id);
 
@@ -97,9 +105,13 @@ revoke all on public.taf_erp_meta_prop from public, anon, authenticated;
 revoke all on sequence public.taf_erp_meta_prop_id_seq, public.taf_erp_meta_ordem_seq from public, anon, authenticated;
 
 -- Mesma identidade do navegador (05_motor_de_regras.js nomeNorm): sem acento, minúsculo, espaços simples.
+-- [integração] e sem caractere invisível (espaço de largura zero, marcas de direção, BOM...), a mesma lista do 06 (_taf_acesso_limpa):
+-- "Gestor\u200B Teste" era outra pessoa para "quem propôs não decide" e o registro mostrava duas pessoas onde houve uma.
 create or replace function public._taf_erp_meta_norm(p text) returns text
 language sql immutable set search_path = public as $$
-  select lower(translate(regexp_replace(btrim(coalesce(p, '')), '\s+', ' ', 'g'),
+  select lower(translate(btrim(regexp_replace(regexp_replace(coalesce(p, ''),
+    E'[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180B-\u180F\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFE00-\uFE0F\uFEFF\uFFA0\uFFF0-\uFFFB\U000E0000-\U000E007F]', '', 'g'),
+    E'[\\s\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000]+', ' ', 'g')),
     'áàâãäåéèêëíìîïóòôõöúùûüçñÁÀÂÃÄÅÉÈÊËÍÌÎÏÓÒÔÕÖÚÙÛÜÇÑ', 'aaaaaaeeeeiiiiooooouuuucnAAAAAAEEEEIIIIOOOOOUUUUCN')) $$;
 
 -- Número de um campo do "antes" mandado pela tela (só número; o resto vira vazio).
@@ -296,7 +308,11 @@ grant execute on function public.taf_erp_meta_propor(text, text, text, text, tex
 -- ===================== COMO DESFAZER =====================
 -- 1. No ERP, desligar a chave "Meta pela tela" nas obras (Compras → Parâmetros → Chaves desta obra). Desligada, a tela não chama nada daqui.
 --    As metas que já foram aplicadas continuam no estado da obra (linha de base, histórico e auditoria), como qualquer Atualizar pela planilha.
--- 2. Guardar cópia das propostas:   create table public.taf_erp_meta_prop_copia as select * from public.taf_erp_meta_prop;
+-- 2. Guardar cópia das propostas FORA do banco aberto ao site, em arquivo fora do repositório:
+--      select jsonb_agg(to_jsonb(p) order by p.id) from public.taf_erp_meta_prop p;
+--    [integração] nunca "create table public.taf_erp_meta_prop_copia as select": no Supabase, tabela nova em public pode nascer
+--    sem RLS e com acesso do site (anon), e a cópia ficaria aberta (ver o LEIA-ME-06, passo 1).
+--    O 99_reverter.sql do ERP deixa taf_erp_meta_prop (e taf_erp_base_hist, do 04): tirar pelo passo 3 abaixo e pelo desfazer do 04.
 -- 3. Remover só o que este arquivo criou:
 --    drop function if exists public.taf_erp_meta_propor(text, text, text, text, text, text, numeric, numeric, date, text, jsonb),
 --      public.taf_erp_meta_direta(text, text, text, text, text, text, numeric, numeric, date, text, jsonb),

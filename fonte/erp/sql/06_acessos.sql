@@ -45,23 +45,47 @@
 --        em _taf_erp_papeis). Conferido no teste: a chave de encarregado entra no ERP como encarregado e no planejador como encarregado.
 --      taf_ciclo_ler, taf_ciclo_importar e _taf_ciclo_condicao não são tocadas.
 --
+--      [integração] Se o fonte/ciclo/sql/02_funcoes.sql for rodado de novo DEPOIS deste arquivo, ele volta o _taf_ciclo_pode
+--        antigo: o encarregado para de apontar sem aviso (a tela ainda diz que ele aponta). Rode este 06 de novo logo depois
+--        (pode rodar de novo sem problema). A trava do começo deste arquivo para se o _taf_ciclo_pode do banco não for nem o do
+--        repositório nem o deste arquivo (alguém mexeu nele no banco): compare antes de seguir.
+--   5. [integração] A chave do robô do resumo (08_resumo.sql) é de leitura e sem obra nenhuma. Chave sem obra só a Diretoria com
+--      todas as obras desativa (lista vazia cabia no escopo de qualquer gestor); desativar o robô por aqui desliga também o robô
+--      no Resumo (taf_resumo_robo), e a lista marca a linha como "robo".
+--
 -- Depende de: fonte/ciclo/sql/01 e 02 (taf_ciclo_chave, taf_ciclo_obra), fonte/erp/sql/01_erp.sql (taf_erp_obra),
 --             public._taf_ok (chave geral do site), extensão pgcrypto no esquema extensions (digest, hmac e gen_random_bytes).
--- Antes de aplicar: backup de taf_ciclo_chave (create table ... as select). Rodar o arquivo inteiro de uma vez.
+-- Antes de aplicar: backup de taf_ciclo_chave fora do banco aberto ao site (ver o LEIA-ME-06, passo 1: o PASSO A de
+--   fonte/ciclo/sql/99_reverter.sql salvo em arquivo fora do repositório; nunca "create table public.... as select").
+-- Fora do horário de uso. Rodar o arquivo inteiro de uma vez, tudo ou nada: psql -1 -v ON_ERROR_STOP=1 -f 06_acessos.sql
+--   [integração] A troca da regra de papel trava taf_ciclo_chave, que todo acesso do site lê: com lock_timeout de 3 s, se outra
+--   transação estiver usando a tabela, o arquivo falha inteiro em vez de deixar o site esperando. É só rodar de novo.
 -- Desfazer: ver o fim do arquivo.
+
+-- ===================================================================== 0. travas antes de mexer
+set lock_timeout = '3s';
+-- [integração] o _taf_ciclo_pode do banco tem de ser o do repositório (fonte/ciclo/sql/02_funcoes.sql) ou o deste arquivo
+do $$ declare v text; begin
+  v := md5(pg_get_functiondef('public._taf_ciclo_pode(text,text)'::regprocedure));
+  if v not in ('0b8e6eba22d91ff6fcba227ae952048c',     -- fonte/ciclo/sql/02_funcoes.sql (o do banco da TAF, prod_md5)
+               'e181c6427042a76781e61ec36c2be373') then -- este arquivo já aplicado
+    raise exception 'FUNCAO _taf_ciclo_pode DO BANCO DIFERENTE DO REPOSITORIO (md5 %): PARE E COMPARE ANTES DE RODAR O 06', v;
+  end if;
+end $$;
 
 -- ===================================================================== 1. papel 'encarregado' na chave pessoal
 -- Tira a regra antiga de papel (a que lista 'gestor'), qualquer que seja o nome dela no banco, e põe a nova.
 -- A regra "leitura pode ficar sem pessoa" (taf_ciclo_chave_check) não muda: o encarregado precisa de pessoa.
+-- [integração] tirar e pôr no mesmo comando: se não conseguir a trava, nada muda (antes a regra antiga podia sair sem a nova entrar)
 do $$ declare r record; begin
   for r in select c.conname from pg_constraint c
             where c.conrelid = 'public.taf_ciclo_chave'::regclass and c.contype = 'c'
               and pg_get_constraintdef(c.oid) ~ 'papel' and pg_get_constraintdef(c.oid) ~ 'gestor' loop
     execute format('alter table public.taf_ciclo_chave drop constraint %I', r.conname);
   end loop;
+  alter table public.taf_ciclo_chave add constraint taf_ciclo_chave_papel_check
+    check (papel in ('engenheiro','gestor','diretoria','leitura','encarregado'));
 end $$;
-alter table public.taf_ciclo_chave add constraint taf_ciclo_chave_papel_check
-  check (papel in ('engenheiro','gestor','diretoria','leitura','encarregado'));
 
 -- ===================================================================== 2. registro de criar e desativar
 create table if not exists public.taf_acesso_log (
@@ -196,10 +220,20 @@ language sql immutable as $$
     when p_tipo = 'geral' and p_partida               then array['diretoria']
     else array[]::text[] end $$;
 
+-- [integração] É a chave do robô do resumo (08_resumo.sql)? Sem o 08 aplicado, nunca.
+create or replace function public._taf_acesso_e_robo(p_hash text) returns boolean
+language plpgsql stable security definer set search_path = public as $$
+declare v boolean := false;
+begin
+  if p_hash is null or to_regclass('public.taf_resumo_robo') is null then return false; end if;
+  execute 'select exists (select 1 from public.taf_resumo_robo r where r.hash = $1)' into v using p_hash;
+  return coalesce(v, false);
+end $$;
+
 -- Por que o ator NÃO pode desativar esta chave (null = pode).
 create or replace function public._taf_acesso_bloqueio(p_tipo text, p_papel text, p_obras text[], p_hash text, p_c public.taf_ciclo_chave)
 returns text language plpgsql stable security definer set search_path = public as $$
-declare v_cob text[];
+declare v_cob text[]; v_robo boolean := false;
 begin
   if p_c.hash is null then return 'CHAVE NAO ENCONTRADA'; end if;
   if not p_c.ativo then return 'CHAVE JA DESATIVADA'; end if;
@@ -211,6 +245,12 @@ begin
   -- revisão 2: a Diretoria também só desativa chave que está inteira dentro das obras que ela cuida
   if not (p_c.obras <@ public._taf_acesso_escopo(p_tipo, p_papel, p_obras)) then
     return 'SEM PERMISSAO: A CHAVE TEM OBRA FORA DAS SUAS'; end if;
+  -- [integração] chave sem obra nenhuma (a do robô do resumo, do 08): lista vazia cabe no escopo de qualquer um; só a Diretoria
+  -- com todas as obras desativa
+  if cardinality(p_c.obras) = 0 and not public._taf_acesso_geral(p_tipo, p_papel, p_obras) then
+    v_robo := public._taf_acesso_e_robo(p_c.hash);
+    return case when v_robo then 'SEM PERMISSAO: CHAVE DO ROBO DO RESUMO, SO A DIRETORIA COM TODAS AS OBRAS DESATIVA (OU TROQUE NA TELA RESUMO PARA O DIRETOR)'
+                else 'SEM PERMISSAO: CHAVE SEM OBRA, SO A DIRETORIA COM TODAS AS OBRAS DESATIVA' end; end if;
   if p_c.papel = 'diretoria' then
     if not exists (select 1 from public.taf_ciclo_chave c where c.papel = 'diretoria' and c.ativo and c.hash <> p_c.hash) then
       return 'ULTIMA CHAVE DE DIRETORIA ATIVA: CRIE OUTRA ANTES DE DESATIVAR ESTA'; end if;
@@ -286,6 +326,7 @@ begin
           'desativado_em', (select l.em from public.taf_acesso_log l where l.chave_id = i.id and l.acao = 'desativar' order by l.id desc limit 1),
           'desativado_por', (select l.quem from public.taf_acesso_log l where l.chave_id = i.id and l.acao = 'desativar' order by l.id desc limit 1),
           'sua', c.hash = a.hash,
+          'robo', public._taf_acesso_e_robo(c.hash),
           'bloqueio', public._taf_acesso_bloqueio(a.tipo, a.papel, a.obras, a.hash, c),
           'avisos', to_jsonb(case when c.ativo then public._taf_acesso_avisos(c.papel, c.pessoa, v.obras, c.hash) else '{}'::text[] end))
         order by c.ativo desc, c.criado_em desc, c.nome), '[]'::jsonb)
@@ -410,6 +451,10 @@ begin
   v_b := public._taf_acesso_bloqueio(a.tipo, a.papel, a.obras, a.hash, v_c);
   if v_b is not null then raise exception '%', v_b; end if;
   update public.taf_ciclo_chave c set ativo = false where c.hash = v_c.hash;
+  -- [integração] desativou a chave do robô do resumo: o Resumo para o diretor passa a mostrar que não há robô (gerar outro lá)
+  if public._taf_acesso_e_robo(v_c.hash) then
+    execute 'update public.taf_resumo_robo set ativo = false, desativado_em = now() where hash = $1 and ativo' using v_c.hash;
+  end if;
   insert into public.taf_acesso_log (acao, chave_id, nome, pessoa, papel, obras, motivo, quem, quem_papel, verificado)
   values ('desativar', p_id, v_c.nome, v_c.pessoa, v_c.papel, v_c.obras, v_mot, a.nome, a.papel, true);
   return jsonb_build_object('ok', true, 'id', p_id, 'nome', v_c.nome, 'pessoa', v_c.pessoa, 'papel', v_c.papel, 'desativado_por', a.nome);
@@ -437,11 +482,12 @@ revoke all on function public._taf_acesso_log_trava(), public._taf_acesso_segred
   public._taf_acesso_geral(text, text, text[]), public._taf_acesso_escopo(text, text, text[]),
   public._taf_acesso_ator(text, text), public._taf_acesso_pode_criar(text, text, boolean),
   public._taf_acesso_bloqueio(text, text, text[], text, public.taf_ciclo_chave), public._taf_acesso_avisos(text, text, text[], text),
-  public._taf_ciclo_pode(text, text) from public, anon, authenticated;
+  public._taf_acesso_e_robo(text), public._taf_ciclo_pode(text, text) from public, anon, authenticated;
 revoke all on function public.taf_acesso_listar(text, text), public.taf_acesso_criar(text, text, text, text, text[], text),
   public.taf_acesso_desativar(text, text, text, text) from public;
 grant execute on function public.taf_acesso_listar(text, text), public.taf_acesso_criar(text, text, text, text, text[], text),
   public.taf_acesso_desativar(text, text, text, text) to anon, authenticated;
+reset lock_timeout;
 
 -- ===================================================================== desfazer (manual, na ordem)
 -- 1. Encarregado volta a não apontar: rodar de novo, de fonte/ciclo/sql/02_funcoes.sql, só o bloco
@@ -451,6 +497,7 @@ grant execute on function public.taf_acesso_listar(text, text), public.taf_acess
 --    drop function public.taf_acesso_desativar(text, text, text, text);
 --    drop function public._taf_acesso_avisos(text, text, text[], text);
 --    drop function public._taf_acesso_bloqueio(text, text, text[], text, public.taf_ciclo_chave);
+--    drop function public._taf_acesso_e_robo(text);
 --    drop function public._taf_acesso_pode_criar(text, text, boolean);
 --    drop function public._taf_acesso_ator(text, text);
 --    drop function public._taf_acesso_escopo(text, text, text[]);
@@ -460,13 +507,23 @@ grant execute on function public.taf_acesso_listar(text, text), public.taf_acess
 --    drop function public._taf_acesso_norm(text);
 --    drop function public._taf_acesso_limpa(text);
 --    drop function public._taf_acesso_id(text);
--- 3. Registro: guardar uma cópia antes (create table public.taf_acesso_log_copia as select * from public.taf_acesso_log;), depois
+-- 3. Registro: guardar uma cópia antes, FORA do banco aberto ao site (o resultado salvo em arquivo fora do repositório:
+--      select jsonb_agg(to_jsonb(l) order by l.id) from public.taf_acesso_log l;
+--    nunca "create table public.taf_acesso_log_copia as select": tabela nova em public pode nascer aberta ao site, ver o LEIA-ME-06), depois
 --    drop table public.taf_acesso_log; drop function public._taf_acesso_log_trava();
 --    drop table public.taf_acesso_segredo; drop function public._taf_acesso_segredo_trava();
 --    (sem o segredo, os identificadores do registro copiado não batem mais com as chaves: guarde a cópia junto com a data)
--- 4. Papel: se existir chave de encarregado, avisar a pessoa e tirar a chave (delete from public.taf_ciclo_chave where papel = 'encarregado';). Depois
---    alter table public.taf_ciclo_chave drop constraint taf_ciclo_chave_papel_check;
---    alter table public.taf_ciclo_chave add constraint taf_ciclo_chave_papel_check check (papel in ('engenheiro','gestor','diretoria','leitura'));
+-- 4. Papel: [integração] nada se apaga de taf_ciclo_chave. Se existir chave de encarregado, avisar a pessoa e só DESATIVAR
+--    (antes do passo 3, para ficar no registro):
+--      insert into public.taf_acesso_log (acao, chave_id, nome, pessoa, papel, obras, motivo, quem, quem_papel, verificado)
+--      select 'desativar', public._taf_acesso_id(c.hash), c.nome, c.pessoa, c.papel, c.obras, 'desfazer do 06', 'Felipe (SQL)', 'banco', false
+--        from public.taf_ciclo_chave c where c.papel = 'encarregado' and c.ativo;
+--      update public.taf_ciclo_chave set ativo = false where papel = 'encarregado' and ativo;
+--    A regra de papel pode continuar aceitando 'encarregado': com o _taf_ciclo_pode do passo 1 o encarregado não faz nada no
+--    planejador, e no ERP a chave desativada não entra. Só se quiser mesmo a regra antiga, trocar o papel em vez de apagar:
+--      update public.taf_ciclo_chave set papel = 'leitura', ativo = false where papel = 'encarregado';
+--      alter table public.taf_ciclo_chave drop constraint taf_ciclo_chave_papel_check;
+--      alter table public.taf_ciclo_chave add constraint taf_ciclo_chave_papel_check check (papel in ('engenheiro','gestor','diretoria','leitura'));
 -- As chaves criadas pela tela continuam valendo depois do desfazer (são linhas comuns de taf_ciclo_chave). Para tirar uma
 -- (antes do passo 2, enquanto _taf_acesso_id existe):
 --    update public.taf_ciclo_chave set ativo = false where public._taf_acesso_id(hash) = '<id da tela>';

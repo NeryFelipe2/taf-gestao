@@ -1,11 +1,14 @@
 -- Teste do 06_acessos.sql na OBRA 999 · DEMONSTRAÇÃO, na 998 e na 997 (fictícias; a 998 testa "obra fora da chave" e a 997 "obra nova, importada depois"). Roda numa transação e DESFAZ tudo no fim (rollback):
 -- nada fica gravado, nem as obras, nem as chaves, nem o registro.
+-- [integração] SÓ NUM BANCO DE TESTE NOVO (/opt/pgtest/novo_banco.sh e os SQL 04 a 08). No banco de verdade NÃO rodar: ele falha
+-- com as chaves e as obras de verdade, e pôr uma chave geral de teste no banco real abriria uma porta (a "chave-geral-teste" está
+-- escrita neste repositório público). A conferência no banco real é a do LEIA-ME-06 (md5, contagens, privilégios, papel).
 -- Precisa da obra 999 sem semana montada no planejador (banco de teste novo).
 -- Uso: num banco que já tem o 06 (ou colando o 06 logo depois do "begin;"), rodar este arquivo inteiro de uma vez, por exemplo
 --   psql -v ON_ERROR_STOP=1 -f fonte/erp/sql/06_teste_acessos.sql
 -- Se uma regra falhar, para com "FALHOU: ..." e a transação é desfeita. Se tudo passar, mostra "06 OK" e desfaz.
 -- As chamadas das telas rodam como o papel anon (igual ao site). Precisa da chave geral de teste 'chave-geral-teste' em taf_chave
--- (o banco de teste local já tem; noutro banco, troque o texto abaixo por uma chave geral de teste e apague depois).
+-- (o banco de teste local já tem).
 -- Nenhuma chave real: as chaves pessoais deste teste nascem aqui dentro e somem no rollback.
 
 begin;
@@ -386,7 +389,7 @@ begin
   perform pg_temp.ok(not exists (
       select 1 from pg_proc f where f.pronamespace = 'public'::regnamespace and (f.proname like '\_taf\_acesso\_%' or f.proname = '_taf_ciclo_pode')
          and (has_function_privilege('anon', f.oid, 'execute') or has_function_privilege('authenticated', f.oid, 'execute'))), '12i internas fechadas');
-  perform pg_temp.ok((select count(*) from pg_proc f where f.pronamespace = 'public'::regnamespace and f.proname like '\_taf\_acesso\_%') = 13, '12i2 13 funcoes internas');
+  perform pg_temp.ok((select count(*) from pg_proc f where f.pronamespace = 'public'::regnamespace and f.proname like '\_taf\_acesso\_%') = 14, '12i2 14 funcoes internas (com _taf_acesso_e_robo)');
   perform pg_temp.ok(not exists (select 1 from pg_proc f where f.pronamespace = 'public'::regnamespace and f.proname = '_taf_acesso_avisos' and f.pronargs = 3), '12i3 a versao antiga dos avisos saiu');
   perform pg_temp.ok(not has_table_privilege('anon', 'public.taf_acesso_log', 'select') and not has_table_privilege('anon', 'public.taf_acesso_log', 'insert'), '12j tabela fechada');
   perform pg_temp.ok(not has_table_privilege('anon', 'public.taf_acesso_segredo', 'select') and not has_table_privilege('authenticated', 'public.taf_acesso_segredo', 'select'), '12j2 segredo fechado');

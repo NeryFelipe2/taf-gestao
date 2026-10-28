@@ -125,6 +125,11 @@ begin
     -- 17b. e quem propôs pela chave geral cancela pela chave geral com o mesmo nome
     r := public.taf_erp_meta_cancelar(geral, '999', 'Diretora Teste', (r->>'id')::bigint, null);
     perform pg_temp.confere('17b', r->>'situacao', 'cancelada');
+    -- 17c. [integração] caractere invisível no nome digitado não faz outra pessoa (espaço de largura zero, BOM, espaço duro)
+    r := public.taf_erp_meta_propor(geral, '999', E'Diretora\u200B\u00A0Teste\uFEFF', 'diretoria', 'item', 'T05.3', 2600, null, null, 'proposta com invisivel');
+    perform pg_temp.confere('17c', pg_temp.erro(format($q$select public.taf_erp_meta_decidir('teste05-dir','999',null,null,%s,true,null)$q$, r->>'id')), 'QUEM PROPOS NAO DECIDE');
+    r := public.taf_erp_meta_cancelar(geral, '999', 'diretora teste', (r->>'id')::bigint, null);
+    perform pg_temp.confere('17d', r->>'situacao', 'cancelada');
   end if;
 
   -- 18. cancelar: só quem propôs, e proposta de chave pessoal só com a chave pessoal
@@ -193,7 +198,10 @@ begin
   -- 25. a tabela também recusa motivo só de espaço (se alguém gravar sem passar pelas funções)
   perform pg_temp.confere('25', pg_temp.erro($q$insert into public.taf_erp_meta_prop (obra, alvo, codigo, meta, motivo, proposto_por, proposto_papel, proposto_pessoal)
     values ('999', 'item', 'T05.2', 1, E'\n\n\n\n', 'x', 'engenheiro', true)$q$), 'new row for relation "taf_erp_meta_prop" violates check constraint "taf_erp_meta_prop_motivo_check"');
-  raise notice '05 OK: 25 grupos de regras conferidos na obra 999';
+  -- 26. [integração] a ligação da proposta com a obra existe (e volta se tiver saído com o 99_reverter do ERP)
+  if not exists (select 1 from pg_constraint where conrelid = 'public.taf_erp_meta_prop'::regclass and contype = 'f' and conname = 'taf_erp_meta_prop_obra_fkey') then
+    raise exception 'FALHOU 26: taf_erp_meta_prop sem a chave estrangeira da obra'; end if;
+  raise notice '05 OK: 26 grupos de regras conferidos na obra 999';
 end $t$;
 
 rollback;
