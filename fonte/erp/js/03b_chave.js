@@ -27,7 +27,10 @@ async function chBaseDe(cod,r){let gz=r&&r.base_gz;
   if(!gz){try{const c=JSON.parse(chLs('taf-erp-base-'+cod)||'null');if(c&&c.sha===r.base_sha)gz=c.gz}catch(e){}}
   else chLs('taf-erp-base-'+cod,JSON.stringify({sha:r.base_sha,gz}));
   if(!gz)throw new Error('A obra '+cod+' ainda não tem dados no banco.');
-  const b=await chGunzip(gz);chUsaBase(cod,b);return b}
+  let b=await chGunzip(gz);
+  /* base gravada pela tela (marca "tela:" posta pelo banco em taf_erp_base_gravar): só entra pela lista fechada de campos (53_obra_nova.js) */
+  if(/^tela:/.test(String(r&&r.base_sha||''))){if(typeof obnLimpaBase!=='function')throw new Error('A obra '+cod+' foi gravada pela tela e este ERP não abre com segurança. Atualize a página.');b=obnLimpaBase(b,cod)}
+  chUsaBase(cod,b);return b}
 const chPB={};
 async function chObraData(cod){if(window.TAF_OBRAS&&window.TAF_OBRAS[cod])return window.TAF_OBRAS[cod];
   if(!chPB[cod])chPB[cod]=chRpc('taf_erp_base',{p_chave:CH.chave,p_obra:cod,p_quem:CH.quem||null}).then(r=>chBaseDe(cod,r)).then(b=>b.D).finally(()=>{delete chPB[cod]});

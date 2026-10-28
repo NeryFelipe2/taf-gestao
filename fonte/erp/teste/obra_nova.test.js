@@ -73,7 +73,8 @@ test('linhas da obra 998: itens, grupos (sem quantidade e sem preço), hierarqui
   assert.deepEqual(J(L.linhas.map(x => x.codigo + ':' + x.tipo + ':' + x.nivel + ':' + (x.pai || '-'))),
     ['1:grupo:1:-', '1.1:item:2:1', '1.2:item:2:1', '2:grupo:1:-', '2.1:item:2:2', '2.2:item:2:2', '2.3:item:2:2', '2.4:item:2:2']);
   const i21 = L.linhas.find(x => x.codigo === '2.1');
-  assert.equal(i21.qtd, 1200); assert.equal(i21.pu, 85.5); assert.equal(i21.venda, 102600); assert.equal(i21.unidade, 'm'); assert.equal(i21.descricao, 'Tubo PVC DN 100 "fictício"');
+  assert.equal(i21.qtd, 1200); assert.equal(i21.pu, 85.5); assert.equal(i21.venda, 102600); assert.equal(i21.unidade, 'm'); assert.equal(i21.descricao, 'Tubo PVC DN 100 ″fictício″', 'aspas viram ″ (o banco recusa aspas na descrição)');
+  assert.deepEqual(J(L.avisos.sinais), ['2.1']);
   assert.equal(L.linhas.find(x => x.codigo === '2.2').qtd, 350.5);
   assert.equal(L.linhas.find(x => x.codigo === '2.3').venda, null, 'item sem preço fica vazio, não zero');
   assert.equal(L.total, 3000 + 10000 + 102600 + 14020 + 14500);
@@ -133,7 +134,9 @@ test('base: formato que o ERP abre (D como o da obra 999), sem meta, e índice d
   assert.equal(ix.length, 6);
   assert.deepEqual(ix[0], { codigo: '1.1', descricao: 'Placa de obra em chapa galvanizada', unidade: 'm²', qtd: 6, pacote: null, evento: '1.1.1', venda: 3000, meta: null, teto: null, meta_unit: null });
   assert.equal(base998('').b.D.obra.valor_contrato, 144120, 'sem valor do contrato vale a soma da planilha');
-  assert.equal(base998('').b.origem.valor_contrato_fonte, 'soma da planilha');
+  assert.equal(base998('').b.origem.valor_contrato_fonte, 'soma da planilha (contrato não informado)');
+  const { st: s2 } = base998(''); s2.valor = '144.120,00'; s2.valorDaSoma = true;
+  assert.equal(f('obnMontaBase')(s2, []).origem.valor_contrato_fonte, 'soma da planilha, confirmada na tela');
 });
 
 test('ERP abre a obra nova sem meta: todas as telas desenham e a compra fica bloqueada até a meta', () => {
@@ -186,21 +189,23 @@ function carregaComChave(banco) {
 }
 /* o mínimo das regras do 04_obra_nova.sql e do 01_erp.sql que a tela usa */
 function bancoFalso() {
-  const B = { obras: [], itens: {}, chamadas: [] };
+  const B = { obras: [], itens: {}, chamadas: [], papeis: [] };
   const sha = t => crypto.createHash('sha256').update(t).digest('hex');
   const gestor = b => { if (b.p_chave !== 'chave-do-site') throw new Error('CHAVE INVALIDA'); if (!['gestao', 'diretoria'].includes(b.p_papel)) throw new Error('SEM PERMISSAO: SO GESTAO OU DIRETORIA CRIA OBRA E GRAVA O ORCAMENTO'); if (!b.p_quem) throw new Error('INFORME SEU NOME'); };
   B.rpc = (fn, b) => {
     const o = B.obras.find(x => x.codigo === b.p_obra);
     switch (fn) {
       case 'taf_erp_entrar': return { quem: b.p_quem, papel: b.p_papel || 'gestao', fixo: false, leitura: false, obras: B.obras.map(x => ({ codigo: x.codigo, nome: x.nome, contratante: x.contratante })) };
-      case 'taf_erp_obra_criar': gestor(b); if (!/^\d{3}$/.test(b.p_codigo)) throw new Error('CODIGO DA OBRA INVALIDO');
+      case 'taf_erp_obra_criar': gestor(b); B.papeis.push(fn + ':' + b.p_papel); if (!/^\d{3}$/.test(b.p_codigo)) throw new Error('CODIGO DA OBRA INVALIDO');
         if (B.obras.some(x => x.codigo === b.p_codigo)) throw new Error('OBRA ' + b.p_codigo + ' JA EXISTE NO ERP');
         B.obras.push({ codigo: b.p_codigo, nome: b.p_nome, contratante: b.p_contratante, base_gz: null, base_sha: null, ver: 1 });
         return { ok: true, obra: { codigo: b.p_codigo, nome: b.p_nome, contratante: b.p_contratante }, quem: b.p_quem, papel: b.p_papel, chave: 'geral' };
-      case 'taf_erp_base_gravar': gestor(b); if (!o) throw new Error('OBRA INVALIDA');
+      case 'taf_erp_base_gravar': gestor(b); B.papeis.push(fn + ':' + b.p_papel); if (!o) throw new Error('OBRA INVALIDA');
         if (!/^H4sI/.test(b.p_base_gz) || sha(b.p_base_gz) !== b.p_base_sha) throw new Error('BASE_SHA NAO CONFERE COM A BASE ENVIADA');
         if (B.falharBase) { B.falharBase = false; throw new Error('Failed to fetch'); }
-        o.base_gz = b.p_base_gz; o.base_sha = b.p_base_sha; o.ver++; B.itens[o.codigo] = b.p_itens;
+        if (o.base_sha === 'tela:' + b.p_base_sha) return { ok: true, igual: true, obra: o.codigo, base_sha: o.base_sha, itens: B.itens[o.codigo].length, versao: o.ver };
+        if (o.base_sha) throw new Error('COM A CHAVE DO SITE O ORCAMENTO SO E GRAVADO UMA VEZ: PARA REGRAVAR, USE A CHAVE PESSOAL DE GESTAO OU DIRETORIA');
+        o.base_gz = b.p_base_gz; o.base_sha = 'tela:' + b.p_base_sha; o.ver++; B.itens[o.codigo] = b.p_itens;   /* a marca "tela:" quem põe é o banco */
         return { ok: true, igual: false, obra: o.codigo, base_sha: o.base_sha, itens: b.p_itens.length, versao: o.ver };
       case 'taf_erp_ler': if (!o) throw new Error('OBRA INVALIDA');
         return { obra: { codigo: o.codigo, nome: o.nome, contratante: o.contratante }, base_sha: o.base_sha, base_gz: b.p_base_sha === o.base_sha ? null : o.base_gz, estado: {}, docs: [], parcial: false, versao: o.ver };
@@ -215,7 +220,7 @@ function bancoFalso() {
 const espera = () => new Promise(r => setImmediate(r));
 /* alvo de um evento de mentira: responde o que os outros ouvintes do ERP perguntam */
 const alvo = o => ({ dataset: {}, value: '', files: [], closest: () => null, matches: () => false, getAttribute: () => null, hasAttribute: () => false, ...o });
-async function preencheEGrava(A, banco, valor) {
+async function preencheEGrava(A, banco, valor, papel = 'gestao') {
   const g = n => vm.runInContext(n, A.ctx);
   g("ACOES['obra-nova']()");
   assert.match(String(A.el('#mbox').innerHTML), /1 Dados da obra/);
@@ -232,6 +237,19 @@ async function preencheEGrava(A, banco, valor) {
   const h3 = String(A.el('#mbox').innerHTML);
   assert.match(h3, /Total geral/); assert.match(h3, /1 item sem preço: 2\.3/); assert.match(h3, /total diferente/); assert.match(h3, /Gravar a obra 998/);
   (A.ctx.__ouvintes.input || []).forEach(fn => fn({ target: alvo({ id: 'on-valor', value: valor }) }));
+  /* chave do site: sem escolher o papel de propósito não grava (o padrão da entrada não vale) */
+  const antes = banco.chamadas.length;
+  assert.match(String(A.el('#mbox').innerHTML), /Seu papel \(chave do site\) · obrigatório/);
+  await g("ACOES['on-gravar']()");
+  assert.equal(banco.chamadas.length, antes, 'sem papel escolhido nada vai ao banco');
+  assert.match(g('ON.msg'), /escolher o seu papel/);
+  if (valor === '') {   /* valor do contrato é obrigatório: sem ele, só usando a soma da planilha de propósito */
+    assert.match(g('ON.msg'), /digitar o valor do contrato/);
+    assert.match(String(A.el('#mbox').innerHTML), /data-act="on-usa-soma"/);
+    g("ACOES['on-usa-soma']()");
+    assert.equal(g('ON.valor'), '144.120,00');
+  }
+  await Promise.all((A.ctx.__ouvintes.change || []).map(fn => fn({ target: alvo({ id: 'on-papel', value: papel }) })));
   await g("ACOES['on-gravar']()");
   for (let k = 0; k < 20; k++) await espera();
 }
@@ -242,12 +260,17 @@ test('tela com a chave do site: banco sem obra, Nova obra, planilha CSV, prévia
   await g("chEntrar('chave-do-site','Gestor de Teste',false)");
   const tela = String(A.el('#view').innerHTML);
   assert.match(tela, /Nenhuma obra no banco/); assert.match(tela, /data-act="obra-nova"/); assert.ok(!/disabled/.test(tela.split('data-act="obra-nova"')[1].split('>')[0]));
-  await preencheEGrava(A, banco, '144.120,00');
+  await preencheEGrava(A, banco, '144.120,00', 'diretoria');
   assert.deepEqual(banco.chamadas.filter(c => c.startsWith('taf_erp_obra') || c.startsWith('taf_erp_base')), ['taf_erp_obra_criar', 'taf_erp_base_gravar']);
+  assert.deepEqual(banco.papeis, ['taf_erp_obra_criar:diretoria', 'taf_erp_base_gravar:diretoria'], 'vai o papel escolhido na prévia, não o padrão da entrada');
+  assert.match(banco.obras[0].base_sha, /^tela:[0-9a-f]{64}$/);
+  assert.match(JSON.parse(A.ctx.localStorage.getItem('taf-erp-base-998')).sha, /^tela:/, 'o aparelho guarda o sha com a marca do banco');
   assert.equal(banco.itens['998'].length, 6);
   assert.ok(banco.itens['998'].every(i => i.meta === null));
   const D = JSON.parse(zlib.gunzipSync(Buffer.from(banco.obras[0].base_gz, 'base64')).toString('utf8')).D;
   assert.equal(D.obra.valor_contrato, 144120); assert.equal(D.eap.length, 8);
+  assert.equal(D.eap.find(e => e.codigo === '2.1').descricao, 'Tubo PVC DN 100 ″fictício″');
+  assert.ok(banco.itens['998'].every(i => !/[<>"]/.test(i.descricao || '')), 'descrição sem < > e aspas no índice do banco');
   assert.equal(g('S.D.obra.codigo'), '998'); assert.equal(g('S.view'), 'eap'); assert.equal(g('SB.obraId'), '998');
   assert.match(String(A.el('#view').innerHTML), /Orçamento \(EAP\)/);
   assert.ok(!banco.chamadas.includes('taf_erp_salvar'), 'nada foi salvo como documento');
@@ -281,6 +304,136 @@ test('tela com a chave do site: papel engenheiro não cria; a gravação da base
   assert.equal(g('S.D.obra.codigo'), '998'); assert.equal(g('S.view'), 'eap');
 });
 
+/* ---------- revisão cética: XSS gravado pela base, alcance da chave geral, aba, quantidade zero, valor do contrato ---------- */
+const XSS = `<img src=x onerror="window.__pwn=localStorage.getItem('taf-erp-chave');document.title='PWN '+window.__pwn">`;
+/* marcação que só pode ter vindo da base de ataque (o ERP usa <b> de propósito em outros lugares) */
+const ATAQUE = /<img|<b>Y<|<b>EV<|<b>A cotar<|<b>P<|<script|onerror="|onmouseover="/i;
+const semTag = (h, onde) => { assert.ok(!ATAQUE.test(h), onde + ': HTML com marcação vinda da base: ' + (h.match(new RegExp('.{0,60}(' + ATAQUE.source + ').{0,60}', 'i')) || [''])[0]); };
+const setON = o => { C.__o = o; vm.runInContext('Object.assign(ON,__o)', C); };
+const ON_ = k => vm.runInContext('ON.' + k, C);
+/* base de ataque: o que alguém com a chave do site mandaria direto para taf_erp_base_gravar, sem passar pela tela */
+function baseAtaque() {
+  const { b } = base998();
+  const B = J(b);
+  B.D.obra.nome = XSS; B.D.obra.contratante = 'X" onmouseover="alert(1)';
+  const i11 = B.D.eap.find(e => e.codigo === '1.1');
+  Object.assign(i11, { unidade: XSS, pacote: 'X<b>Y</b>', evento: '<b>EV</b>', natureza: { [XSS]: 1, MAT: 1 }, composicao: [{ nat: XSS, share: 1 }], status_cotacao: '<b>A cotar</b>', fonte_meta: XSS, pai: '1.2', nivel: XSS });
+  B.D.eap.find(e => e.codigo === '1.2').pai = '1.1';   /* pai em círculo: travaria a árvore do Orçamento */
+  B.D.eap.push({ codigo: '"><img src=x onerror=alert(1)>', tipo_linha: 'item', descricao: 'código com tag', qtd: 1, preco_venda_total: 1 });
+  B.D.eap.push({ codigo: '9.9', tipo_linha: 'item', descricao: XSS, unidade: 'm', qtd: '1', preco_venda_total: '10', meta_total: { x: 1 } });
+  B.D.pacotes = [{ codigo: '<b>P</b>', nome: XSS }, { codigo: 'TUBO', nome: XSS, responsavel: XSS, observacoes: XSS, fechar_ate: '<b>' }];
+  B.D.plano = [{ codigo: '4', nome: XSS, nivel: 1, natureza: XSS }, { codigo: '4.1"><b>', nome: 'x', nivel: 2 }];
+  B.D.banco_mo = [{ funcao: XSS, equipe: XSS, custo_hora: 10 }];
+  B.D.relatorio = { diferenca_contrato: 5, aviso: XSS };
+  B.extrato = { linhas: [XSS] }; B.ficha = { contrato: XSS }; B.listas = { tipo: [XSS] };
+  return B;
+}
+
+test('revisão (alta): base com a marca "tela:" abre pela lista fechada de campos; o XSS da revisão não vira HTML em tela nenhuma', async () => {
+  const banco = bancoFalso(), sha = t => crypto.createHash('sha256').update(t).digest('hex');
+  /* o caminho que continua aberto à chave do site: criar a própria obra e gravar a primeira base, chamando o banco direto */
+  banco.rpc('taf_erp_obra_criar', { p_chave: 'chave-do-site', p_codigo: '997', p_nome: 'Obra do intruso', p_contratante: 'Intruso', p_quem: 'Intruso', p_papel: 'gestao' });
+  const gz = zlib.gzipSync(Buffer.from(JSON.stringify(baseAtaque()))).toString('base64');
+  const r = banco.rpc('taf_erp_base_gravar', { p_chave: 'chave-do-site', p_obra: '997', p_base_gz: gz, p_base_sha: sha(gz), p_quem: 'Intruso', p_papel: 'gestao',
+    p_itens: [{ codigo: '1.1', descricao: 'limpo', unidade: 'm', qtd: 1, pacote: null, evento: null, venda: 1, meta: null, teto: null, meta_unit: null }] });
+  assert.match(r.base_sha, /^tela:/);
+  /* quem abre: Diretoria com a chave guardada no aparelho (é o que o script do ataque queria ler) */
+  const V = carregaComChave(banco), g = n => vm.runInContext(n, V.ctx);
+  V.ctx.localStorage.setItem('taf-erp-papel', 'diretoria');
+  await g("chEntrar('chave-do-site','Diretora de Teste',false)");
+  assert.equal(g('SB.obraId'), '997');
+  const D = J(g('S.D'));
+  assert.equal(D.obra.nome, XSS.replace(/</g, '‹').replace(/>/g, '›').replace(/"/g, '″'));
+  assert.deepEqual(D.eap.map(e => e.codigo), ['1', '1.1', '1.2', '2', '2.1', '2.2', '2.3', '2.4', '9.9'], 'código com tag fica de fora');
+  const i11 = D.eap.find(e => e.codigo === '1.1'), i12 = D.eap.find(e => e.codigo === '1.2');
+  assert.equal(i11.pai, '1'); assert.equal(i12.pai, '1'); assert.equal(i11.nivel, 2, 'nível e pai refeitos pelo código');
+  assert.equal(i11.pacote, null); assert.equal(i11.evento, null); assert.deepEqual(i11.natureza, { MAT: 1 }); assert.deepEqual(i11.composicao, []);
+  assert.ok(!/[<>"]/.test(i11.unidade));
+  const i99 = D.eap.find(e => e.codigo === '9.9');
+  assert.equal(i99.qtd, null, 'texto não vira número'); assert.equal(i99.preco_venda_total, null); assert.equal(i99.meta_total, null);
+  assert.deepEqual(D.pacotes.map(p => p.codigo), ['TUBO']); assert.equal(D.pacotes[0].fechar_ate, null);
+  assert.deepEqual(D.plano.map(p => p.codigo), ['4']);
+  assert.equal(g("window.TAF_EXTRATO['997']"), undefined, 'extrato da base gravada pela tela não entra');
+  assert.equal(g("FICHA_PAD['997']"), undefined, 'ficha não entra');
+  assert.ok(!g('CAD_LISTAS.tipo').some(x => /img/.test(x)), 'listas não entram');
+  /* todas as telas do menu e os detalhes desenham sem marcação vinda da base */
+  const vistas = V.NAV_BASE.map(n => n[0]).filter(v => v !== 'usuarios');
+  for (const v of vistas) { g(`S.view=${JSON.stringify(v)}`); g('render()'); semTag(String(V.el('#view').innerHTML), 'tela ' + v); }
+  for (const e of D.eap.filter(x => x.tipo_linha === 'item')) { V.modalItem(e.codigo); semTag(String(V.el('#mbox').innerHTML), 'item ' + e.codigo); }
+  V.modalPac('TUBO'); semTag(String(V.el('#mbox').innerHTML), 'pacote');
+  assert.equal(g('window.__pwn'), undefined);
+});
+
+test('revisão (alta): sem a marca "tela:" (base do carga.py) a base abre como sempre; e as telas escapam o que vem da base', async () => {
+  const banco = bancoFalso(), A = carregaComChave(banco), g = n => vm.runInContext(n, A.ctx);
+  const B = baseAtaque(); delete B.D.eap.find(e => e.codigo === '1.2').pai;   /* sem o círculo: a base antiga não passa pela limpeza */
+  B.D.eap = B.D.eap.filter(e => !/^"/.test(e.codigo) && e.codigo !== '9.9');
+  B.D.pacotes = [{ codigo: 'TUBO', nome: XSS }]; B.D.eap.find(e => e.codigo === '1.1').pacote = 'TUBO';
+  const gz = zlib.gzipSync(Buffer.from(JSON.stringify(B))).toString('base64');
+  banco.obras.push({ codigo: '990', nome: 'Obra antiga', contratante: 'Fictício', base_gz: gz, base_sha: 'a'.repeat(64), ver: 1 });
+  A.ctx.localStorage.setItem('taf-erp-papel', 'gestao');
+  await g("chEntrar('chave-do-site','Gestor de Teste',false)");
+  assert.equal(g('SB.obraId'), '990');
+  assert.ok(g("window.TAF_EXTRATO['990']"), 'extrato da base antiga continua entrando');
+  assert.equal(g('S.D.obra.nome'), XSS, 'base antiga não é mexida');
+  /* 10_orcamento, 11_pacotes, 15_medicao e 16_plano_de_contas agora escapam código, unidade, pacote, evento e natureza */
+  g("S.exp=new Set(S.D.eap.map(e=>e.codigo));S.t.meds=[{id:'m1',num:'BM-1',item:'1.1',qtd:1,periodo:'2030-01-01',status:'lancada',quem:'x'}];prep()");
+  for (const v of ['eap', 'pac', 'plano']) { g(`S.view='${v}'`); g('render()'); semTag(String(A.el('#view').innerHTML), 'tela ' + v); }
+  g("S.view='med';S.tab.med='bm'"); g('render()'); semTag(String(A.el('#view').innerHTML), 'medição');
+  A.modalItem('1.1'); semTag(String(A.el('#mbox').innerHTML), 'item 1.1');
+  A.modalPac('TUBO'); semTag(String(A.el('#mbox').innerHTML), 'pacote');
+});
+
+test('revisão: a limpeza da base é idempotente e não muda a base que a tela monta', () => {
+  const { b } = base998('144.000,00', [{ codigo: '4', nome: 'Custos', nivel: 1, natureza: null }, { codigo: '4.2.08', nome: 'Material "geral"', nivel: 3, natureza: 'MAT' }]);
+  const L1 = J(f('obnLimpaBase')(b, '998')), L2 = J(f('obnLimpaBase')(L1, '998'));
+  assert.deepEqual(L2, L1);
+  const semPlano = x => { const y = J(x); y.D.plano = []; return y; };
+  assert.deepEqual(semPlano(L1).D, semPlano(J(b)).D, 'a base da tela já sai limpa (o D é o mesmo)');
+  assert.equal(L1.D.plano[1].nome, 'Material ″geral″');
+  assert.deepEqual(Object.keys(L1).sort(), ['D', 'origem']);
+});
+
+test('revisão (baixa): quantidade 0 continua item (vazio não é zero) e avisa; só linha sem quantidade e sem preço vira grupo', () => {
+  const rows = [['ITEM', 'DESCRIÇÃO', 'UND', 'QUANT.', 'P.UNIT.', 'TOTAL'], ['1', 'GRUPO', '', '', '', '100'], ['1.1', 'Item qtd zero', 'un', '0', '', '0'],
+    ['1.2', 'Item normal', 'm', '2', '50', '100'], ['1.3', 'Item com preço sem quantidade', 'vb', '', '30', '30'], ['2', 'Outro grupo', '', '', '', '']];
+  const L = f('obnLinhas')({ raw: rows, txt: rows, dec: ',', r0: 1 }, 0, J(f('obnSugere')(rows[0])));
+  assert.deepEqual(J(L.linhas.map(x => x.codigo + ':' + x.tipo)), ['1:grupo', '1.1:item', '1.2:item', '1.3:item', '2:grupo']);
+  const z = L.linhas.find(x => x.codigo === '1.1');
+  assert.equal(z.qtd, 0); assert.equal(z.unidade, 'un'); assert.equal(z.venda, 0);
+  assert.deepEqual(J(L.avisos.qtdZero), ['1.1']);
+  vm.runInContext("ON=obnNovo('998')", C); setON({ L, passo: 3 });
+  assert.match(String(f('obnHtml3()')), /1 item com quantidade zero \(continua item, não vira grupo\): 1\.1/);
+});
+
+test('revisão (baixa): a aba do orçamento ganha da CAPA na frente; sem aba que sirva, a tela avisa para escolher', () => {
+  const capa = { nome: 'CAPA', txt: [['PREFEITURA FICTÍCIA'], ['Obra 998 · DEMONSTRAÇÃO']], raw: [['PREFEITURA FICTÍCIA'], ['Obra 998 · DEMONSTRAÇÃO']], r0: 1, c0: 0 };
+  const resumo = { nome: 'RESUMO', txt: [['ITEM', 'TOTAL'], ['1', '10'], ['2', '20']], raw: [], r0: 1, c0: 0 };
+  const orc = ABA998(); orc.nome = 'ORÇAMENTO';
+  assert.deepEqual(J(f('obnMelhorAba')([capa, resumo, orc])), { i: 2, ok: true });
+  assert.deepEqual(J(f('obnMelhorAba')([capa, resumo])), { i: 1, ok: false }, 'nenhuma liga o mínimo: fica a que liga mais, com aviso');
+  assert.deepEqual(J(f('obnMelhorAba')([])), { i: 0, ok: false });
+  vm.runInContext("ON=obnNovo('998')", C); setON({ passo: 2, abas: [capa, resumo], aba: 1, avisoAba: true });
+  assert.match(String(f('obnCorpo2()')), /escolha a aba.*Nenhuma aba tem as colunas de código, descrição, quantidade e preço/);
+});
+
+test('revisão (baixa): sem valor do contrato não grava; "Usar a soma da planilha" é escolha de propósito e fica registrada', () => {
+  const { st } = base998('');
+  vm.runInContext("ON=obnNovo('998');CH.fixo=true", C); setON({ ...st, passo: 3 });
+  assert.equal(f('obnPodeGravar()'), false);
+  assert.match(String(f('obnHtml3()')), /Para gravar falta: digitar o valor do contrato/);
+  assert.match(String(f('obnHtml3()')), /data-act="on-gravar" disabled/);
+  for (const v of ['abc', '0', '-5']) { setON({ valor: v }); assert.equal(f('obnPodeGravar()'), false, v); }
+  setON({ valor: '' });
+  f("ACOES['on-usa-soma']()");
+  assert.equal(ON_('valor'), '144.120,00'); assert.equal(ON_('valorDaSoma'), true); assert.equal(f('obnPodeGravar()'), true);
+  assert.equal(f('obnMontaBase(ON,[])').origem.valor_contrato_fonte, 'soma da planilha, confirmada na tela');
+  vm.runInContext('CH.fixo=false', C);
+  assert.equal(f('obnPodeGravar()'), false, 'chave do site: falta o papel');
+  setON({ papel: 'diretoria' }); assert.equal(f('obnPodeGravar()'), true); assert.equal(f('obnPapel()'), 'diretoria');
+  vm.runInContext('CH.fixo=false;ON=null', C);
+});
+
 test('SQL 04: rascunho não aplicado, idempotente, funções security definer com search_path e só as duas entradas abertas ao site', () => {
   const sql = fs.readFileSync(path.join(RAIZ, 'fonte', 'erp', 'sql', '04_obra_nova.sql'), 'utf8');
   assert.match(sql, /RASCUNHO\. NÃO APLICADO\. Só aplicar no banco com o sim do Felipe, depois de testar/);
@@ -295,4 +448,13 @@ test('SQL 04: rascunho não aplicado, idempotente, funções security definer co
   assert.match(sql, /revoke all on public\.taf_erp_base_hist from public, anon, authenticated/);
   assert.ok(!/function public\.(taf_erp_salvar|_taf_erp_pode|_taf_erp_ator)\(/.test(sql), 'não redefine funções que já existem');
   assert.match(sql, /como desfazer/i);
+  /* revisão: marca "tela:" posta pelo banco, só obra criada pela tela, nenhum documento, estado sem meta, chave geral só a primeira vez */
+  assert.match(sql, /v_sha := 'tela:' \|\| p_base_sha;/);
+  assert.match(sql, /update public\.taf_erp_obra set base_gz = p_base_gz, base_sha = v_sha/);
+  assert.match(sql, /NAO FOI CRIADA PELA TELA/);
+  assert.match(sql, /select count\(\*\) into v_docs from public\.taf_erp_doc d where d\.obra = p_obra;/);
+  assert.ok(!/d\.tipo in \('sol'/.test(sql), 'a trava de documento vale para todos os tipos');
+  assert.match(sql, /JA TEM META OU AJUSTE NA LINHA DE BASE/);
+  assert.match(sql, /SO E GRAVADO UMA VEZ/); assert.match(sql, /FOI CRIADA COM CHAVE PESSOAL/);
+  assert.match(sql, /copia_obras_da_tela/, 'cópia das obras da tela antes do 99_reverter');
 });
