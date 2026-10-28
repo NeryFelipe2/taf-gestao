@@ -45,6 +45,17 @@ Como o endpoint funciona (`public/api/leitura.js`): só aceita `POST` com a chav
 
 Tarefas editadas no site (taf_tarefa_edicao) ficam por cima e não são apagadas por uma nova leitura.
 
+## Resumo automático para o diretor (e-mail no horário)
+O site manda sozinho, por e-mail, o resumo de cada obra: diário em dia útil às 7h de Brasília e semanal na segunda às 7h30 (os `crons` de `public/vercel.json`, em UTC). Quem recebe é cadastrado na tela do ERP: **Gestão e administração > Resumo para o diretor** (só chave pessoal de Diretoria ou gestor). Lá também ficam "Ver prévia", "Copiar para WhatsApp" e "Mandar agora para mim".
+
+Endpoint `public/api/resumo.js` (irmão do `/api/leitura`): `GET ?quando=diario|semanal` só com `Authorization: Bearer <CRON_SECRET>` (o agendador da Vercel manda sozinho); `POST` com a chave pessoal em `x-chave` para a prévia e o teste. O texto junta o planejador e o ERP pelo banco (`fonte/erp/sql/08_resumo.sql`, rascunho até o sim do Felipe). E-mail pela API da Resend, só `fetch`.
+
+Para ligar (Vercel > Settings > Environment Variables, Production, e novo Deploy), além de `TAF_SUPABASE_URL` e `TAF_SUPABASE_KEY`:
+- `CRON_SECRET`: um texto sorteado de 16 caracteres ou mais.
+- `RESEND_API_KEY`: a chave da API da Resend.
+- `RESUMO_REMETENTE`: por exemplo `Resumo TAF <resumo@seu-dominio>` (domínio conferido na Resend).
+- `TAF_CHAVE_RESUMO`: a chave do robô, gerada na própria tela ("Gerar chave do robô"); aparece uma vez.
+
 ## Testes (sem banco real, sem rede)
 `node --test "testes/*.test.js"` (Node 18 ou mais novo, sem instalar pacote). Usam Supabase e `fetch` simulados e leitura fictícia. Cobrem: GET recusado, sem chave, chave errada, chave na URL, corpo inválido, tamanho, POST válido gravando, o script local e uma trava que falha se dado real voltar a ser rastreado.
 
