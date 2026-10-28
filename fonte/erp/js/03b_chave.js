@@ -56,7 +56,7 @@ async function chEntrar(k,q,doForm){
   $('#userbox').innerHTML=`<div class="note"><b>${esc(CH.quem)}</b><span>${CH.leitura?'Só leitura':CH.fixo?esc(ROLES[S.role]?.n||S.role)+' · chave pessoal':'Chave do site · papel escolhido acima'}</span><div style="margin-top:8px;display:flex;gap:6px"><a class="btn sm" href="/">Site</a><button class="btn sm" data-act="sair">Sair</button></div></div>`;
   OBRAS_PADRAO.length=0;CH.obras.forEach(o=>OBRAS_PADRAO.push([o.codigo,(o.contratante||'')+' · '+o.nome]));
   SB.obras=CH.obras.map(o=>({...o,id:o.codigo}));
-  if(!SB.obras.length){telaAviso('Nenhuma obra no banco','As obras ainda não foram carregadas.');return}
+  if(!SB.obras.length){telaAviso('Nenhuma obra no banco','As obras ainda não foram carregadas. Gestão ou Diretoria cria a primeira em Nova obra.',typeof obraNovaBtn==='function'?obraNovaBtn():'');return}
   /* link vindo do Marko ou da gestão (/erp?obra=342&tarefa=T18&demanda=3): abre a obra e a tarefa pedidas, na tela "da tarefa à compra" */
   const po=new URLSearchParams(location.search).get('obra');
   await chCarregar(SB.obras.find(o=>o.codigo===po)||SB.obras.find(o=>o.codigo===obraGuardada())||SB.obras[0]);
@@ -79,6 +79,7 @@ async function chCarregar(ob){
   const cod=ob.codigo;SB.obraId=cod;SB.obraBase=cod;
   try{SB.pool=JSON.parse(chLs(poolKey())||'{}')||{}}catch(e){SB.pool={}}
   const r=await chRpc('taf_erp_ler',chArgs({p_base_sha:chShaGuardado(cod)}));
+  if(!r.base_sha&&!r.base_gz&&typeof obraSemBase==='function')return obraSemBase(ob);   /* obra criada sem orçamento ainda (53_obra_nova.js) */
   const b=await chBaseDe(cod,r);
   S.D=JSON.parse(JSON.stringify(b.D));aplicaDocs(r.estado,r.docs);CH.ver=r.versao;
   S.exp=new Set(S.D.eap.filter(e=>e.nivel<=2).map(e=>e.codigo));
