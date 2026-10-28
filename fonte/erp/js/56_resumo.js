@@ -29,13 +29,13 @@ function rdMsg(e){const m=String(e&&e.message||e);let x;
 
 async function rdCarregar(){if(RD.carregando)return;RD.carregando=true;
   try{RD.dados=await chRpc('taf_resumo_destinatarios',{p_chave:CH.chave});RD.erro='';RD.semCadastro=false}
-  catch(e){RD.dados=null;RD.erro=semRede(e)?'Sem conexão com o banco. Tente de novo quando tiver sinal.':rdMsg(e);RD.semCadastro=/USE SUA CHAVE PESSOAL|SO DIRETORIA OU GESTOR/.test(String(e&&e.message))}
+  catch(e){RD.dados=null;RD.erro=semRede(e)?'Não consegui falar com o banco. Tente de novo quando tiver sinal.':rdMsg(e);RD.semCadastro=/USE SUA CHAVE PESSOAL|SO DIRETORIA OU GESTOR/.test(String(e&&e.message))}
   finally{RD.carregando=false;RD.carregado=true;if(S.view==='resumo')render()}}
 
 /* o /api/resumo do site (a resposta de erro dele já vem em português) */
 async function rdApi(corpo){let r,j=null;
   try{r=await fetch(RD_API,{method:'POST',headers:{'Content-Type':'application/json','x-chave':CH.chave},body:JSON.stringify(corpo)})}
-  catch(e){throw new Error('Sem conexão com o site. Tente de novo quando tiver sinal.')}
+  catch(e){throw new Error('Não consegui falar com o site. Tente de novo quando tiver sinal.')}
   try{j=await r.json()}catch(e){j=null}
   if(r.status===404&&!(j&&j.erro))throw new Error('O envio automático ainda não está publicado neste site.');
   if(!r.ok||!j||j.ok===false){const t=String(j&&j.erro||('erro '+r.status));throw new Error(t.charAt(0).toUpperCase()+t.slice(1)+'.')}
@@ -43,18 +43,19 @@ async function rdApi(corpo){let r,j=null;
 
 const rdDest=id=>((RD.dados&&RD.dados.destinatarios)||[]).find(d=>String(d.id)===String(id));
 const rdObras=d=>d.todas?'Todas':(d.obras||[]).map(esc).join(', ');
-function rdUltimo(u){if(!u)return '<span class="sub">nenhum ainda</span>';
+function rdUltimo(u){if(!u)return '<span class="sub">ainda não saiu</span>';
   const p=u.estado==='enviado'?'<span class="pill ok">enviado</span>':u.estado==='erro'?`<span class="pill bad" title="${esc(u.erro||'')}">não saiu</span>`:'<span class="pill warn">mandando</span>';
   return `${p} <span class="mono">${esc(fdata(String(u.dia||'').slice(0,10)))}</span>${u.quando==='teste'?' <span class="sub">teste</span>':''}${u.estado==='erro'&&u.erro?`<div class="sub">${esc(u.erro)}</div>`:''}`}
 
 function rdLista(){const D=RD.dados.destinatarios||[];
   if(!D.length)return '<div class="sub" style="margin:8px 4px">Ninguém cadastrado ainda. Sem destinatário, o e-mail do horário não sai.</div>';
-  return `<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>E-mail</th><th>Obras</th><th>Frequência</th><th>Situação</th><th>Último envio</th><th></th></tr></thead><tbody>${D.map(d=>`<tr>
-    <td><b>${esc(d.nome)}</b>${d.meu?' <span class="pill info">seu e-mail</span>':''}<div class="sub">cadastrado por ${esc(d.cadastrado_por)}</div></td>
+  /* os botões ficam na primeira coluna: no celular aparecem sem rolar a tabela para o lado */
+  return `<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>E-mail</th><th>Obras</th><th>Frequência</th><th>Situação</th><th>Último envio</th></tr></thead><tbody>${D.map(d=>`<tr>
+    <td style="min-width:190px"><b>${esc(d.nome)}</b>${d.meu?' <span class="pill info">seu e-mail</span>':''}<div class="sub">cadastrado por ${esc(d.cadastrado_por)}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${d.ativo?`<button class="btn sm" data-act="rd-editar" data-id="${esc(d.id)}">Editar</button><button class="btn sm" data-act="rd-previa" data-id="${esc(d.id)}">Prévia</button><button class="btn sm" data-act="rd-desativar" data-id="${esc(d.id)}">Desativar</button>`
+      :`<button class="btn sm" data-act="rd-reativar" data-id="${esc(d.id)}">Reativar</button>`}</div></td>
     <td class="mono">${esc(d.email)}</td><td>${rdObras(d)}</td><td>${esc(RD_FREQ[d.frequencia]||d.frequencia)}</td>
-    <td>${d.ativo?'<span class="pill ok">ativo</span>':'<span class="pill mute">desativado</span>'}</td><td>${rdUltimo(d.ultimo)}</td>
-    <td class="r" style="white-space:nowrap">${d.ativo?`<button class="btn sm" data-act="rd-editar" data-id="${esc(d.id)}">Editar</button> <button class="btn sm" data-act="rd-previa" data-id="${esc(d.id)}">Prévia</button> <button class="btn sm" data-act="rd-desativar" data-id="${esc(d.id)}">Desativar</button>`
-      :`<button class="btn sm" data-act="rd-reativar" data-id="${esc(d.id)}">Reativar</button>`}</td></tr>`).join('')}</tbody></table></div>`}
+    <td>${d.ativo?'<span class="pill ok">ativo</span>':'<span class="pill mute">desativado</span>'}</td><td>${rdUltimo(d.ultimo)}</td></tr>`).join('')}</tbody></table></div>`}
 
 function rdRobo(){const r=RD.dados.robo;
   return `<div class="card" style="margin-top:14px"><div class="in"><div class="panel-t">Robô do envio</div>
@@ -75,7 +76,9 @@ function rdPrevia(){
 
 function viewResumo(){
   if(!RD.carregado&&!RD.carregando)rdCarregar();
-  const meus=RD.meus||((RD.dados&&RD.dados.destinatarios)||[]).filter(d=>d.meu&&d.ativo).map(d=>({email:d.email}));
+  const meus=RD.dados?(RD.dados.destinatarios||[]).filter(d=>d.meu&&d.ativo).map(d=>({email:d.email})):(RD.meus||[]);
+  /* quem não cadastra (engenheiro, leitura) não tem e-mail ligado à chave: fica com a prévia e o "Copiar para WhatsApp" */
+  const mandar=!RD.semCadastro?`<button class="btn" data-act="rd-mandar" ${RD.ocupado?'disabled':''}>Mandar agora para mim</button>`:'';
   const cad=RD.carregando&&!RD.carregado?'<div class="sub" style="margin:8px 4px">Carregando a lista.</div>'
     :RD.dados?rdLista()+`<div style="margin-top:8px"><button class="btn sm dark" data-act="rd-novo">Novo destinatário</button></div>`
     :`<div class="sub" style="margin:8px 4px;${RD.semCadastro?'':'color:var(--bad)'}">${esc(RD.erro)}</div>`;
@@ -83,7 +86,7 @@ function viewResumo(){
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="rd-atualizar">Atualizar</button></div></div>
   <div class="card"><div class="in"><div class="panel-t">O que vai sair</div>
     <div class="sub">A prévia usa as obras da sua chave pessoal. Ver a prévia não manda nada.${meus.length?' "Mandar agora para mim" vai para '+meus.map(m=>esc(m.email)).join(', ')+'.':''}</div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn dark" data-act="rd-previa" ${RD.ocupado?'disabled':''}>Ver prévia</button><button class="btn" data-act="rd-mandar" ${RD.ocupado?'disabled':''}>Mandar agora para mim</button></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn dark" data-act="rd-previa" ${RD.ocupado?'disabled':''}>Ver prévia</button>${mandar}</div>
     ${rdPrevia()}</div></div>
   <div class="card" style="margin-top:14px"><div class="in"><div class="panel-t">Quem recebe</div>${cad}</div></div>
   ${RD.dados&&RD.dados.cobre_todas?rdRobo():''}`}

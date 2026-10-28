@@ -70,7 +70,7 @@ values ('999', '1.1', 'Barracão e instalações provisórias', 'vb', 1, 'CANT',
 insert into public.taf_erp_doc (obra, id, tipo, dados, criado_por, atualizado_por, papel)
 values ('999', 'o9991', 'oc', '{"num":"OC-9001","item":"1.1","valor":3000,"status":"aprovada","forn":"FORNECEDOR FICTÍCIO LTDA"}', 'teste', 'teste', 'compras'),
        ('999', 'o9992', 'oc', '{"num":"OC-9002","item":"2.1","valor":8000,"status":"aprovada","forn":"FORNECEDOR FICTÍCIO LTDA"}', 'teste', 'teste', 'compras'),
-       ('999', 'o9993', 'oc', '{"num":"OC-9003","item":"3.1","valor":2500,"status":"em_alcada","forn":"FORNECEDOR FICTÍCIO LTDA"}', 'teste', 'teste', 'compras'),
+       ('999', 'o9993', 'oc', '{"num":"OC-9003","item":"3.1","valor":2500,"status":"em_alcada","alcada":"gerente","forn":"FORNECEDOR FICTÍCIO LTDA"}', 'teste', 'teste', 'compras'),
        ('999', 'n9991', 'nf', '{"num":"NF-9001","oc":"o9991","valor":3000,"status":"rateada","rateio":[{"item":"2.2","valor":3000}]}', 'teste', 'teste', 'adm'),
        ('999', 'n9992', 'nf', '{"num":"NF-9002","oc":"o9992","valor":5000,"status":"rateada","rateio":[{"item":"2.1","valor":5000}]}', 'teste', 'teste', 'adm'),
        ('999', 'n9993', 'nf', '{"num":"NF-9003","oc":"","valor":700,"status":"rateada","rateio":[{"item":"1.2","valor":700}]}', 'teste', 'teste', 'adm');

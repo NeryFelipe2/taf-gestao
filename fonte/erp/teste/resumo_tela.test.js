@@ -103,6 +103,7 @@ test('quem não é Diretoria nem gestor: vê o aviso, sem cadastro e sem robô; 
   assert.match(h, /Só a Diretoria ou o gestor, com a chave pessoal, cadastram quem recebe/);
   assert.ok(!h.includes('Novo destinatário') && !h.includes('Robô do envio'));
   assert.match(h, /data-act="rd-previa"/);
+  assert.ok(!h.includes('data-act="rd-mandar"'), 'sem e-mail ligado à chave, não mostra "Mandar agora para mim"');
 });
 
 test('Ver prévia: chama o /api/resumo do site com a chave no cabeçalho, mostra o texto escapado e não manda nada', async () => {
@@ -121,7 +122,7 @@ test('Ver prévia: chama o /api/resumo do site com a chave no cabeçalho, mostra
   const h = run(api, 'viewResumo()');
   assert.match(h, /<pre id="rd-texto"[^>]*>Resumo TAF\n&lt;b&gt;OBRA 999&lt;\/b&gt;: VERMELHO<\/pre>/);
   assert.match(h, /Copiar para WhatsApp/);
-  assert.match(h, /"Mandar agora para mim" vai para d\*\*\*@example\.com/);
+  assert.match(h, /"Mandar agora para mim" vai para diretor\.teste@example\.com\./);
   // de um destinatário
   await api.ACOES['rd-previa']({ dataset: { id: '7' } });
   assert.deepEqual(chamadas[1].corpo, { acao: 'previa', destinatario: 7 });
