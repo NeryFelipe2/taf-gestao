@@ -1,4 +1,4 @@
--- Teste do 06_acessos.sql na OBRA 999 · DEMONSTRAÇÃO e na 998 (fictícias; a 998 só existe para testar "obra fora da chave do gestor"). Roda numa transação e DESFAZ tudo no fim (rollback):
+-- Teste do 06_acessos.sql na OBRA 999 · DEMONSTRAÇÃO, na 998 e na 997 (fictícias; a 998 testa "obra fora da chave" e a 997 "obra nova, importada depois"). Roda numa transação e DESFAZ tudo no fim (rollback):
 -- nada fica gravado, nem as obras, nem as chaves, nem o registro.
 -- Precisa da obra 999 sem semana montada no planejador (banco de teste novo).
 -- Uso: num banco que já tem o 06 (ou colando o 06 logo depois do "begin;"), rodar este arquivo inteiro de uma vez, por exemplo
@@ -39,6 +39,7 @@ do $t$
 declare r jsonb; e text; g constant text := 'chave-geral-teste';
   k_dir text; k_dir2 text; k_ges text; k_ges2 text; k_eng text; k_eng_errado text; k_enc text; k_lei text; k_eng2obras text;
   id_dir text; id_dir2 text; id_ges2 text; id_eng text; id_eng2obras text; id_enc text;
+  k_soc text; id_soc text; k_dir3 text; id_dir3 text; k_enc2 text; k_x text; k_gsoc text;
 begin
   perform set_config('taf.agora', '2026-10-28 10:00:00-03', true);   -- relógio do planejador no teste: quarta-feira, semana de 26/10
   -- 1. partida: sem Diretoria ativa, a chave geral só vê o estado e só pode criar Diretoria
@@ -103,6 +104,26 @@ begin
   perform pg_temp.ok(e = 'SEM PERMISSAO: GESTOR NAO CRIA CHAVE DE GESTOR', '5f gestor nao cria gestor: ' || e);
   e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_ges, 'Eng 998', 'Eng 998', 'engenheiro', '998'));
   perform pg_temp.ok(e like 'SEM ACESSO A OBRA 998%', '5g gestor fora da obra: ' || e);
+  -- revisão 2: a lista do gestor só tem chave com obra em comum, sem as de Diretoria e sem as obras de fora
+  r := public.taf_acesso_listar(k_ges);
+  perform pg_temp.ok(not exists (select 1 from jsonb_array_elements(r->'chaves') c where c->>'papel' = 'diretoria'), '5h gestor nao ve chave de Diretoria');
+  perform pg_temp.ok(not exists (select 1 from jsonb_array_elements(r->'chaves') c where c->'obras' ? '998'), '5i gestor nao ve a obra 998 nas chaves: ' || (r->>'chaves'));
+  perform pg_temp.ok(exists (select 1 from jsonb_array_elements(r->'chaves') c where c->>'id' = id_eng2obras and c->'obras' = '["999"]'::jsonb
+                     and (c->>'outras_obras')::int = 1 and c->>'bloqueio' = 'SEM PERMISSAO: A CHAVE TEM OBRA FORA DAS SUAS'), '5j chave com obra fora: so a 999 e quantas sao fora');
+  perform pg_temp.ok(exists (select 1 from jsonb_array_elements(r->'chaves') c where c->>'id' = id_ges2 and c->>'bloqueio' like 'SEM PERMISSAO: O GESTOR SO DESATIVA%'), '5k gestor ve o outro gestor da obra');
+  perform pg_temp.ok(not (r::text ~ id_dir) and not (r::text ~ id_dir2), '5l nem o id das Diretorias');
+  -- revisão 2: o gestor não cria chave em nome de quem tem chave que ele não cuida
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_ges, 'Eng falso', 'Diretor Teste', 'engenheiro', '999'));
+  perform pg_temp.ok(e = 'A PESSOA Diretor Teste JA TEM CHAVE QUE VOCE NAO CUIDA: PECA A DIRETORIA', '5m gestor em nome da Diretoria: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_ges, 'Leitura falsa', '  gestor   DOIS ', 'leitura', '999'));
+  perform pg_temp.ok(e like 'A PESSOA gestor DOIS JA TEM CHAVE QUE VOCE NAO CUIDA%', '5n gestor em nome de outro gestor (maiuscula e espaco nao enganam): ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_ges, 'Eng repetida', 'Engenheira Demonstracao', 'engenheiro', '999'));
+  perform pg_temp.ok(e like 'A PESSOA Engenheira Demonstracao JA TEM CHAVE QUE VOCE NAO CUIDA%', '5o pessoa com chave em obra fora da do gestor (sem acento nao engana): ' || e);
+  -- a mesma pessoa de uma chave que ele cuida pode (celular novo), com aviso
+  r := public.taf_acesso_criar(k_ges, 'Encarregado 999 celular novo', 'Encarregado Demonstração', 'encarregado', array['999'], null); k_enc2 := r->>'chave';
+  perform pg_temp.ok(r->>'avisos' like '%Encarregado Demonstração tem 2 chaves ativas%', '5p aviso de outra chave ativa: ' || (r->>'avisos'));
+  r := public.taf_acesso_desativar(k_ges, r->>'id', 'teste do celular novo', null);
+  perform pg_temp.ok((r->>'ok')::boolean, '5q gestor desativa a repetida');
 
   -- 6. validação
   e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_dir, 'Admin X', 'Admin X', 'admin', '999'));
@@ -123,6 +144,20 @@ begin
   perform pg_temp.ok(e like 'JA EXISTE CHAVE ATIVA COM O NOME%', '6h nome repetido entre as ativas: ' || e);
   e := pg_temp.err(format('select public.taf_acesso_listar(%L)', 'chave-que-nao-existe'));
   perform pg_temp.ok(e = 'CHAVE INVALIDA', '6i chave invalida: ' || e);
+  -- revisão 2: caracteres invisíveis saem antes de validar e de comparar
+  r := public.taf_acesso_criar(k_dir, E'\u200B\u200B\u200B', E'Pessoa\u200B\u2060 H\uFEFF', 'leitura', array['999'], null); k_x := r->>'chave';
+  perform pg_temp.ok(r->>'nome' = 'Pessoa H' and r->>'pessoa' = 'Pessoa H', '6j invisiveis saem (nome vazio vira a pessoa): ' || (r->>'nome'));
+  r := public.taf_acesso_desativar(k_dir, r->>'id', null, null);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_dir, E'Gestor\u200B Teste', 'Pessoa Ok', 'leitura', '999'));
+  perform pg_temp.ok(e like 'JA EXISTE CHAVE ATIVA COM O NOME Gestor Teste:%', '6k nome parecido com espaco invisivel: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_dir, E'G\u00E9stor\u00A0\u00A0teste', 'Pessoa Ok', 'leitura', '999'));
+  perform pg_temp.ok(e like 'JA EXISTE CHAVE ATIVA COM O NOME%', '6l nome parecido com acento e espaco duro: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_dir, '- . -', 'Pessoa Ok', 'leitura', '999'));
+  perform pg_temp.ok(e = 'NOME DA CHAVE: USE AO MENOS 2 LETRAS OU NUMEROS', '6m nome sem letra: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_dir, 'Nome Bom', E'\u2800\u2800', 'encarregado', '999'));
+  perform pg_temp.ok(e = 'NOME DA PESSOA: USE AO MENOS 2 LETRAS OU NUMEROS', '6n pessoa so com branco de braille: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_dir, E'\u200B', E'\u200B\u200B', 'encarregado', '999'));
+  perform pg_temp.ok(e = 'INFORME A PESSOA', '6o pessoa so invisivel: ' || e);
 
   -- 7. engenheiro, encarregado e leitura não cuidam de acessos
   foreach e in array array[k_eng, k_enc, k_lei] loop
@@ -208,8 +243,79 @@ begin
   perform pg_temp.ok(pg_temp.err('select count(*) from public.taf_ciclo_chave') like 'permission denied%', '11b site nao le as chaves');
   perform pg_temp.ok(pg_temp.err(format('select public._taf_acesso_ator(%L, null)', k_dir2)) like 'permission denied%', '11c interna fechada');
   perform pg_temp.ok(pg_temp.err(format('select public._taf_ciclo_pode(%L, %L)', 'encarregado', 'apont')) like 'permission denied%', '11d _taf_ciclo_pode fechada');
+  perform pg_temp.ok(pg_temp.err('select count(*) from public.taf_acesso_segredo') like 'permission denied%', '11e site nao le o segredo do identificador');
+  perform pg_temp.ok(pg_temp.err(format('select public._taf_acesso_id(%L)', repeat('a', 64))) like 'permission denied%', '11f _taf_acesso_id fechada');
+
+  -- 13. revisão 2: a Diretoria limitada (sócio de consórcio, uma obra só) não sai das obras dela
+  --     (antes: criava para si uma Diretoria de todas as obras e desativava a Diretoria que tinha todas)
+  r := public.taf_acesso_criar(k_dir2, 'Socio 999', 'Socio Demonstração', 'diretoria', array['999'], null); k_soc := r->>'chave'; id_soc := r->>'id';
+  r := public.taf_acesso_listar(k_soc);
+  perform pg_temp.ok(not (r#>>'{ator,geral}')::boolean and r#>'{ator,obras}' = '["999"]'::jsonb, '13a socio nao e Diretoria com todas as obras: ' || (r->>'ator'));
+  perform pg_temp.ok(jsonb_array_length(r->'obras') = 1 and r#>>'{obras,0,codigo}' = '999' and r->'sem_diretoria' = '[]'::jsonb, '13b socio so escolhe a 999');
+  perform pg_temp.ok(r->'pode_criar' = '["diretoria","gestor","engenheiro","encarregado","leitura"]'::jsonb, '13c socio cria todos os papeis, nas obras dele');
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L, %L], null)', k_soc, 'Socio tudo', 'Socio Demonstração', 'diretoria', '999', '998'));
+  perform pg_temp.ok(e like 'SEM ACESSO A OBRA 998:%', '13d socio nao cria Diretoria com a 998: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_soc, 'Gestor 998', 'Gestor Oito', 'gestor', '998'));
+  perform pg_temp.ok(e like 'SEM ACESSO A OBRA 998:%', '13e socio nao cria gestor na 998: ' || e);
+  r := public.taf_acesso_criar(k_soc, 'Gestor do socio', 'Gestor Socio', 'gestor', array['999'], null); k_gsoc := r->>'chave';
+  perform pg_temp.ok(r->'obras' = '["999"]'::jsonb, '13f socio cria nas obras dele');
+  e := pg_temp.err(format('select public.taf_acesso_desativar(%L, %L, %L, null)', k_soc, id_dir2, 'tomada'));
+  perform pg_temp.ok(e = 'SEM PERMISSAO: A CHAVE TEM OBRA FORA DAS SUAS', '13g socio nao desativa a Diretoria com todas as obras: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_desativar(%L, %L, null, null)', k_soc, id_eng2obras));
+  perform pg_temp.ok(e = 'SEM PERMISSAO: A CHAVE TEM OBRA FORA DAS SUAS', '13h socio nao desativa chave com obra fora: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_soc, 'Diretora clone', 'Diretora Dois', 'diretoria', '999'));
+  perform pg_temp.ok(e like 'A PESSOA Diretora Dois JA TEM CHAVE QUE VOCE NAO CUIDA%', '13i socio nao cria em nome da Diretoria com todas as obras: ' || e);
+  perform pg_temp.ok(pg_temp.err(format('select public.taf_erp_ler(%L, %L, null, null, null)', k_soc, '998')) = 'SEM ACESSO A OBRA', '13j no ERP o socio continua sem a 998');
+  r := public.taf_acesso_listar(k_soc);
+  perform pg_temp.ok(not exists (select 1 from jsonb_array_elements(r->'chaves') c where c->'obras' ? '998'), '13k socio nao ve a obra 998 nas chaves');
+  perform pg_temp.ok(exists (select 1 from jsonb_array_elements(r->'chaves') c where c->>'id' = id_dir2 and c->'obras' = '["999"]'::jsonb
+                     and (c->>'outras_obras')::int = 1 and c->>'bloqueio' = 'SEM PERMISSAO: A CHAVE TEM OBRA FORA DAS SUAS'), '13l socio ve a Diretoria com todas so na 999, sem botao');
+  -- segunda Diretoria com todas as obras: ela desativa a primeira (sobra uma com todas)
+  r := public.taf_acesso_criar(k_dir2, 'Diretora Tres', 'Diretora Tres', 'diretoria', array['999','998'], null); k_dir3 := r->>'chave'; id_dir3 := r->>'id';
+  r := public.taf_acesso_listar(k_dir3);
+  perform pg_temp.ok((r#>>'{ator,geral}')::boolean and jsonb_array_length(r->'obras') = 2, '13m Diretora Tres tem todas as obras');
+  r := public.taf_acesso_desativar(k_dir3, id_dir2, 'troca de Diretoria', null);
+  perform pg_temp.ok((r->>'ok')::boolean, '13n Diretoria com todas desativa a outra com todas');
   insert into t06 values ('k_dir2', k_dir2), ('k_ges', k_ges), ('k_ges2', k_ges2), ('k_eng', k_eng), ('k_eng_errado', k_eng_errado),
-    ('k_enc', k_enc), ('k_lei', k_lei), ('k_eng2obras', k_eng2obras);
+    ('k_enc', k_enc), ('k_lei', k_lei), ('k_eng2obras', k_eng2obras), ('k_soc', k_soc), ('k_dir3', k_dir3), ('k_enc2', k_enc2),
+    ('k_x', k_x), ('k_gsoc', k_gsoc);
+end $t$;
+
+-- ---------- 14. revisão 2: obra nova, importada depois, sem Diretoria
+reset role;
+insert into public.taf_erp_obra (codigo, nome, contratante) values ('997', 'OBRA 997 · DEMONSTRAÇÃO (fictícia)', 'Cliente fictício') on conflict (codigo) do nothing;
+set local role anon;
+do $t$
+declare r jsonb; e text; k_dir3 text := (select v from t06 where k = 'k_dir3'); k_soc text := (select v from t06 where k = 'k_soc');
+  k_dir3b text; k_eng7 text; id_dir3 text; id_dir3b text;
+begin
+  r := public.taf_acesso_listar(k_dir3); id_dir3 := r#>>'{ator,id}';
+  perform pg_temp.ok(r->'sem_diretoria' = '["997"]'::jsonb and exists (select 1 from jsonb_array_elements(r->'obras') o where o->>'codigo' = '997'), '14a a Diretoria com todas ve a obra nova sem Diretoria: ' || (r->>'sem_diretoria'));
+  r := public.taf_acesso_listar(k_soc);
+  perform pg_temp.ok(r->'sem_diretoria' = '[]'::jsonb and not exists (select 1 from jsonb_array_elements(r->'obras') o where o->>'codigo' = '997'), '14b socio nao ve a obra nova');
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_soc, 'Eng 997', 'Eng Sete', 'engenheiro', '997'));
+  perform pg_temp.ok(e like 'SEM ACESSO A OBRA 997:%', '14c socio nao da acesso na obra nova: ' || e);
+  r := public.taf_acesso_criar(k_dir3, 'Eng 997', 'Eng Sete', 'engenheiro', array['997'], null); k_eng7 := r->>'chave';
+  perform pg_temp.ok(r->'obras' = '["997"]'::jsonb, '14d a Diretoria com todas da acesso de engenheiro na obra nova');
+  r := public.taf_erp_entrar(k_eng7, null, null);
+  perform pg_temp.ok(r->'obras' @> '[{"codigo":"997"}]'::jsonb and jsonb_array_length(r->'obras') = 1, '14e engenheiro da 997 so ve a 997 no ERP');
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_dir3, 'Dir 997', 'Dir Sete', 'diretoria', '997'));
+  perform pg_temp.ok(e = 'OBRA SEM DIRETORIA (997): A PRIMEIRA CHAVE DE DIRETORIA DELA TEM DE TER TAMBEM AS OBRAS 998, 999', '14f Diretoria so da obra nova: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L, %L], null)', k_dir3, 'Dir 997 e 999', 'Dir Sete', 'diretoria', '997', '999'));
+  perform pg_temp.ok(e like 'OBRA SEM DIRETORIA (997):%', '14g Diretoria da obra nova sem a 998: ' || e);
+  -- a Diretoria com todas faz a chave nova dela, agora com a 997, e a nova desativa a antiga
+  r := public.taf_acesso_criar(k_dir3, 'Diretora Tres com a 997', 'Diretora Tres', 'diretoria', array['997','998','999'], null); k_dir3b := r->>'chave'; id_dir3b := r->>'id';
+  perform pg_temp.ok(r->>'avisos' like '%Diretora Tres tem 2 chaves ativas%', '14h aviso de outra chave ativa: ' || (r->>'avisos'));
+  r := public.taf_acesso_listar(k_dir3);
+  perform pg_temp.ok(not (r#>>'{ator,geral}')::boolean, '14i a antiga deixa de ter todas as obras');
+  e := pg_temp.err(format('select public.taf_acesso_desativar(%L, %L, null, null)', k_dir3, id_dir3b));
+  perform pg_temp.ok(e = 'SEM PERMISSAO: A CHAVE TEM OBRA FORA DAS SUAS', '14j a antiga nao desativa a nova: ' || e);
+  r := public.taf_acesso_desativar(k_dir3b, id_dir3, 'chave nova com a obra 997', null);
+  perform pg_temp.ok((r->>'ok')::boolean, '14k a nova desativa a antiga');
+  perform pg_temp.ok(pg_temp.err(format('select public.taf_acesso_listar(%L)', k_dir3)) = 'CHAVE INVALIDA', '14l a antiga nao entra mais');
+  r := public.taf_acesso_listar(k_dir3b);
+  perform pg_temp.ok((r#>>'{ator,geral}')::boolean and r->'sem_diretoria' = '[]'::jsonb and jsonb_array_length(r->'obras') = 3, '14m a nova tem todas as obras');
+  insert into t06 values ('k_dir3b', k_dir3b), ('k_eng7', k_eng7);
 end $t$;
 
 -- ---------- conferências como dono do banco
@@ -218,30 +324,39 @@ do $t$
 declare n int; v text; c public.taf_ciclo_chave;
 begin
   select count(*) into n from public.taf_acesso_log;
-  perform pg_temp.ok(n = 12, '12a registro: 10 criadas e 2 desativadas, deu ' || n);
+  perform pg_temp.ok(n = 23, '12a registro: 17 criadas e 6 desativadas, deu ' || n);
   -- nenhuma chave em texto no banco: só o sha256
   for v in select t.v from t06 t loop
     perform pg_temp.ok(not exists (select 1 from public.taf_acesso_log l where position(v in l::text) > 0), '12b chave em texto no registro');
     perform pg_temp.ok(exists (select 1 from public.taf_ciclo_chave k where k.hash = encode(extensions.digest(v, 'sha256'), 'hex')), '12c sha256 gravado');
-    perform pg_temp.ok(exists (select 1 from public.taf_acesso_log l where l.chave_id = left(encode(extensions.digest(v, 'sha256'), 'hex'), 10)), '12c id curto = começo do sha256');
+    perform pg_temp.ok(exists (select 1 from public.taf_acesso_log l where l.chave_id = public._taf_acesso_id(encode(extensions.digest(v, 'sha256'), 'hex'))), '12c id curto = hmac do sha256');
     perform pg_temp.ok(not exists (select 1 from public.taf_ciclo_chave k where position(v in k::text) > 0), '12d chave em texto na tabela');
   end loop;
+  -- revisão 2: o identificador não é pedaço do sha256 de nenhuma chave
+  perform pg_temp.ok(not exists (select 1 from public.taf_acesso_log l join public.taf_ciclo_chave k on position(l.chave_id in k.hash) > 0), '12c2 id nao sai do sha256');
   perform pg_temp.ok(pg_temp.err('update public.taf_acesso_log set quem = ''x''') = 'HISTORICO NAO SE ALTERA', '12e registro nao muda');
   perform pg_temp.ok(pg_temp.err('delete from public.taf_acesso_log') = 'HISTORICO NAO SE ALTERA', '12f registro nao apaga');
-  -- a regra da última Diretoria, direto na função (pela tela ela só aparece como "própria chave", porque só Diretoria desativa Diretoria)
-  select * into c from public.taf_ciclo_chave k where k.papel = 'diretoria' and k.ativo;
-  perform pg_temp.ok(public._taf_acesso_bloqueio('pessoal', 'diretoria', array['999'], repeat('0', 64), c) like 'ULTIMA CHAVE DE DIRETORIA ATIVA%', '12g ultima diretoria');
+  perform pg_temp.ok(pg_temp.err('update public.taf_acesso_segredo set segredo = extensions.gen_random_bytes(32)') = 'O SEGREDO DOS IDENTIFICADORES NAO SE ALTERA', '12f2 segredo nao muda');
+  perform pg_temp.ok(pg_temp.err('delete from public.taf_acesso_segredo') = 'O SEGREDO DOS IDENTIFICADORES NAO SE ALTERA', '12f3 segredo nao apaga');
+  -- a regra da Diretoria com todas as obras e a da última, direto na função (pela tela quem chega nelas é recusado antes:
+  -- só desativa Diretoria quem tem as obras dela, e ninguém desativa a própria)
+  select * into c from public.taf_ciclo_chave k where k.papel = 'diretoria' and k.ativo and k.obras @> array['997','998','999'];
+  perform pg_temp.ok(public._taf_acesso_bloqueio('pessoal', 'diretoria', array['997','998','999'], repeat('0', 64), c)
+                     = 'SEM OUTRA DIRETORIA COM TODAS AS OBRAS: CRIE ANTES OUTRA CHAVE DE DIRETORIA COM TODAS AS OBRAS', '12g a limitada nao fica sozinha');
+  perform pg_temp.ok(exists (select 1 from public.taf_ciclo_chave k where k.papel = 'diretoria' and k.ativo and k.obras = array['999']), '12g2 o socio continua ativo');
+  update public.taf_ciclo_chave k set ativo = false where k.papel = 'diretoria' and k.ativo and k.hash <> c.hash;
+  perform pg_temp.ok(public._taf_acesso_bloqueio('pessoal', 'diretoria', array['997','998','999'], repeat('0', 64), c) like 'ULTIMA CHAVE DE DIRETORIA ATIVA%', '12g3 ultima diretoria');
   -- grants: só as três de entrada
   perform pg_temp.ok(has_function_privilege('anon', 'public.taf_acesso_listar(text, text)', 'execute')
                  and has_function_privilege('anon', 'public.taf_acesso_criar(text, text, text, text, text[], text)', 'execute')
                  and has_function_privilege('anon', 'public.taf_acesso_desativar(text, text, text, text)', 'execute'), '12h entradas abertas');
-  perform pg_temp.ok(not has_function_privilege('anon', 'public._taf_acesso_ator(text, text)', 'execute')
-                 and not has_function_privilege('anon', 'public._taf_acesso_pode_criar(text, text, boolean)', 'execute')
-                 and not has_function_privilege('anon', 'public._taf_acesso_bloqueio(text, text, text[], text, public.taf_ciclo_chave)', 'execute')
-                 and not has_function_privilege('anon', 'public._taf_acesso_avisos(text, text, text[])', 'execute')
-                 and not has_function_privilege('anon', 'public._taf_ciclo_pode(text, text)', 'execute')
-                 and not has_function_privilege('authenticated', 'public._taf_acesso_ator(text, text)', 'execute'), '12i internas fechadas');
+  perform pg_temp.ok(not exists (
+      select 1 from pg_proc f where f.pronamespace = 'public'::regnamespace and (f.proname like '\_taf\_acesso\_%' or f.proname = '_taf_ciclo_pode')
+         and (has_function_privilege('anon', f.oid, 'execute') or has_function_privilege('authenticated', f.oid, 'execute'))), '12i internas fechadas');
+  perform pg_temp.ok((select count(*) from pg_proc f where f.pronamespace = 'public'::regnamespace and f.proname like '\_taf\_acesso\_%') = 13, '12i2 13 funcoes internas');
+  perform pg_temp.ok(not exists (select 1 from pg_proc f where f.pronamespace = 'public'::regnamespace and f.proname = '_taf_acesso_avisos' and f.pronargs = 3), '12i3 a versao antiga dos avisos saiu');
   perform pg_temp.ok(not has_table_privilege('anon', 'public.taf_acesso_log', 'select') and not has_table_privilege('anon', 'public.taf_acesso_log', 'insert'), '12j tabela fechada');
+  perform pg_temp.ok(not has_table_privilege('anon', 'public.taf_acesso_segredo', 'select') and not has_table_privilege('authenticated', 'public.taf_acesso_segredo', 'select'), '12j2 segredo fechado');
   -- o papel novo só existe com pessoa
   perform pg_temp.ok(pg_temp.err('insert into public.taf_ciclo_chave (hash, nome, pessoa, papel, obras) values (repeat(''a'', 64), ''x'', null, ''encarregado'', array[''999''])') like '%taf_ciclo_chave_check%', '12k encarregado precisa de pessoa');
   perform pg_temp.ok(pg_temp.err('insert into public.taf_ciclo_chave (hash, nome, pessoa, papel, obras) values (repeat(''b'', 64), ''x'', ''y'', ''gerente'', array[''999''])') like '%taf_ciclo_chave_papel_check%', '12l papel fora da lista');
