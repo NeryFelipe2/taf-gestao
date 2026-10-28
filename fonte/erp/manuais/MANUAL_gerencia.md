@@ -9,7 +9,9 @@
 - **Contratos**: aditivos, bloqueio, alertas de vencimento e reajuste.
 - **Reabrir competência** (só Diretoria, com motivo) em Contabilidade → Fechamento.
 - **Administração** (Gestão e administração): grupos, acesso temporário, suplente de aprovador, horário, **alçadas por evento**.
+- **Perguntar ao assistente** (Ciclo da obra → Situação, embaixo do "Copiar resumo"): escreva a pergunta sobre a obra e toque em "Perguntar". A IA responde só com o que está na Situação (luzes, o que decidir, eventos em risco, qualidade do dado); o que não estiver lá ela diz que o sistema não tem. Não grava nada. Confira nos números antes de decidir.
 
 ## Regras
 - Ninguém aprova a própria solicitação. Suplente só vale dentro do período cadastrado.
 - Acesso temporário, suplência e horário valem na interface; no banco vale o papel em Usuários.
+- O assistente tem limite de uso por chave por dia (padrão 30, somando relato e pergunta). Chave só de leitura não usa o assistente.
