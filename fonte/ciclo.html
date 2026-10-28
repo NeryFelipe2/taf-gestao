@@ -230,6 +230,7 @@ html.emb body{background:transparent;background-image:none}
   <div id="s-placar"></div>
   <div id="s-qual"></div>
   <div id="s-copiar"></div>
+  <div id="s-ia"></div>
 </section>
 
 <section id="p-crono" role="tabpanel" aria-label="Cronograma" hidden>
@@ -1743,6 +1744,7 @@ function mostrar() {
     if (qt) { S.aba = 'crono'; CR.sel = qt[1]; S.selIni = qt[1]; }
     CC.recusas().forEach(function (r) { if (r.meta && r.meta.mod === 'ciclo') S.rec[r.uid] = { motivo: r.motivo, item: r }; });
     VIG = CC.vigiar(function () { reler(); }, digitando, 30000);
+    if (CC.ia) S.ia = CC.ia.painelPergunta($('s-ia'), { papel: papel });   // assistente (IA): só lê a situação
   }
   desenhar();
   if (S.selIni) { var si = S.selIni; S.selIni = null; crSelecionar(si, true); }

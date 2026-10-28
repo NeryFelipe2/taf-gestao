@@ -680,6 +680,7 @@ function rHoje(){
   }
   var dia=diaSel(L),ro=S.estado==='fechada'||!pode('apont');
   var cs=S.estado==='fechada'?(S.comps||[]).slice().sort(ordComp):hjAbertos(L);
+  if(!ro&&CC.ia)it.push({k:'hia:'+seg,c:'cc-card',h:'',fn:function(host){return CC.ia.painelRelato(host,{ler:Lh,hoje:hj,gravar:iaGravar})}});   // relato do WhatsApp (IA)
   if(!ro)it.push({k:'hl:'+seg,h:hjLote(L,dia)});
   var ent=[];
   cs.forEach(function(c){
@@ -818,6 +819,21 @@ function hjEnviar(k,sit,ex,rotulo){
   st.sit=null;if(sit!=='parado'){delete st.causa;delete st.det}
   var p=enviar('apont',d,{k:k,rotulo:rotulo||CC.rot('situacao',sit)+' em '+CC.dd(dia)});
   guardarAntes(p,{c:c,apont:antes});
+}
+// relato do WhatsApp (CC.ia, ciclo-ia.js): os marcados vão pelo MESMO caminho do apontamento à mão (enviar 'apont' na fila,
+// no cartão de cada compromisso, com o mesmo efeito na hora e o mesmo desfazer se o servidor recusar)
+function iaGravar(lista){
+  var L=Lh(),n=0;if(!L)return 0;
+  lista.forEach(function(x){
+    var c=((L.semana&&L.semana.comps)||[]).filter(function(y){return y.cid===x.p.cid})[0];if(!c)return;
+    var d=CC.ia.dados(x.p,c,L.seg),k='hc:'+L.seg+'|'+c.cid,ap=apDe(c,d.dia)||{},antes=cp(c.apont||[]);
+    var novo={dia:d.dia,situacao:d.situacao,qtd:d.qtd!=null?d.qtd:null,causa:d.causa||null,causa_det:d.causa_det||null,obs:d.obs||null,link:d.link||null,demanda:d.demanda||null,em:ap.em,quem:ap.quem,tardio:ap.tardio};
+    c.apont=(c.apont||[]).filter(function(a){return a.dia!==d.dia}).concat([novo]).sort(function(a,b){return a.dia<b.dia?-1:1});
+    var p=enviar('apont',d,{k:k,rotulo:'relato (IA): '+CC.rot('situacao',d.situacao)+' em '+CC.dd(d.dia)});
+    guardarAntes(p,{c:c,apont:antes});n++;
+  });
+  agendarPintar();
+  return n;
 }
 // efeito otimista: o cartão muda na hora; se o servidor recusar, volta ao que estava (e relê)
 var ANTES={};

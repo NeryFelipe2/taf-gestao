@@ -20,6 +20,7 @@
 - **Onde cada um entra**: engenheiro e encarregado em **/marko**; gestor e Diretoria em **/erp** e **/ciclo** com a chave pessoal (o Centro, em **/**, continua com a chave geral do site).
 - **Primeira chave de Diretoria (partida)**: enquanto não existe nenhuma, entre no ERP com a chave geral do site, abra Acessos e use **Criar a primeira chave de Diretoria**, com todas as obras. Depois saia e entre com ela e confira na lista o "criada por". A partir daí a chave geral não cria mais acesso.
 - **Obra nova** (importada depois): aparece no topo de Acessos para a Diretoria com todas as obras como "ainda não tem chave de Diretoria". Ela já pode dar acesso de engenheiro e encarregado na obra nova. Para a Diretoria ver a obra no ERP: crie uma chave de Diretoria com todas as obras, inclusive a nova, entre com ela e desative a antiga.
+- **Perguntar ao assistente** (Ciclo da obra → Situação, embaixo do "Copiar resumo"): escreva a pergunta sobre a obra e toque em "Perguntar". A IA responde só com o que está na Situação (luzes, o que decidir, eventos em risco, qualidade do dado); o que não estiver lá ela diz que o sistema não tem. Não grava nada. Confira nos números antes de decidir.
 
 ## Regras
 - Ninguém aprova a própria solicitação. Suplente só vale dentro do período cadastrado.
@@ -41,3 +42,4 @@
 - **Nome do engenheiro:** use o mesmo nome do engenheiro da obra no planejador. Se for diferente, a tela avisa: as demandas, as áreas e as tarefas do engenheiro não aparecem como desta pessoa.
 - **Encarregado** só aponta o dia no planejador (andou, parado, entregue). Quem prepara, monta, publica e fecha a semana é o engenheiro.
 - Obra nova não entra sozinha numa chave que já existe: crie uma chave nova com a obra e desative a antiga.
+- O assistente tem limite de uso por chave por dia (padrão 30, somando relato e pergunta). Conta cada vez que o pedido chega à IA, mesmo se ela falhar. Chave só de leitura não usa o assistente.
