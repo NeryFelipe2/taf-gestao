@@ -15,7 +15,7 @@ function viewEap(X){
    ${S.t.frozen?'':`<button class="btn dark" data-act="congelar" ${can('congelar')?'':'disabled title="Só Gestão ou Diretoria"'}>Congelar v1</button>`}<button class="btn" data-act="remanejar" ${can('remanejar')&&S.t.frozen?'':'disabled'}>Remanejar saldo</button><button class="btn" data-act="sync-novo" ${can('congelar')?'':'disabled title="Só Gestão ou Diretoria"'}>Atualizar pela planilha</button></div></div>
   <div class="toolbar"><input class="search" id="q" placeholder="Buscar código ou descrição…" value="${esc(S.q)}"><span class="sub">${S.D.items.length} itens · soma do licitado ${brl(X.venda)}${S.D.relatorio?.diferenca_contrato?` · difere do contrato em ${brl(S.D.relatorio.diferenca_contrato)}`:''}</span></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th class="r">Licitado</th><th class="r">Meta</th><th class="r">Teto</th><th class="r">Comprom.</th><th class="r">Realizado</th><th>Consumo</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
-  ${S.t.hist.length?`<div class="sub" style="margin-top:10px">Histórico da linha de base: ${S.t.hist.map(h=>`v${h.versao} (${h.motivo})`).join(' · ')}</div>`:''}`;
+  ${S.t.hist.length?`<div class="sub" style="margin-top:10px">Histórico da linha de base: ${S.t.hist.map(h=>`${h.fora?'sem versão nova':'v'+h.versao} (${esc(h.motivo)})`).join(' · ')}</div>`:''}`;
 }
 function modalItem(cod){
   const i=S.byCod[cod],s=S.sd[cod];
@@ -25,7 +25,7 @@ function modalItem(cod){
    <div class="sub" style="margin-top:10px">Pacote ${esc(i.pacote||'—')} · evento ${esc(i.evento||'—')} · natureza ${esc(i.nat)} · fonte da meta: ${esc(i.fonte_meta||'—')} · ${esc(i.status_cotacao||'')}</div>
    ${ocs.length?`<div class="panel-t" style="margin-top:14px">Pedidos</div>${ocs.map(o=>`<div class="sub">${o.num} · ${esc(o.forn)} · ${ocMulti(o)?brl(linhasDe(o).filter(l=>l.item===cod).reduce((s,l)=>s+ +l.valor,0))+' deste item (pedido de '+brl(o.valor)+')':brl(o.valor)} · ${o.status}</div>`).join('')}`:''}
    ${rat.length?`<div class="panel-t" style="margin-top:14px">Notas rateadas</div>${rat.map(x=>`<div class="sub">${x.n.num} · ${esc(x.n.emitente)} · ${brl(x.l.valor)}</div>`).join('')}`:''}
-   <div class="acts"><button class="btn" data-act="fechar">Fechar</button><button class="btn dark" data-act="nova-sol" data-item="${esc(cod)}" ${can('solicitar')?'':'disabled title="Só Engenheiro ou Gerente"'}>Solicitar compra</button></div>`);
+   <div class="acts"><button class="btn" data-act="fechar">Fechar</button>${typeof metaBotoes==='function'?metaBotoes('item',cod):''}<button class="btn dark" data-act="nova-sol" data-item="${esc(cod)}" ${can('solicitar')?'':'disabled title="Só Engenheiro ou Gerente"'}>Solicitar compra</button></div>`);
 }
 function modalRemanejar(){
   modal(`<h3>Remanejar saldo entre itens</h3><div class="sub">Tira meta de um item e coloca em outro. O total da obra não muda; gera nova versão da linha de base com antes e depois.</div>

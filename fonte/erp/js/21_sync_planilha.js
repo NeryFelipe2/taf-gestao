@@ -32,6 +32,7 @@ function calculaDiff(L){
   return {dif,pacs,info,semMov,dMeta:r2(dif.reduce((s,d)=>s+(d.novo.meta_total||0)-(S.byCod[d.codigo].meta_base||0),0))}}
 function modalSync(){SYNC=null;modal(`<h3>Atualizar metas pela planilha</h3><div class="sub">Escolha o Estudo de Obra (.xlsx, abas 11 e 12) ou o .json do importador. O app mostra o que mudou e só aplica depois da sua confirmação, como <b>nova versão da linha de base</b>. Preço licitado e quantidades do contrato não são alterados.</div>
   <label>Arquivo</label><input id="sy-f" type="file" accept=".xlsx,.xlsm,.json"><div id="sy-r" style="margin-top:10px"></div>
+  <label for="sy-m">Motivo da atualização (obrigatório)</label><input id="sy-m" maxlength="300" placeholder="ex.: Estudo de Obra revisado com as cotações de outubro"><div id="sy-msg" class="sub"></div>
   <div class="acts"><button class="btn" data-act="fechar">Fechar</button><button class="btn dark" data-act="sync-ler">Comparar</button><button class="btn ok" id="sy-ap" data-act="sync-aplicar" disabled>Aplicar como nova versão</button></div>`)}
 const syncPode=()=>{const d=SYNC;return !!d&&can('congelar')&&!!(d.dif.length||d.pacs.length||Object.keys(d.usar||{}).length)};
 /* bloco "itens com remanejamento" da tela de comparação (só existe com calc_v2 ligada) */
@@ -42,20 +43,23 @@ function syncRemanejados(d){const L=d.info.remanejados;if(!L||!L.length)return '
 document.addEventListener('change',e=>{const t=e.target;if(!t||!t.dataset||t.dataset.syRm===undefined||!SYNC)return;
   SYNC.usar=SYNC.usar||{};if(t.checked)SYNC.usar[t.dataset.syRm]=1;else delete SYNC.usar[t.dataset.syRm];const b=$('#sy-ap');if(b)b.disabled=!syncPode()});
 async function syncLer(){const f=$('#sy-f').files[0];if(!f)return toast('Escolha o arquivo');$('#sy-r').innerHTML='<div class="sub">Lendo…</div>';
-  try{const L=await linhasDaPlanilha(f);SYNC=calculaDiff(L);SYNC.arquivo=f.name;
+  try{const L=await linhasDaPlanilha(f);SYNC=calculaDiff(L);SYNC.arquivo=f.name;SYNC.pedeMotivo=true;
     const d=SYNC;$('#sy-r').innerHTML=`<div class="kpi4"><div><div class="k-l">Itens com mudança</div><div class="v">${d.dif.length}</div></div><div><div class="k-l">Pacotes com mudança</div><div class="v">${d.pacs.length}</div></div><div><div class="k-l">Variação da meta</div><div class="v ${d.dMeta>0?'neg':'pos'}">${brl(d.dMeta,true)}</div></div><div><div class="k-l">Itens fora do orçamento</div><div class="v">${d.info.novos.length}</div></div></div>
     ${d.dif.length?`<div class="tw" style="max-height:260px;overflow:auto"><table class="tbl"><thead><tr><th>Item</th><th>Mudança</th></tr></thead><tbody>${d.dif.slice(0,200).map(x=>`<tr><td class="mono">${x.codigo}</td><td>${x.mudou.map(m=>`${m[0]}: ${typeof m[1]==='number'?brl(m[1]):esc(m[1]||'—')} → <b>${typeof m[2]==='number'?brl(m[2]):esc(m[2])}</b>`).join(' · ')}</td></tr>`).join('')}</tbody></table></div>`:'<div class="sub">Nenhuma diferença de meta, teto ou status nos itens.</div>'}
     ${syncRemanejados(d)}
-    ${d.pacs.length?`<div class="sub" style="margin-top:8px">Pacotes: ${d.pacs.map(p=>esc(p.codigo)).join(', ')}</div>`:''}${d.info.semQtd.length?`<div class="sub neg" style="margin-top:8px">Quantidade diferente do orçamento (não aplicada): ${d.info.semQtd.slice(0,5).map(esc).join('; ')}${d.info.semQtd.length>5?'…':''}</div>`:''}${d.info.novos.length?`<div class="sub" style="margin-top:8px">Fora do orçamento (ignorados): ${d.info.novos.slice(0,8).join(', ')}${d.info.novos.length>8?'…':''}</div>`:''}`;
+    ${typeof metaAvisoPlanilha==='function'?metaAvisoPlanilha(d):''}${d.pacs.length?`<div class="sub" style="margin-top:8px">Pacotes: ${d.pacs.map(p=>esc(p.codigo)).join(', ')}</div>`:''}${d.info.semQtd.length?`<div class="sub neg" style="margin-top:8px">Quantidade diferente do orçamento (não aplicada): ${d.info.semQtd.slice(0,5).map(esc).join('; ')}${d.info.semQtd.length>5?'…':''}</div>`:''}${d.info.novos.length?`<div class="sub" style="margin-top:8px">Fora do orçamento (ignorados): ${d.info.novos.slice(0,8).join(', ')}${d.info.novos.length>8?'…':''}</div>`:''}`;
     $('#sy-ap').disabled=!syncPode()}catch(e){$('#sy-r').innerHTML=`<div class="neg">${esc(e.message)}</div>`}}
 function syncAplicar(){const d=SYNC;if(!d||!can('congelar'))return;
+  /* a pessoa escreve o motivo (vai para o histórico da linha de base e para a auditoria) */
+  const mo=d.pedeMotivo?String(($('#sy-m')||{}).value||'').trim():String(d.motivo||'').trim();
+  if(d.pedeMotivo&&mo.length<3){const e=$('#sy-msg');if(e)e.innerHTML='<span class="neg">Escreva o motivo da atualização.</span>';return toast('Escreva o motivo da atualização')}
   S.t.baseOv=S.t.baseOv||{};S.t.basePac=S.t.basePac||{};
   d.dif.forEach(x=>{const i=S.byCod[x.codigo];S.t.baseOv[x.codigo]={meta_total:x.novo.meta_total,teto_total:x.novo.teto_total,status_cotacao:x.novo.status_cotacao,meta_unit:i.qtd?r2(x.novo.meta_total/i.qtd*10000)/10000:i.meta_unit}});
   d.pacs.forEach(p=>S.t.basePac[p.codigo]={meta:p.meta,teto:p.teto,fechar_ate:p.fechar_ate});
   /* calc_v2: itens em que o gestor escolheu a meta da planilha no lugar do remanejamento (o remanejamento do item é desfeito) */
   const usar=calcV2(S.t)?(d.info.remanejados||[]).filter(x=>x.metaPlanilha!=null&&d.usar&&d.usar[x.codigo]):[];
   usar.forEach(x=>{log('item_eap',x.codigo,'meta_total',x.metaAtual,x.metaPlanilha,'planilha vale no lugar do remanejamento · '+d.arquivo);delete S.t.metaOv[x.codigo]});
-  const v=(S.t.versao||1)+(S.t.frozen?1:0);S.t.versao=v;S.t.hist.push({versao:v,motivo:'Atualização pela planilha '+d.arquivo+' · '+d.dif.length+' itens, '+d.pacs.length+' pacotes'+(usar.length?', '+usar.length+' remanejamento(s) trocado(s) pela meta da planilha':''),quando:new Date().toISOString(),quem:user()});
-  log('obra',S.D.obra.codigo,'linha_base','v'+(v-(S.t.frozen?1:0)),'v'+v+' · '+d.dif.length+' itens · variação '+brl(d.dMeta),d.arquivo);
+  const v=(S.t.versao||1)+(S.t.frozen?1:0);S.t.versao=v;S.t.hist.push({versao:v,motivo:'Atualização pela planilha '+d.arquivo+' · '+d.dif.length+' itens, '+d.pacs.length+' pacotes'+(usar.length?', '+usar.length+' remanejamento(s) trocado(s) pela meta da planilha':'')+(mo?' · motivo: '+mo:''),quando:new Date().toISOString(),quem:user()});
+  log('obra',S.D.obra.codigo,'linha_base','v'+(v-(S.t.frozen?1:0)),'v'+v+' · '+d.dif.length+' itens · variação '+brl(d.dMeta),d.arquivo+(mo?' · '+mo:''));
   prep();save();closeModal();toast('Linha de base v'+v+' aplicada');render()}
 

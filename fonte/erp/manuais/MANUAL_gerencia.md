@@ -6,6 +6,11 @@
 - **Aprovar OCs** (Suprimentos → Compras → Aprovações): amarelo e verde acima do limite → Gerente; vermelho e acima do valor do Gerente → Diretoria. Reprovar exige motivo.
 - **Aprovar medição de subempreiteiro** e atestar medições (Obra → Medição).
 - **Congelar a linha de base** (Gestão/Diretoria) e **Parâmetros** de compras (limite verde, limite do Gerente, tolerância).
+- **Metas para aprovar** (Obra → Metas → Para aprovar; o número aparece no menu Obra e no sino): cada cartão mostra hoje e proposto (meta, teto, licitado, folga até o teto e margem) e o motivo de quem propôs. **Aprovar** (observação opcional) ou **Recusar** (motivo obrigatório). Ao aprovar, a meta entra na linha de base como versão nova, com histórico e auditoria. Liga em Compras → Parâmetros → Chaves desta obra → "Meta pela tela".
+- **Mudar meta direto** (Gestão e Diretoria): no item (Orçamento) ou no pacote (Pacotes), **Mudar meta**, com motivo. Entra na hora, como versão nova, e fica registrada como aprovada.
+- **Metas que precisam de conferência** (Obra → Metas → Para aprovar, no topo): a meta aprovada só entra sozinha se o item (ou pacote) ainda estiver como na hora da aprovação. Se mudou depois (remanejamento, planilha ou um navegador com dados velhos que gravou por cima), o cartão mostra "Na aprovação", "Hoje" e "Aprovado". Escolha **Aplicar mesmo assim** (a meta aprovada entra por cima do valor de hoje; se o item tinha remanejamento, ele é desfeito só neste item) ou **Não aplicar** (fica no histórico, sem versão nova). Motivo obrigatório nos dois.
+- **Remanejar saldo** (Obra → Orçamento): Gerente e Diretoria; com "Meta pela tela" ligada, a Gestão também, com a chave pessoal.
+- **Atualizar pela planilha** (Obra → Orçamento): escreva o motivo da atualização (obrigatório). Se a planilha mudar item com meta aprovada pela tela, aparece um aviso: planilha desatualizada volta a meta antiga.
 - **Contratos**: aditivos, bloqueio, alertas de vencimento e reajuste.
 - **Reabrir competência** (só Diretoria, com motivo) em Contabilidade → Fechamento.
 - **Administração** (Gestão e administração): grupos, acesso temporário, suplente de aprovador, horário, **alçadas por evento**.
@@ -20,3 +25,7 @@
 - O orçamento só se regrava em obra criada pela tela, sem nenhum lançamento (compra, nota, medição, tarefa ligada, apontamento, contrato...), sem meta e sem linha de base congelada, e só com chave pessoal de Gestão ou Diretoria. Obra antiga e obra com lançamento: use Orçamento → **Atualizar pela planilha**.
 - Com a chave do site, o papel é escolhido na prévia, de propósito: o papel que aparece ao entrar não vale. O seu nome fica registrado. A chave do site grava o orçamento uma vez só, e só da obra que ela mesma criou.
 - Descrição, nome ou contratante com < > ou aspas: esses sinais viram ‹ › ″ (o banco não aceita os sinais de programa).
+- Meta: decidir e mudar direto exigem a **chave pessoal** (com a chave geral do site ninguém aprova). Quem propôs não decide a própria proposta. Hoje não existe chave pessoal de Gerente: quem decide é Gestão ou Diretoria.
+- A meta aprovada é aplicada pelo navegador de quem aprova. Se não entrar na hora (sem sinal, por exemplo), entra quando Gestão, Diretoria ou Gerente abrir a obra de novo, se o item não mudou; se mudou, vai para conferência.
+- Cuidado com duas telas abertas na mesma obra por muito tempo: o ERP ainda não confere a versão antes de gravar, e a tela com dados velhos pode gravar por cima do que outra gravou. Atualize a página antes de remanejar ou aplicar planilha. A meta aprovada que some assim volta sozinha ou vai para conferência, mas um remanejamento ou uma planilha apagados assim se perdem.
+- Com a chave geral do site o servidor ainda aceita mudança na linha de base (planilha, remanejamento) de quem escolhe Gestão, Gerente ou Diretoria na tela. Para meta, use sempre a chave pessoal.

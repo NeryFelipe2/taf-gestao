@@ -1,11 +1,11 @@
 /* ============ render / eventos ============ */
-function render(){S.memo={};try{renderCore()}finally{S.memo=null}if(typeof zerosPass==='function')zerosPass();if(typeof filtrosPass==='function')filtrosPass();if(typeof a11yPass==='function')a11yPass();if(typeof apresPass==='function')apresPass()}
+function render(){S.memo={};try{renderCore()}finally{S.memo=null}if(typeof zerosPass==='function')zerosPass();if(typeof filtrosPass==='function')filtrosPass();if(typeof a11yPass==='function')a11yPass();if(typeof apresPass==='function')apresPass();if(typeof metaPass==='function')metaPass()}
 function renderCore(){
   const X=derive();S.X=X;
   const AR=areaDe(S.view);
   $('#nav').innerHTML=areasVisiveis().map(a=>`<button class="${a.k===AR.k?'on':''}" data-v="${a.k===AR.k?S.view:a.tabs[0][0]}">${ico(a.i)}${a.n}${badgeArea(a,X)}</button>`).join('');
   $('#crumb').textContent=AR.n+(AR.tabs.length>1?' · '+(AR.tabs.find(t=>t[0]===S.view)||AR.tabs[0])[1]:'');
-  const V={rastro:viewRastro,fat:viewFat,campo:viewCampo,lean:viewLean,hoje:viewHoje,eap:viewEap,pac:viewPac,evt:viewEventos,compras:viewCompras,cdash:viewCdash,pedc:viewPedc,nota:viewNota,fin:viewFin,med:viewMed,plano:viewPlano,pain:viewPain,ctb:viewCtb,est:viewEst,dash:viewDash,pes:viewPessoas,sst:viewSst,bi:biView,admin:viewAdmin,fluxo:viewFluxo,ctr:viewCtr,prj:viewPrj,pat:viewPat,frt:viewFrt,aud:viewAud,usuarios:viewUsuarios,cad:viewCadastros}[S.view]||viewHoje;
+  const V={rastro:viewRastro,fat:viewFat,campo:viewCampo,lean:viewLean,hoje:viewHoje,eap:viewEap,pac:viewPac,evt:viewEventos,metas:viewMetas,compras:viewCompras,cdash:viewCdash,pedc:viewPedc,nota:viewNota,fin:viewFin,med:viewMed,plano:viewPlano,pain:viewPain,ctb:viewCtb,est:viewEst,dash:viewDash,pes:viewPessoas,sst:viewSst,bi:biView,admin:viewAdmin,fluxo:viewFluxo,ctr:viewCtr,prj:viewPrj,pat:viewPat,frt:viewFrt,aud:viewAud,usuarios:viewUsuarios,cad:viewCadastros}[S.view]||viewHoje;
   const keepQ=document.activeElement&&document.activeElement.id==='q';
   $('#view').innerHTML=abasDaArea(AR)+V(X);
   if(keepQ){const q=$('#q');if(q){q.focus();q.setSelectionRange(q.value.length,q.value.length)}}
