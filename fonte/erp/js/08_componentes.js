@@ -19,8 +19,9 @@ const tabVisivel=k=>{if(k==='dash')return true;if(k==='evt'&&!chaveLigada('ev_ag
 const areasVisiveis=()=>AREAS.map(a=>({...a,tabs:a.tabs.filter(t=>tabVisivel(t[0]))})).filter(a=>a.tabs.length);
 const areaDe=v=>areasVisiveis().find(a=>a.tabs.some(t=>t[0]===v))||areasVisiveis()[0];
 const NAV_BASE=AREAS.flatMap(a=>a.tabs.map(t=>[t[0],t[1],a.i]));
-/* link direto para uma tela (?vista=… ou mensagem do Centro de Gestão): vale se a tela existe; Eventos só com a chave ev_agrega ligada (desligada ela não está no menu e abriria sob "Início") */
-const vistaPermitida=v=>NAV_BASE.some(n=>n[0]===v)&&(v!=='evt'||chaveLigada('ev_agrega'))&&(v!=='acessos'||MODO_CH);
+/* link direto para uma tela (?vista=… ou mensagem do Centro de Gestão): vale se a tela existe; Eventos só com a chave ev_agrega ligada (desligada ela não está no menu e abriria sob "Início");
+   Acessos só para quem tem a aba (Diretoria e Gestão no site, sem chave de leitura) */
+const vistaPermitida=v=>NAV_BASE.some(n=>n[0]===v)&&(v!=='evt'||chaveLigada('ev_agrega'))&&(v!=='acessos'||(typeof acVisivel==='function'&&acVisivel()));
 const navItens=()=>NAV_BASE.filter(n=>tabVisivel(n[0]));
 const badgeArea=(a,X)=>a.tabs.map(t=>badgeFor(t[0],X)).join('');
 const abasDaArea=a=>a.tabs.length<2?'':`<div class="tabs areatabs">${a.tabs.map(([k,l])=>`<button data-v="${k}" class="${S.view===k?'on':''}">${l}</button>`).join('')}</div>`;

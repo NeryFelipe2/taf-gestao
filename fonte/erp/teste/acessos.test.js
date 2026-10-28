@@ -57,7 +57,13 @@ test('a aba Acessos aparece só no site, para Diretoria e Gestão; nunca para en
   for (const p of ['diretoria', 'gestao']) { entra(api, p); assert.ok(tem(), p + ' vê'); }
   for (const p of ['engenheiro', 'encarregado', 'gerente', 'compras', 'financeiro', 'adm', 'almox', 'planejamento']) { entra(api, p); assert.ok(!tem(), p + ' não vê'); }
   entra(api, 'gestao', { leitura: true }); assert.ok(!tem(), 'chave de leitura não vê');
-  assert.equal(api.vistaPermitida('acessos'), true, 'link direto vale no site');
+  assert.equal(api.vistaPermitida('acessos'), false, 'link direto com chave de leitura não abre Acessos');
+  for (const p of ['diretoria', 'gestao']) { entra(api, p); assert.equal(api.vistaPermitida('acessos'), true, 'link direto vale no site para ' + p); }
+  /* revisão 2: ?vista=acessos de quem não tem a aba cai na tela padrão, não abre Acessos com o caminho errado */
+  for (const p of ['engenheiro', 'encarregado', 'compras']) { entra(api, p); assert.equal(api.vistaPermitida('acessos'), false, 'link direto não vale para ' + p); }
+  /* e se mesmo assim a tela for pedida, não chama o banco */
+  const B2 = bancoFalso(), api2 = carregaChave(B2); entra(api2, 'encarregado');
+  assert.match(String(run(api2, 'viewAcessos()')), /Só a Diretoria e o gestor cuidam dos acessos/); assert.equal(B2.chamadas.length, 0);
   const adm = J(api.AREAS).find(a => a.k === 'adm').tabs.map(t => t[0]);
   assert.deepEqual(adm.slice(0, 3), ['bi', 'admin', 'acessos'], 'logo depois de Administração');
   /* fora do site (modo aberto, demo): nem aba nem link */
@@ -74,9 +80,9 @@ test('lista: nome, pessoa, papel, obras, situação, criada em e link de entrada
   const h = v();
   assert.doesNotMatch(h, /<img src=x/, 'nome com HTML não vira HTML'); assert.match(h, /&lt;img src=x onerror=alert\(1\)&gt;/);
   assert.match(h, /Eng &quot;Outro&quot; &amp; Cia/); assert.doesNotMatch(h, /<b>x<\/b>/); assert.match(h, /&lt;b&gt;x&lt;\/b&gt;/);
-  assert.match(h, /3 chaves ativas e 1 desativada\. 1 com aviso de nome\./);
+  assert.match(h, /3 chaves ativas e 1 desativada\. 1 com aviso\./); assert.match(h, /<span class="pill warn">aviso<\/span> Obra 999/);
   assert.match(h, /data-r="Papel"><span class="pill info">Engenheiro<\/span>/); assert.match(h, /Encarregado<\/span>/);
-  assert.match(h, /data-r="Obras" class="mono">998, 999</);
+  assert.match(h, /data-r="Obras"><span class="mono">998, 999<\/span>/);
   assert.match(h, /28\/10\/2026<div class="mut" style="font-size:12px">Felipe \(chave geral\)/); assert.match(h, /pelo banco/, 'chave criada por SQL');
   assert.match(h, /data-r="Entra por"><span class="mono">\/marko<\/span>/, 'engenheiro e encarregado: /marko');
   assert.match(h, /data-r="Entra por"><span class="mono">\/erp<\/span> <span class="mono">\/ciclo<\/span>/, 'Diretoria: /erp e /ciclo');
@@ -106,8 +112,14 @@ test('criar: manda nome, pessoa, papel e obras; a chave aparece uma vez, com cop
   run(api, "ACOES['ac-novo']()"); let m = String(api.dom['#mbox'].innerHTML);
   assert.equal((m.match(/<option /g) || []).length, 5); assert.match(m, /value="engenheiro" selected/, 'padrão: engenheiro');
   assert.match(m, /engenheiro no planejador: Engenheira Demonstração/); assert.match(m, /sem cronograma no planejador/);
+  assert.doesNotMatch(m, /class="ac-ob"[^>]*checked/, 'revisão 2: nenhuma obra vem marcada (o padrão é o mínimo)');
+  {const caixas = [{ value: '999', checked: false }, { value: '998', checked: false }], qsa = api.ctx.document.querySelectorAll;
+   api.ctx.document.querySelectorAll = s => (s === '.ac-ob' ? caixas : s === '.ac-ob:checked' ? caixas.filter(c => c.checked) : []);
+   for (const papel of ['diretoria', 'gestor']) (api.ctx.__ouvintes.change || []).forEach(f => f({ target: { id: 'ac-papel', value: papel, classList: { contains: () => false }, closest: () => null, matches: () => false, dataset: {} } }));
+   assert.ok(caixas.every(c => !c.checked), 'trocar o papel para Diretoria ou gestor não marca as obras sozinho');
+   api.ctx.document.querySelectorAll = qsa;}
   /* campos do formulário (o ambiente devolve o mesmo elemento para o mesmo seletor) */
-  api.el('#ac-papel').value = 'engenheiro'; api.el('#ac-pessoa').value = '  Marco   Teste '; api.el('#ac-nome').value = '';
+  api.el('#ac-papel').value = 'engenheiro'; api.el('#ac-pessoa').value = '  Fulano   Teste '; api.el('#ac-nome').value = '';
   api.ctx.document.querySelectorAll = s => (s === '.ac-ob:checked' ? [{ value: '999' }] : []);
   const gid = api.ctx.document.getElementById, box = { innerHTML: '' }, faz = { textContent: '' };
   api.ctx.document.getElementById = id => (id === 'ac-aviso' ? box : id === 'ac-faz' ? faz : id === 'ac-chave' ? null : gid(id));
@@ -115,17 +127,17 @@ test('criar: manda nome, pessoa, papel e obras; a chave aparece uma vez, com cop
   assert.match(box.innerHTML, /o engenheiro no planejador é <b>Engenheira Demonstração<\/b>/); assert.match(box.innerHTML, /data-act="ac-usar-nome" data-n="Engenheira Demonstração"/);
   assert.match(faz.textContent, /publica/);
   api.el('#ac-pessoa').value = 'Engenheira Demonstração'; run(api, 'acPintaAviso()'); assert.equal(box.innerHTML, '', 'nome igual: sem aviso');
-  api.el('#ac-pessoa').value = 'Marco Teste';
-  const CH_TXT = 'marco-1a2b-3c4d-5e6f-7a8b-9c0d-1e2f';
-  B.resp.taf_acesso_criar = { ok: true, id: '1234567890', chave: CH_TXT, nome: 'Marco Teste', pessoa: 'Marco Teste', papel: 'engenheiro', obras: ['999'], partida: false,
-    avisos: ['Obra 999: o engenheiro no planejador é Engenheira Demonstração e esta chave está em nome de Marco Teste.'] };
+  api.el('#ac-pessoa').value = 'Fulano Teste';
+  const CH_TXT = 'fulano-1a2b-3c4d-5e6f-7a8b-9c0d-1e2f';
+  B.resp.taf_acesso_criar = { ok: true, id: '1234567890', chave: CH_TXT, nome: 'Fulano Teste', pessoa: 'Fulano Teste', papel: 'engenheiro', obras: ['999'], partida: false,
+    avisos: ['Obra 999: o engenheiro no planejador é Engenheira Demonstração e esta chave está em nome de Fulano Teste.'] };
   api.ctx.location.origin = 'https://site.exemplo';
   await run(api, "ACOES['ac-criar-ok']({disabled:false})");
   const c = B.chamadas.find(x => x.fn === 'taf_acesso_criar');
-  assert.deepEqual(c.body, { p_chave: CHAVE_SITE, p_quem: 'Diretor Demonstração', p_nome: null, p_pessoa: 'Marco Teste', p_papel: 'engenheiro', p_obras: ['999'] });
+  assert.deepEqual(c.body, { p_chave: CHAVE_SITE, p_quem: 'Diretor Demonstração', p_nome: null, p_pessoa: 'Fulano Teste', p_papel: 'engenheiro', p_obras: ['999'] });
   m = String(api.dom['#mbox'].innerHTML);
   assert.equal(m.split(CH_TXT).length - 1, 1, 'a chave aparece uma vez');
-  assert.match(m, /Chave criada: copie agora/); assert.match(m, /É a única vez que esta chave aparece/); assert.match(m, /Mande só por mensagem direta para Marco Teste/);
+  assert.match(m, /Chave criada: copie agora/); assert.match(m, /É a única vez que esta chave aparece/); assert.match(m, /Mande só por mensagem direta para Fulano Teste/);
   assert.match(m, /data-act="ac-copiar"/); assert.match(m, /data-act="ac-copiar-msg"/); assert.match(m, /https:\/\/site\.exemplo\/marko/);
   assert.match(m, /o engenheiro no planejador é Engenheira Demonstração/, 'aviso do nome também no resultado');
   /* nada guarda a chave: estado do ERP, AC, aparelho */
@@ -137,7 +149,7 @@ test('criar: manda nome, pessoa, papel e obras; a chave aparece uma vez, com cop
   api.el('#ac-chave').value = CH_TXT; api.ctx.document.getElementById = id => (id === 'ac-chave' ? api.el('#ac-chave') : gid(id));
   run(api, "ACOES['ac-copiar']()"); await espera(); assert.equal(copiado, CH_TXT);
   run(api, "ACOES['ac-copiar-msg']()"); await espera();
-  assert.match(copiado, /^Olá, Marco Teste\. Este é o seu acesso ao sistema da TAF \(engenheiro\)\.\nEntre em https:\/\/site\.exemplo\/marko e digite a chave:\nmarco-1a2b/);
+  assert.match(copiado, /^Olá, Fulano Teste\. Este é o seu acesso ao sistema da TAF \(engenheiro\)\.\nEntre em https:\/\/site\.exemplo\/marko e digite a chave:\nfulano-1a2b/);
   assert.match(copiado, /não mostre nem mande para ninguém/);
   run(api, "ACOES['ac-fechar-chave']()"); assert.equal(api.el('#ac-chave').value, ''); assert.equal(api.dom['#mbox'].innerHTML, '');
   assert.equal(run(api, 'AC.ult'), null);
@@ -153,7 +165,7 @@ test('criar: o formulário confere antes de mandar e mostra o recado do banco em
   await run(api, "ACOES['ac-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'Informe a pessoa.');
   assert.ok(!B.chamadas.some(c => c.fn === 'taf_acesso_criar'), 'nada foi ao banco');
   api.el('#ac-pessoa').value = 'Fulano Teste'; B.resp.taf_acesso_criar = { erro: 'SEM ACESSO A OBRA 998: O GESTOR SO CRIA ACESSO NAS OBRAS DA PROPRIA CHAVE' };
-  await run(api, "ACOES['ac-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'A obra 998 não está na sua chave. Só a Diretoria cria acesso nela.');
+  await run(api, "ACOES['ac-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'A obra 998 não está na sua chave. Peça à Diretoria que tem todas as obras.');
 });
 
 test('recados do banco viram frase de obra', () => {
@@ -163,10 +175,18 @@ test('recados do banco viram frase de obra', () => {
   assert.equal(m('NA PARTIDA A CHAVE GERAL SO CRIA A PRIMEIRA CHAVE DE DIRETORIA'), 'Com a chave geral do site só dá para criar a primeira chave de Diretoria.');
   assert.equal(m('ULTIMA CHAVE DE DIRETORIA ATIVA: CRIE OUTRA ANTES DE DESATIVAR ESTA'), 'É a última chave de Diretoria ativa. Crie outra antes de desativar esta.');
   assert.equal(m('NAO DESATIVE A PROPRIA CHAVE: PECA A OUTRA PESSOA DA DIRETORIA'), 'Você não desativa a sua própria chave. Peça a outra pessoa da Diretoria.');
-  assert.equal(m('JA EXISTE CHAVE ATIVA COM O NOME Marco: USE OUTRO NOME OU DESATIVE A ANTIGA'), 'Já existe chave ativa com o nome Marco. Use outro nome ou desative a antiga.');
+  assert.equal(m('JA EXISTE CHAVE ATIVA COM O NOME Fulano: USE OUTRO NOME OU DESATIVE A ANTIGA'), 'Já existe chave ativa com o nome Fulano. Use outro nome ou desative a antiga.');
   assert.equal(m('OBRA 123 NAO EXISTE'), 'A obra 123 não existe no sistema.');
   assert.equal(m('SEM PERMISSAO: SO A DIRETORIA E O GESTOR CUIDAM DOS ACESSOS'), 'Só a Diretoria e o gestor cuidam dos acessos, com a chave pessoal.');
   assert.equal(m('CHAVE INVALIDA'), 'Chave inválida.');
+  /* revisão 2 */
+  assert.equal(m('SEM ACESSO A OBRA 998: SO CRIA ACESSO NAS OBRAS QUE A SUA CHAVE CUIDA'), 'A obra 998 não está na sua chave. Peça à Diretoria que tem todas as obras.');
+  assert.equal(m('OBRA SEM DIRETORIA (997): A PRIMEIRA CHAVE DE DIRETORIA DELA TEM DE TER TAMBEM AS OBRAS 998, 999'),
+    'A obra 997 ainda não tem Diretoria. A primeira chave de Diretoria dela tem de ter também as obras 998, 999, para sempre sobrar uma Diretoria com todas.');
+  assert.equal(m('SEM OUTRA DIRETORIA COM TODAS AS OBRAS: CRIE ANTES OUTRA CHAVE DE DIRETORIA COM TODAS AS OBRAS'), 'Esta é a única chave de Diretoria com todas as obras. Crie outra com todas as obras antes de desativar esta.');
+  assert.equal(m('A PESSOA Diretor Teste JA TEM CHAVE QUE VOCE NAO CUIDA: PECA A DIRETORIA'), 'Diretor Teste já tem chave que você não cuida (de Diretoria, de gestor ou de outra obra). Peça à Diretoria.');
+  assert.equal(m('NOME DA CHAVE: USE AO MENOS 2 LETRAS OU NUMEROS'), 'O nome da chave precisa ter ao menos 2 letras ou números.');
+  assert.equal(m('NOME DA PESSOA: USE AO MENOS 2 LETRAS OU NUMEROS'), 'O nome da pessoa precisa ter ao menos 2 letras ou números.');
   assert.match(m('Could not find the function public.taf_acesso_listar(p_chave, p_quem) in the schema cache'), /Falta aplicar o 06_acessos\.sql/);
   for (const s of ['NOME DA CHAVE: DE 3 A 60 LETRAS', 'NOME COM SINAL QUE NAO PODE (< > " ` \\ { } |)', 'INFORME A PESSOA', 'CHAVE JA DESATIVADA', 'SEM PERMISSAO: A CHAVE TEM OBRA FORA DAS SUAS'])
     assert.doesNotMatch(m(s), /^[A-Z ]+$/, s + ' vira frase');
@@ -185,6 +205,34 @@ test('desativar: confirma com motivo, manda o id curto e recarrega; recusa do ba
   B.resp.taf_acesso_desativar = { erro: 'ULTIMA CHAVE DE DIRETORIA ATIVA: CRIE OUTRA ANTES DE DESATIVAR ESTA' };
   await run(api, "ACOES['ac-desativar-ok']({dataset:{id:'bbbbbbbbbb'}})");
   assert.equal(api.el('#ac-msg').textContent, 'É a última chave de Diretoria ativa. Crie outra antes de desativar esta.');
+});
+
+test('revisão 2: Diretoria limitada vê o aviso das obras dela e as chaves só com as obras em comum; a Diretoria com todas vê a obra nova sem Diretoria', async () => {
+  const B = bancoFalso();
+  B.resp.taf_acesso_listar = { ator: { tipo: 'pessoal', nome: 'Socio Demonstração', papel: 'diretoria', verificado: true, id: 'eeeeeeeeee', geral: false, obras: ['999'] },
+    partida: false, pode_criar: ['diretoria', 'gestor', 'engenheiro', 'encarregado', 'leitura'], sem_diretoria: [], obras: [OBRAS[0]],
+    chaves: [{ id: 'aaaaaaaaaa', nome: 'Diretor Demonstração', pessoa: 'Diretor Demonstração', papel: 'diretoria', obras: ['999'], outras_obras: 1, ativo: true,
+      criado_em: '2026-10-28T10:00:00Z', criado_por: 'Felipe (chave geral)', sua: false, bloqueio: 'SEM PERMISSAO: A CHAVE TEM OBRA FORA DAS SUAS', avisos: [] },
+      { id: 'eeeeeeeeee', nome: 'Socio 999', pessoa: 'Socio Demonstração', papel: 'diretoria', obras: ['999'], outras_obras: 0, ativo: true, criado_em: '2026-10-28T11:00:00Z',
+        criado_por: 'Diretor Demonstração', sua: true, bloqueio: 'NAO DESATIVE A PROPRIA CHAVE: PECA A OUTRA PESSOA DA DIRETORIA', avisos: [] }] };
+  const api = carregaChave(B); entra(api, 'diretoria'); run(api, 'viewAcessos()'); await espera();
+  let h = String(run(api, 'viewAcessos()'));
+  assert.match(h, /Sua chave de Diretoria vale só nas obras <b class="mono">999<\/b>/);
+  assert.match(h, /data-r="Obras"><span class="mono">999<\/span><div class="mut"[^>]*>\+1 obra fora da sua chave/);
+  assert.match(h, /title="Esta chave tem obra que não está na sua\. Peça à Diretoria\.">Tem obra fora da sua chave\./);
+  assert.equal((h.match(/data-act="ac-desativar"/g) || []).length, 0);
+  assert.doesNotMatch(h, /998/, 'a obra de fora não aparece');
+  /* a Diretoria com todas as obras: obra nova sem Diretoria */
+  run(api, "AC.dados=null;AC.erro=''");
+  B.resp.taf_acesso_listar = { ...LISTA_DIR, ator: { ...LISTA_DIR.ator, geral: true, obras: ['998', '999'] }, sem_diretoria: ['997'] };
+  run(api, 'viewAcessos()'); await espera(); h = String(run(api, 'viewAcessos()'));
+  assert.match(h, /A obra <b class="mono">997<\/b> ainda não tem chave de Diretoria/); assert.doesNotMatch(h, /vale só nas obras/);
+  assert.equal(String(run(api, "acBloqCurto('SEM OUTRA DIRETORIA COM TODAS AS OBRAS: CRIE ANTES OUTRA CHAVE DE DIRETORIA COM TODAS AS OBRAS')")), 'Única Diretoria com todas as obras.');
+  /* gestor: só as obras dele */
+  run(api, "AC.dados=null;AC.erro=''"); entra(api, 'gestao');
+  B.resp.taf_acesso_listar = { ...LISTA_DIR, ator: { tipo: 'pessoal', nome: 'Gestor Teste', papel: 'gestor', verificado: true, id: 'ffffffffff', geral: false, obras: ['999'] }, pode_criar: ['engenheiro', 'encarregado', 'leitura'], chaves: [] };
+  run(api, 'viewAcessos()'); await espera(); h = String(run(api, 'viewAcessos()'));
+  assert.match(h, /Você cuida dos acessos das obras <b class="mono">999<\/b>/);
 });
 
 test('banco sem o 06 aplicado: a tela diz o que falta, sem quebrar', async () => {

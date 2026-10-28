@@ -2,8 +2,10 @@
    Só no modo chave (site TAF). Tudo passa pelas funções taf_acesso_* do banco (fonte/erp/sql/06_acessos.sql):
    o banco gera a chave, grava só o sha256 e devolve o texto UMA vez. Esta tela mostra a chave uma vez e não guarda em lugar nenhum
    (nem no aparelho, nem no estado do ERP). Quem pode o quê é o banco que decide; a tela só esconde o botão que o banco recusaria.
-   Regras do banco: Diretoria cria qualquer papel; gestor cria engenheiro, encarregado e leitura nas obras dele; a chave geral do site
-   só cria a PRIMEIRA chave de Diretoria (partida); ninguém desativa a própria chave nem a última de Diretoria. */
+   Regras do banco: Diretoria cria qualquer papel; gestor cria engenheiro, encarregado e leitura; os dois só nas obras que cuidam
+   (a Diretoria com todas as obras cuida de todas, inclusive obra nova; a Diretoria limitada e o gestor, só das obras da chave);
+   a chave geral do site só cria a PRIMEIRA chave de Diretoria (partida); ninguém desativa a própria chave; sempre sobra uma
+   Diretoria com todas as obras. */
 CAN.acessos=['diretoria','gestao'];
 const AC={dados:null,pend:0,erro:'',criando:0,desativando:0,ult:null};
 const AC_PAPEL={diretoria:'Diretoria',gestor:'Gestor',engenheiro:'Engenheiro',encarregado:'Encarregado',leitura:'Só leitura'};
@@ -30,7 +32,12 @@ const AC_MSG=[
   [/^A CHAVE GERAL NAO DESATIVA ACESSO/,()=>'Com a chave geral do site não se desativa acesso. Entre com a sua chave pessoal.'],
   [/^NA PARTIDA A CHAVE GERAL/,()=>'Com a chave geral do site só dá para criar a primeira chave de Diretoria.'],
   [/^SEM PERMISSAO: (\w+) NAO CRIA CHAVE DE (\w+)/,x=>'Quem é '+(AC_PAPEL[x[1].toLowerCase()]||x[1]).toLowerCase()+' não cria chave de '+(AC_PAPEL[x[2].toLowerCase()]||x[2]).toLowerCase()+'.'],
-  [/^SEM ACESSO A OBRA (\S+?):/,x=>'A obra '+x[1]+' não está na sua chave. Só a Diretoria cria acesso nela.'],
+  [/^SEM ACESSO A OBRA (\S+?):/,x=>'A obra '+x[1]+' não está na sua chave. Peça à Diretoria que tem todas as obras.'],
+  [/^OBRA SEM DIRETORIA \(([^)]*)\):.*TAMBEM AS OBRAS (.+)$/,x=>'A obra '+x[1]+' ainda não tem Diretoria. A primeira chave de Diretoria dela tem de ter também as obras '+x[2]+', para sempre sobrar uma Diretoria com todas.'],
+  [/^SEM OUTRA DIRETORIA COM TODAS AS OBRAS/,()=>'Esta é a única chave de Diretoria com todas as obras. Crie outra com todas as obras antes de desativar esta.'],
+  [/^A PESSOA (.+?) JA TEM CHAVE QUE VOCE NAO CUIDA/,x=>x[1]+' já tem chave que você não cuida (de Diretoria, de gestor ou de outra obra). Peça à Diretoria.'],
+  [/^NOME DA CHAVE: USE AO MENOS 2/,()=>'O nome da chave precisa ter ao menos 2 letras ou números.'],
+  [/^NOME DA PESSOA: USE AO MENOS 2/,()=>'O nome da pessoa precisa ter ao menos 2 letras ou números.'],
   [/^OBRA (.+) NAO EXISTE$/,x=>'A obra '+x[1]+' não existe no sistema.'],
   [/^ESCOLHA AO MENOS UMA OBRA/,()=>'Escolha ao menos uma obra.'],
   [/^OBRAS DEMAIS/,()=>'Obras demais numa chave só.'],
@@ -66,24 +73,25 @@ const acData=s=>s?fdata(String(s).slice(0,10)):'—';
 const acPapelPill=p=>`<span class="pill ${p==='diretoria'?'bad':p==='gestor'?'warn':p==='leitura'?'mute':'info'}">${esc(AC_PAPEL[p]||p)}</span>`;
 const acLinks=(p,curto)=>(AC_ENTRADA[p]||[]).filter(x=>!curto||x[0]!=='/').map(([u,t])=>curto?`<span class="mono">${esc(u)}</span>`:`<li><span class="mono">${esc(acOrigem()+u)}</span> · ${esc(t)}</li>`).join(curto?' ':'');
 /* por que não tem botão de desativar, em poucas palavras (a frase inteira fica no title) */
-const acBloqCurto=b=>/PROPRIA/.test(b)?'É a sua chave.':/ULTIMA/.test(b)?'Última chave de Diretoria.':/OBRA FORA/.test(b)?'Tem obra fora da sua chave.':/SEM PERMISSAO/.test(b)?'Só a Diretoria desativa.':acMsg(b);
+const acBloqCurto=b=>/PROPRIA/.test(b)?'É a sua chave.':/ULTIMA/.test(b)?'Última chave de Diretoria.':/SEM OUTRA DIRETORIA/.test(b)?'Única Diretoria com todas as obras.':/OBRA FORA/.test(b)?'Tem obra fora da sua chave.':/SEM PERMISSAO/.test(b)?'Só a Diretoria desativa.':acMsg(b);
 function acLinha(c){
   const des=!c.ativo,av=(c.avisos||[]);
   const acao=des?'':c.bloqueio?`<span class="sub" style="font-size:12px" title="${esc(acMsg(c.bloqueio))}">${esc(acBloqCurto(c.bloqueio))}</span>`:`<button class="btn sm no" data-act="ac-desativar" data-id="${esc(c.id)}">Desativar</button>`;
   return `<div class="ac-i${des?' ac-des':''}" data-ac="${esc(c.id)}">
     <div class="ac-nome"><b>${esc(c.nome)}</b>${c.sua?' <span class="pill ok">você</span>':''}<div class="mut" style="font-size:12.5px">${c.pessoa?esc(c.pessoa):'sem pessoa (só leitura)'}</div></div>
     <div data-r="Papel">${acPapelPill(c.papel)}</div>
-    <div data-r="Obras" class="mono">${(c.obras||[]).map(esc).join(', ')}</div>
+    <div data-r="Obras"><span class="mono">${(c.obras||[]).map(esc).join(', ')}</span>${+c.outras_obras>0?`<div class="mut" style="font-size:12px" title="A chave tem mais ${+c.outras_obras} ${+c.outras_obras===1?'obra':'obras'} que não estão na sua. Só quem cuida delas vê quais são.">+${+c.outras_obras} ${+c.outras_obras===1?'obra':'obras'} fora da sua chave</div>`:''}</div>
     <div data-r="Situação">${des?`<span class="pill mute">desativada</span><div class="mut" style="font-size:12px">${esc(acData(c.desativado_em))}${c.desativado_por?' · '+esc(c.desativado_por):''}</div>`:'<span class="pill ok">ativa</span>'}</div>
     <div data-r="Criada em">${esc(acData(c.criado_em))}<div class="mut" style="font-size:12px">${c.criado_por?esc(c.criado_por):'pelo banco'}</div></div>
     <div data-r="Entra por">${acLinks(c.papel,true)}</div>
     <div class="ac-act">${acao}</div>
-    ${av.length&&!des?`<div class="ac-av">${av.map(a=>`<div><span class="pill warn">nome</span> ${esc(a)}</div>`).join('')}</div>`:''}
+    ${av.length&&!des?`<div class="ac-av">${av.map(a=>`<div><span class="pill warn">aviso</span> ${esc(a)}</div>`).join('')}</div>`:''}
   </div>`}
 function viewAcessos(){
   acCss();
   const head=`<div class="head"><div><h1>Acessos</h1><p class="lead">A chave pessoal de cada pessoa. Com ela o nome vai certo em tudo o que a pessoa lançar e o papel vem da chave, não da tela. Só a chave pessoal aprova.</p></div>`;
   if(!MODO_CH)return head+`</div><div class="sub">Disponível no site, com a chave do TAF.</div>`;
+  if(!acVisivel())return head+`</div><div class="sub">Só a Diretoria e o gestor cuidam dos acessos, com a chave pessoal.</div>`;
   if(!AC.dados&&!AC.pend&&!AC.erro)acCarregar();
   const D=AC.dados,pode=(D&&D.pode_criar)||[];
   const botoes=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="ac-atualizar">Atualizar</button>${pode.length?`<button class="btn dark" data-act="ac-novo">${D.partida&&D.ator.tipo==='geral'?'Criar a primeira chave de Diretoria':'Criar acesso'}</button>`:''}</div></div>`;
@@ -96,10 +104,17 @@ function viewAcessos(){
       :`<div class="panel-t">Entre com a sua chave pessoal</div><p class="sub" style="margin:4px 0 0">Você entrou com a chave geral do site. A lista de acessos, criar e desativar ficam só com a chave pessoal de Diretoria ou de gestor. Peça a sua para a Diretoria.</p>`;
     return head+botoes+quem+`<div class="card" style="margin-top:12px"><div class="in">${txt}</div></div>`}
   const L=D.chaves||[],at=L.filter(c=>c.ativo),des=L.filter(c=>!c.ativo),ver=S.tab.acdes?L:at,nav=at.filter(c=>(c.avisos||[]).length).length;
-  const frase=`${at.length} ${at.length===1?'chave ativa':'chaves ativas'}${des.length?' e '+des.length+' '+(des.length===1?'desativada':'desativadas'):''}.${nav?` ${nav} com aviso de nome.`:''}`;
-  return head+botoes+quem+`<p class="sub" style="margin:12px 0 0">${frase} ${des.length?`<button class="btn sm" data-act="ac-desativadas">${S.tab.acdes?'Esconder as desativadas':'Mostrar as desativadas'}</button>`:''}</p>
+  const frase=`${at.length} ${at.length===1?'chave ativa':'chaves ativas'}${des.length?' e '+des.length+' '+(des.length===1?'desativada':'desativadas'):''}.${nav?` ${nav} com aviso.`:''}`;
+  return head+botoes+quem+acEscopo(D)+`<p class="sub" style="margin:12px 0 0">${frase} ${des.length?`<button class="btn sm" data-act="ac-desativadas">${S.tab.acdes?'Esconder as desativadas':'Mostrar as desativadas'}</button>`:''}</p>
    <div class="ac-l" role="list">${ver.length?`<div class="ac-i ac-h" aria-hidden="true"><div>Nome e pessoa</div><div>Papel</div><div>Obras</div><div>Situação</div><div>Criada em</div><div>Entra por</div><div></div></div>`+ver.map(acLinha).join(''):'<div class="sub" style="padding:12px">Nenhuma chave pessoal ainda.</div>'}</div>
    <div class="sub" style="margin-top:12px">A chave só aparece uma vez, na hora de criar. Perdeu? Desative e crie outra. Desativada para de funcionar na hora, em todos os aparelhos.</div>`}
+
+/* em que obras o ator cuida de acesso: a Diretoria limitada e o gestor só nas obras da chave; obra nova sem Diretoria aparece para quem tem todas */
+function acEscopo(D){const a=D.ator||{},ob=(a.obras||[]).map(esc).join(', '),sd=D.sem_diretoria||[];let h='';
+  if(a.papel==='diretoria'&&!a.geral)h+=`<div class="sem amarelo" style="margin-top:10px"><span class="pill warn">obras</span><span>Sua chave de Diretoria vale só nas obras <b class="mono">${ob}</b>. Você cria e desativa acesso só nelas e só vê as chaves que têm obra em comum com você.</span></div>`;
+  if(a.papel==='gestor')h+=`<div class="sub" style="margin-top:10px">Você cuida dos acessos das obras <b class="mono">${ob}</b>. Aqui aparecem só as chaves que têm obra em comum com você.</div>`;
+  if(a.geral&&sd.length)h+=`<div class="sem amarelo" style="margin-top:10px"><span class="pill warn">obra nova</span><span>${sd.length===1?'A obra':'As obras'} <b class="mono">${sd.map(esc).join(', ')}</b> ainda ${sd.length===1?'não tem':'não têm'} chave de Diretoria. Você já pode dar acesso de engenheiro e encarregado nela. Para a Diretoria ver no ERP: crie uma chave de Diretoria com todas as obras, inclusive ${sd.length===1?'esta':'estas'}, e desative a antiga com a nova.</span></div>`;
+  return h}
 
 /* estilo da lista: só variáveis do tema do ERP (vale no claro, no escuro e dentro do Centro); no celular cada chave vira um cartão */
 function acCss(){if(typeof document==='undefined'||!document.head||document.getElementById('ac-css'))return;const s=document.createElement('style');s.id='ac-css';
@@ -116,8 +131,9 @@ function acCss(){if(typeof document==='undefined'||!document.head||document.getE
   document.head.appendChild(s)}
 
 /* ---------- criar ---------- */
-function acObrasHtml(O,papel){const um=O.length===1;
-  return O.map(o=>`<label><input type="checkbox" class="ac-ob" value="${esc(o.codigo)}" ${um||['diretoria','gestor'].includes(papel)?'checked':''}><span><b class="mono">${esc(o.codigo)}</b> · ${esc(o.nome||'')}<br><span class="mut" style="font-size:12px">${o.planejador?(o.engenheiro?'engenheiro no planejador: '+esc(o.engenheiro):'no planejador'):'sem cronograma no planejador'}</span></span></label>`).join('')}
+/* nenhuma obra vem marcada (o padrão é o mínimo), a não ser quando só existe uma */
+function acObrasHtml(O){const um=O.length===1;
+  return O.map(o=>`<label><input type="checkbox" class="ac-ob" value="${esc(o.codigo)}" ${um?'checked':''}><span><b class="mono">${esc(o.codigo)}</b> · ${esc(o.nome||'')}<br><span class="mut" style="font-size:12px">${o.planejador?(o.engenheiro?'engenheiro no planejador: '+esc(o.engenheiro):'no planejador'):'sem cronograma no planejador'}</span></span></label>`).join('')}
 ACOES['ac-novo']=()=>{const D=AC.dados;if(!D||!(D.pode_criar||[]).length)return toast('Você não cria acesso.');
   const P=D.pode_criar,ini=P.includes('engenheiro')?'engenheiro':P[0],O=D.obras||[];
   if(!O.length)return toast('Nenhuma obra no sistema para dar acesso.');
@@ -127,7 +143,7 @@ ACOES['ac-novo']=()=>{const D=AC.dados;if(!D||!(D.pode_criar||[]).length)return 
    <label for="ac-pessoa">Pessoa (o nome que vai em tudo o que ela lançar)</label><input id="ac-pessoa" autocomplete="off" maxlength="60" placeholder="nome e sobrenome">
    <div id="ac-aviso"></div>
    <label for="ac-nome">Nome da chave (para achar na lista; vazio = o nome da pessoa)</label><input id="ac-nome" autocomplete="off" maxlength="60" placeholder="ex.: celular da obra">
-   <label>Obras</label><div class="ac-obs" id="ac-obs">${acObrasHtml(O,ini)}</div>
+   <label>Obras (marque só as que a pessoa precisa)</label><div class="ac-obs" id="ac-obs">${acObrasHtml(O)}</div>
    <div id="ac-msg" class="sub" style="margin-top:8px" role="alert"></div>
    <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="ac-criar-ok">Criar e mostrar a chave</button></div>`);
   acCss();acPintaAviso()};
@@ -141,7 +157,7 @@ function acPintaAviso(){const box=document.getElementById('ac-aviso');if(!box)re
 ACOES['ac-usar-nome']=el=>{const i=$('#ac-pessoa');if(i){i.value=el.dataset.n||'';acPintaAviso()}};
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='ac-pessoa')acPintaAviso()});
 document.addEventListener('change',e=>{const t=e.target;if(!t)return;
-  if(t.id==='ac-papel'){if(['diretoria','gestor'].includes(t.value))document.querySelectorAll('.ac-ob').forEach(x=>{x.checked=true});acPintaAviso()}
+  if(t.id==='ac-papel')acPintaAviso()
   else if(t.classList&&t.classList.contains('ac-ob'))acPintaAviso()});
 ACOES['ac-criar-ok']=async el=>{if(AC.criando)return;const msg=t=>{const m=$('#ac-msg');if(m){m.textContent=t;m.style.color='var(--bad)'}};
   const papel=($('#ac-papel')||{}).value,pessoa=(($('#ac-pessoa')||{}).value||'').trim(),nome=(($('#ac-nome')||{}).value||'').trim(),obras=acObrasMarcadas();
