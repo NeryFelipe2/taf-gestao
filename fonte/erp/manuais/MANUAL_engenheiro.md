@@ -8,6 +8,7 @@
 - **Medição** (Obra → Medição e resultado): lance a produção medida; o Gerente atesta; vira boletim ao cliente (BM) no Financeiro.
 - **Medição de subempreiteiro** (Contratos e ativos → Contratos → Nova medição): você lança; Gerente/Diretoria aprova. A aprovação gera a nota do subempreiteiro (com retenção de INSS) e o custo do item.
 - **Projetos** (Contratos e ativos → Projetos): etapas, % concluído e horas apropriadas.
+- **Resumo para o diretor** (Gestão e administração): com a sua chave pessoal, "Ver prévia" mostra o resumo das suas obras que a Diretoria recebe por e-mail (PPC, atrasadas, restrições, apontamento, custo x meta). "Copiar para WhatsApp" copia o texto. Quem cadastra os e-mails é a Diretoria.
 
 ## Regras que bloqueiam
 - Compra acima da meta (amarelo) exige justificativa e vai ao Gerente; acima do teto (vermelho) vai à Diretoria; item sem meta ou fora da planilha é bloqueado.
