@@ -14,9 +14,9 @@ insert into public.taf_ciclo_chave (hash, nome, pessoa, papel, obras, ativo) val
   (encode(extensions.digest('teste04-eng', 'sha256'), 'hex'), 'teste', 'Teste Engenheira', 'engenheiro', array['342'], true),
   (encode(extensions.digest('teste04-ler', 'sha256'), 'hex'), 'teste', null, 'leitura', array['342'], true);
 
--- devolve a mensagem do erro (ou null se não deu erro)
+-- devolve a mensagem do erro, ou '(sem erro)' se a chamada passou (com null, um "not like" nunca acusaria a chamada aceita)
 create or replace function pg_temp.erro(p_sql text) returns text language plpgsql as $$
-begin execute p_sql; return null; exception when others then return sqlerrm; end $$;
+begin execute p_sql; return '(sem erro)'; exception when others then return sqlerrm; end $$;
 create or replace function pg_temp.gz(p text) returns text language sql as $$
   select case p when 'v1' then 'H4sIAAAAAAAAA6tWclGyqlYqSS0uSVWyMqytBQDTs0FsEQAAAA==' else 'H4sIAAAAAAAAA6tWclGyqlYqSS0uSVWyMqqtBQCKDQduEQAAAA==' end $$;
 create or replace function pg_temp.sha(p text) returns text language sql as $$ select encode(extensions.digest(p, 'sha256'), 'hex') $$;
@@ -49,6 +49,7 @@ begin
   if pg_temp.erro($$select public.taf_erp_obra_criar('teste04-gestor', '996', 'ab', 'Contratante')$$) not like 'NOME DA OBRA%' then raise exception 'FALHOU 3a'; end if;
   if pg_temp.erro($$select public.taf_erp_obra_criar('teste04-gestor', '996', 'Obra teste', ' ')$$) not like 'CONTRATANTE%' then raise exception 'FALHOU 3b'; end if;
   if pg_temp.erro($$select public.taf_erp_obra_criar('teste04-gestor', '996', 'Obra <b>teste</b>', 'Contratante')$$) not like 'NOME OU CONTRATANTE%' then raise exception 'FALHOU 3c'; end if;
+  if pg_temp.erro($$select public.taf_erp_obra_criar('teste04-gestor', '996', 'Obra teste', 'Contratante "x" onmouseover=')$$) not like 'NOME OU CONTRATANTE%' then raise exception 'FALHOU 3d: aspas aceitas'; end if;
 
   -- 4. quem não pode: engenheiro, leitura, chave errada
   m := pg_temp.erro($$select public.taf_erp_obra_criar('teste04-eng', '996', 'Obra teste', 'Contratante')$$);
@@ -106,27 +107,29 @@ begin
   if (r->>'itens')::int <> 3 or (r->>'igual')::boolean or r->>'anterior' is not null then raise exception 'FALHOU 8a: %', r; end if;
   if (select count(*) from public.taf_erp_item where obra = '997') <> 3 then raise exception 'FALHOU 8b'; end if;
   if (select venda from public.taf_erp_item where obra = '997' and codigo = '1.2') <> 200 or (select meta from public.taf_erp_item where obra = '997' and codigo = '1.2') is not null then raise exception 'FALHOU 8c'; end if;
-  if (select base_sha from public.taf_erp_obra where codigo = '997') <> pg_temp.sha(pg_temp.gz('v1')) then raise exception 'FALHOU 8d'; end if;
+  -- o banco grava a marca "tela:" (o ERP abre esta base pela lista fechada de campos) e devolve o valor com a marca
+  if (select base_sha from public.taf_erp_obra where codigo = '997') <> 'tela:' || pg_temp.sha(pg_temp.gz('v1')) or r->>'base_sha' <> 'tela:' || pg_temp.sha(pg_temp.gz('v1')) then raise exception 'FALHOU 8d: %', r; end if;
   if not exists (select 1 from public.taf_erp_base_hist where codigo = '997' and acao = 'base' and base_gz is null and itens is null and n_itens = 3) then raise exception 'FALHOU 8e'; end if;
   -- o ERP lê a base pela entrada de sempre
   r := public.taf_erp_ler('teste04-gestor', '997');
-  if r->>'base_gz' <> pg_temp.gz('v1') or r->>'base_sha' <> pg_temp.sha(pg_temp.gz('v1')) then raise exception 'FALHOU 8f: %', r; end if;
+  if r->>'base_gz' <> pg_temp.gz('v1') or r->>'base_sha' <> 'tela:' || pg_temp.sha(pg_temp.gz('v1')) then raise exception 'FALHOU 8f: %', r; end if;
   if not exists (select 1 from jsonb_array_elements(public.taf_erp_entrar('teste04-gestor') -> 'obras') o where o->>'codigo' = '997') then raise exception 'FALHOU 8g'; end if;
 
   -- 9. mesma base de novo: nada muda
   r := pg_temp.grava('teste04-gestor', '997', pg_temp.gz('v1'), pg_temp.itens(3));
   if not (r->>'igual')::boolean or (select count(*) from public.taf_erp_base_hist where codigo = '997' and acao = 'base') <> 1 then raise exception 'FALHOU 9: %', r; end if;
 
-  -- 10. base nova: a anterior vai para o histórico com os itens dela
+  -- 10. base nova (chave pessoal, obra criada pela tela e sem nada lançado): a anterior vai para o histórico com os itens dela
   r := pg_temp.grava('teste04-gestor', '997', pg_temp.gz('v2'), pg_temp.itens(2));
   v_hid := (r->>'hid')::bigint;
-  if r->>'anterior' <> pg_temp.sha(pg_temp.gz('v1')) or (select count(*) from public.taf_erp_item where obra = '997') <> 2 then raise exception 'FALHOU 10a: %', r; end if;
+  if r->>'anterior' <> 'tela:' || pg_temp.sha(pg_temp.gz('v1')) or (select count(*) from public.taf_erp_item where obra = '997') <> 2 then raise exception 'FALHOU 10a: %', r; end if;
   if (select base_gz from public.taf_erp_base_hist where hid = v_hid) <> pg_temp.gz('v1')
      or jsonb_array_length((select itens from public.taf_erp_base_hist where hid = v_hid)) <> 3 then raise exception 'FALHOU 10b'; end if;
 
   -- 11. voltar para a versão anterior (só por SQL)
   r := public._taf_erp_base_voltar('997', v_hid, 'Teste');
-  if (select base_gz from public.taf_erp_obra where codigo = '997') <> pg_temp.gz('v1') or (select count(*) from public.taf_erp_item where obra = '997') <> 3
+  if (select base_gz from public.taf_erp_obra where codigo = '997') <> pg_temp.gz('v1') or (select base_sha from public.taf_erp_obra where codigo = '997') <> 'tela:' || pg_temp.sha(pg_temp.gz('v1'))
+     or (select count(*) from public.taf_erp_item where obra = '997') <> 3
      or (select descricao from public.taf_erp_item where obra = '997' and codigo = '1.3') <> 'Item fictício 3' then raise exception 'FALHOU 11a: %', r; end if;
   if not exists (select 1 from public.taf_erp_base_hist where codigo = '997' and acao = 'voltar' and base_gz = pg_temp.gz('v2')) then raise exception 'FALHOU 11b'; end if;
 
@@ -138,17 +141,81 @@ begin
   -- 13. obra com nota lançada: não regrava (o caminho é Atualizar pela planilha)
   insert into public.taf_erp_doc (obra, id, tipo, dados, criado_por, atualizado_por, papel) values ('997', 't04-nf', 'nf', '{"num":"NF-T04"}', 'teste', 'teste', 'adm');
   m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '997', pg_temp.gz('v2'), pg_temp.itens(2))$$);
-  if m not like 'OBRA 997 JA TEM COMPRA OU NOTA LANCADA (1 DOCUMENTO(S))%' then raise exception 'FALHOU 13a: %', m; end if;
+  if m not like 'OBRA 997 JA TEM DOCUMENTO LANCADO (1 DOCUMENTO(S))%' then raise exception 'FALHOU 13a: %', m; end if;
   m := pg_temp.erro(format('select public._taf_erp_base_voltar(%L, %s)', '997', v_hid));
-  if m not like 'OBRA 997 JA TEM COMPRA OU NOTA%' then raise exception 'FALHOU 13b: %', m; end if;
+  if m not like 'OBRA 997 JA TEM DOCUMENTO LANCADO%' then raise exception 'FALHOU 13b: %', m; end if;
 
-  -- 14. chave geral grava a base da 998 com o nome digitado
+  -- 14. chave geral grava a base da 998 (que ela criou) com o nome digitado, uma vez só
   if v_geral then
-    r := pg_temp.grava('chave-geral-teste', '998', pg_temp.gz('v2'), pg_temp.itens(4), 'diretoria', 'Nome Digitado');
-    if r->>'quem' <> 'Nome Digitado' or r->>'papel' <> 'diretoria' then raise exception 'FALHOU 14: %', r; end if;
     m := pg_temp.erro($$select pg_temp.grava('chave-geral-teste', '998', pg_temp.gz('v1'), pg_temp.itens(4), null, 'Nome Digitado')$$);
-    if m not like 'SEM PERMISSAO%' then raise exception 'FALHOU 14b: %', m; end if;
+    if m not like 'SEM PERMISSAO%' then raise exception 'FALHOU 14a: sem papel mandado pela tela foi aceito: %', m; end if;
+    r := pg_temp.grava('chave-geral-teste', '998', pg_temp.gz('v2'), pg_temp.itens(4), 'diretoria', 'Nome Digitado');
+    if r->>'quem' <> 'Nome Digitado' or r->>'papel' <> 'diretoria' or r->>'base_sha' not like 'tela:%' then raise exception 'FALHOU 14: %', r; end if;
+    -- a mesma base de novo responde igual (a tela que perdeu a resposta tenta de novo)
+    r := pg_temp.grava('chave-geral-teste', '998', pg_temp.gz('v2'), pg_temp.itens(4), 'gestao', 'Outro Nome');
+    if not (r->>'igual')::boolean then raise exception 'FALHOU 14b: %', r; end if;
+    -- [revisão] regravar com a chave geral: recusado (antes trocava a base de qualquer obra sem compra)
+    m := pg_temp.erro($$select pg_temp.grava('chave-geral-teste', '998', pg_temp.gz('v1'), pg_temp.itens(4), 'gestao', 'Intruso')$$);
+    if m not like 'COM A CHAVE DO SITE O ORCAMENTO SO E GRAVADO UMA VEZ%' then raise exception 'FALHOU 14c: %', m; end if;
+    if (select base_sha from public.taf_erp_obra where codigo = '998') <> 'tela:' || pg_temp.sha(pg_temp.gz('v2')) then raise exception 'FALHOU 14d'; end if;
+    -- chave pessoal de diretoria (com a 998 na lista) regrava a obra limpa
+    update public.taf_ciclo_chave set obras = obras || '998'::text where hash = pg_temp.sha('teste04-dir');
+    r := pg_temp.grava('teste04-dir', '998', pg_temp.gz('v1'), pg_temp.itens(3));
+    if (r->>'itens')::int <> 3 or r->>'quem' <> 'Teste Diretor' then raise exception 'FALHOU 14e: %', r; end if;
+    -- [revisão] chave geral não grava a primeira base de obra criada por chave pessoal (a 996 é da diretoria; sem a trava de congelada)
+    update public.taf_erp_obra set estado = '{}' where codigo = '996';
+    m := pg_temp.erro($$select pg_temp.grava('chave-geral-teste', '996', pg_temp.gz('v1'), pg_temp.itens(2), 'gestao', 'Intruso')$$);
+    if m not like 'OBRA 996 FOI CRIADA COM CHAVE PESSOAL%' then raise exception 'FALHOU 14f: %', m; end if;
+    update public.taf_erp_obra set estado = '{"frozen":true}' where codigo = '996';
   end if;
+
+  -- 16. [revisão] obra antiga (como o carga.py grava: base, itens, estado com meta e documentos, sem a linha 'criar'): ninguém regrava por aqui
+  alter table public.taf_erp_obra disable trigger taf_erp_obra_trg;
+  insert into public.taf_erp_obra (codigo, nome, contratante, ordem, base_gz, base_sha, estado)
+  values ('990', 'OBRA 990 ANTIGA (fictícia)', 'CONTRATANTE FICTÍCIO', 90, pg_temp.gz('v1'), repeat('a', 64), '{}');
+  alter table public.taf_erp_obra enable trigger taf_erp_obra_trg;
+  insert into public.taf_erp_item (obra, codigo, descricao, venda) values ('990', '1.1', 'Item antigo', 10);
+  update public.taf_ciclo_chave set obras = obras || '990'::text where hash in (pg_temp.sha('teste04-gestor'), pg_temp.sha('teste04-dir'));
+  m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '990', pg_temp.gz('v2'), pg_temp.itens(2))$$);
+  if m not like 'OBRA 990 NAO FOI CRIADA PELA TELA%' then raise exception 'FALHOU 16a: %', m; end if;
+  if v_geral then
+    m := pg_temp.erro($$select pg_temp.grava('chave-geral-teste', '990', pg_temp.gz('v2'), pg_temp.itens(2), 'gestao', 'Intruso')$$);
+    if m not like 'OBRA 990 NAO FOI CRIADA PELA TELA%' then raise exception 'FALHOU 16b: %', m; end if;
+  end if;
+  if (select base_sha from public.taf_erp_obra where codigo = '990') <> repeat('a', 64)
+     or (select string_agg(codigo, ',') from public.taf_erp_item where obra = '990') <> '1.1' then raise exception 'FALHOU 16c: a obra antiga mudou'; end if;
+
+  -- 17. [revisão] documento de qualquer tipo trava (tarefa ligada ao item, apontamento, contrato, título...), não só compra e nota
+  perform public.taf_erp_obra_criar('teste04-gestor', '994', 'OBRA 994 TESTE', 'CONTRATANTE FICTÍCIO');
+  perform pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v1'), pg_temp.itens(2));
+  foreach m in array array['elo', 'apt', 'ctr', 'tit', 'aud'] loop
+    insert into public.taf_erp_doc (obra, id, tipo, dados, criado_por, atualizado_por, papel) values ('994', 't04-' || m, m, '{"item":"1.1"}', 'teste', 'teste', 'gestao');
+    v_n := (select count(*) from public.taf_erp_doc where obra = '994');
+    if pg_temp.erro($$select pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v2'), pg_temp.itens(2))$$) not like format('OBRA 994 JA TEM DOCUMENTO LANCADO (%s DOCUMENTO(S))%%', v_n) then
+      raise exception 'FALHOU 17: documento % não travou', m; end if;
+    alter table public.taf_erp_doc disable trigger taf_erp_doc_trg;
+    delete from public.taf_erp_doc where obra = '994';
+    alter table public.taf_erp_doc enable trigger taf_erp_doc_trg;
+  end loop;
+
+  -- 18. [revisão] meta ou ajuste no estado trava; estado só com parâmetros não
+  update public.taf_erp_obra set estado = '{"frozen":false,"versao":1,"hist":[],"metaOv":{"1.1":123},"baseOv":{},"basePac":{}}' where codigo = '994';
+  m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v2'), pg_temp.itens(2))$$);
+  if m not like 'OBRA 994 JA TEM META OU AJUSTE NA LINHA DE BASE%' then raise exception 'FALHOU 18a: %', m; end if;
+  update public.taf_erp_obra set estado = '{"metaOv":{},"basePac":{"TUBO":{"meta":5}}}' where codigo = '994';
+  m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v2'), pg_temp.itens(2))$$);
+  if m not like 'OBRA 994 JA TEM META OU AJUSTE NA LINHA DE BASE%' then raise exception 'FALHOU 18b: %', m; end if;
+  update public.taf_erp_obra set estado = '{"frozen":false,"versao":1,"hist":[],"metaOv":{},"baseOv":null,"basePac":{},"par":{"tol":0.02}}' where codigo = '994';
+  r := pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v2'), pg_temp.itens(2));
+  if (r->>'igual')::boolean or (r->>'itens')::int <> 2 then raise exception 'FALHOU 18c: %', r; end if;
+
+  -- 19. [revisão] descrição com < > ou aspas é recusada (a tela troca por ‹ › ″ antes de mandar)
+  m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v1'), '[{"codigo":"1.1","descricao":"Tubo <img src=x onerror=alert(1)>","qtd":1,"venda":1}]')$$);
+  if m not like 'ORCAMENTO RECUSADO (1 PROBLEMA(S)): 1.1: descrição com < > ou aspas%' then raise exception 'FALHOU 19a: %', m; end if;
+  m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v1'), '[{"codigo":"1.1","descricao":"Tubo 4\" PVC","qtd":1,"venda":1}]')$$);
+  if m not like 'ORCAMENTO RECUSADO (1 PROBLEMA(S)): 1.1: descrição com < > ou aspas%' then raise exception 'FALHOU 19b: %', m; end if;
+  r := pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v1'), '[{"codigo":"1.1","descricao":"Tubo 4″ PVC ‹DN 100›","qtd":1,"venda":1}]');
+  if (select descricao from public.taf_erp_item where obra = '994' and codigo = '1.1') <> 'Tubo 4″ PVC ‹DN 100›' then raise exception 'FALHOU 19c: %', r; end if;
 end $t$;
 
 -- 15. como o site chama (papel anon): as duas entradas funcionam; as internas e a tabela não
