@@ -40,6 +40,16 @@ function ehData(s) { return typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(
 function maisDias(iso, n) { return new Date(Date.parse(iso + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10); }
 function texto(v, max) { const t = String(v == null ? '' : v).replace(/\s+/g, ' ').trim(); return t.length > max ? t.slice(0, max - 1) + '…' : t; }
 function normal(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim(); }
+// O trecho citado pela IA está no relato? Compara sem acento, maiúscula e pontuação, palavra inteira com palavra inteira.
+// Trecho só de pontuação ou emoji (vira vazio) ou com menos de 3 letras ou números não prova nada: não confere.
+// Se o trecho foi cortado no limite (termina em …), a última palavra pode estar pela metade: aí só o começo precisa casar.
+const MIN_TRECHO_CONFERE = 3;
+function trechoConfere(relNormal, trecho) {
+  const nt = normal(trecho);
+  if (nt.replace(/ /g, '').length < MIN_TRECHO_CONFERE) return false;
+  const rel = ' ' + relNormal + ' ';
+  return String(trecho).endsWith('\u2026') ? rel.includes(' ' + nt) : rel.includes(' ' + nt + ' ');
+}
 
 // ===================================================================== corpo
 function validarCorpo(b) {
@@ -314,7 +324,7 @@ function conferirRelato(saida, rec, relato) {
     propostas.push({
       cid, dia, situacao: it.situacao, qtd, causa, obs: texto(it.obs, MAX_OBS), trecho,
       confianca: CONFIANCAS.includes(it.confianca) ? it.confianca : 'baixa',
-      trecho_confere: !!trecho && rel.includes(normal(trecho)),
+      trecho_confere: trechoConfere(rel, trecho),
       ja_apontado: ja ? { situacao: ja.situacao, qtd: ja.qtd == null ? null : +ja.qtd, causa: ja.causa || null } : null,
     });
   }
@@ -396,6 +406,7 @@ module.exports = handler;
 module.exports.validarCorpo = validarCorpo;
 module.exports.recorteRelato = recorteRelato;
 module.exports.conferirRelato = conferirRelato;
+module.exports.trechoConfere = trechoConfere;
 module.exports.recortePergunta = recortePergunta;
 module.exports.SCHEMA_RELATO = SCHEMA_RELATO;
 module.exports.SCHEMA_PERGUNTA = SCHEMA_PERGUNTA;

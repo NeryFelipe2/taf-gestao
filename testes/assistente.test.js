@@ -512,6 +512,31 @@ describe('conferirRelato (direto)', () => {
     assert.equal(handler.conferirRelato(p('6 ligações feitas'), rec, relato).propostas[0].trecho_confere, false);
     assert.equal(handler.conferirRelato(p(''), rec, relato).propostas[0].trecho_confere, false);
   });
+
+  it('trecho só de pontuação, emoji ou curto demais não confere (antes dava falso positivo)', () => {
+    const rec = { porCid: { C1: { cid: 'C1', un: 'm', apont: [] } }, dias: ['2026-10-26'] };
+    const p = (trecho) => ({ apontamentos: [{ cid: 'C1', dia: '2026-10-26', situacao: 'andou', quantidade: 1, causa: null, obs: '', trecho, confianca: 'alta' }], nao_casou: [] });
+    const relato = 'hoje choveu, nada feito';
+    for (const t of ['...', '\u2014', '?!', '\u{1F44D}', ' - ', 'a', 'de', '1']) {
+      assert.equal(handler.conferirRelato(p(t), rec, relato).propostas[0].trecho_confere, false, JSON.stringify(t) + ' não pode conferir');
+    }
+    assert.equal(handler.conferirRelato(p('abrimos'), rec, relato).propostas[0].trecho_confere, false);
+    assert.equal(handler.conferirRelato(p('ver'), rec, relato).propostas[0].trecho_confere, false, 'pedaço de palavra (choVEU) não conta');
+    assert.equal(handler.conferirRelato(p('choveu'), rec, relato).propostas[0].trecho_confere, true);
+    assert.equal(handler.conferirRelato(p('NADA, feito!'), rec, relato).propostas[0].trecho_confere, true);
+  });
+
+  it('trecho cortado no limite (termina em …) confere pelo começo; o resto continua exigindo palavra inteira', () => {
+    const longo = 'abrimos 35 m de vala na Rua A '.repeat(15).trim();   // mais de 300 letras: a IA cita tudo e o trecho é cortado
+    const rec = { porCid: { C1: { cid: 'C1', un: 'm', apont: [] } }, dias: ['2026-10-26'] };
+    const it1 = { cid: 'C1', dia: '2026-10-26', situacao: 'andou', quantidade: 35, causa: null, obs: '', trecho: longo, confianca: 'alta' };
+    const pr = handler.conferirRelato({ apontamentos: [it1], nao_casou: [] }, rec, longo).propostas[0];
+    assert.ok(pr.trecho.endsWith('\u2026') && pr.trecho.length === 300);
+    assert.equal(pr.trecho_confere, true);
+    assert.equal(handler.trechoConfere('abrimos 35 m de vala', 'abrimos 35 m de va\u2026'), true);
+    assert.equal(handler.trechoConfere('abrimos 35 m de vala', 'abrimos 35 m de va'), false);
+    assert.equal(handler.trechoConfere('abrimos 35 m de vala', 'brimos 35\u2026'), false, 'o começo também é palavra inteira');
+  });
 });
 
 describe('formato pedido à IA (json_schema)', () => {
