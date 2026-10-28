@@ -292,6 +292,9 @@ function mensagemRelato(rec, relato) {
   const r = relato.replace(/<\/?relato>/gi, '');   // o texto colado não fecha a marca
   return 'DADOS DA OBRA (JSON):\n' + JSON.stringify(rec.dados) + '\n\nRELATO COLADO PELO ENGENHEIRO:\n<relato>\n' + r + '\n</relato>';
 }
+// [integração] A API não garante maiúscula e minúscula nos valores de lista (structured outputs, "Enum value casing": comparar
+// sem diferença de caixa). Troca pelo valor certo da lista, sem diferença de caixa nem de acento; fora da lista: null.
+const daLista = (lista, v) => { if (typeof v !== 'string') return null; if (lista.includes(v)) return v; const k = normal(v); return k ? lista.find((x) => normal(x) === k) || null : null; };
 // Confere cada proposta contra os compromissos da semana. Fica só o que o banco aceitaria (constraints de taf_ciclo_apont).
 function conferirRelato(saida, rec, relato) {
   const propostas = [], descartadas = [], vistos = {};
@@ -305,11 +308,12 @@ function conferirRelato(saida, rec, relato) {
     const c = rec.porCid[cid];
     if (!c) { fora('compromisso não existe ou não está aberto nesta semana'); continue; }
     if (!ehData(dia) || !rec.dias.includes(dia)) { fora('dia fora da semana ou no futuro'); continue; }
-    if (!SITUACOES.includes(it.situacao)) { fora('situação inválida'); continue; }
+    const sit = daLista(SITUACOES, it.situacao);
+    if (!sit) { fora('situação inválida'); continue; }
     let causa = null;
-    if (it.situacao === 'parado') {
-      if (!CAUSAS.includes(it.causa)) { fora('parado sem causa válida'); continue; }
-      causa = it.causa;
+    if (sit === 'parado') {
+      causa = daLista(CAUSAS, it.causa);
+      if (!causa) { fora('parado sem causa válida'); continue; }
     }
     let qtd = null;
     if (it.quantidade !== null && it.quantidade !== undefined) {
@@ -317,14 +321,14 @@ function conferirRelato(saida, rec, relato) {
       if (!Number.isFinite(q) || q < 0 || q >= 1e11) { fora('quantidade inválida'); continue; }
       qtd = c.un ? Math.round(q * 1000) / 1000 : null;
     }
-    if (it.situacao === 'parado') qtd = null;
+    if (sit === 'parado') qtd = null;
     const chave = cid + '|' + dia;
     if (vistos[chave]) { fora('repetido (mesmo compromisso e dia)'); continue; }
     vistos[chave] = 1;
     const ja = (Array.isArray(c.apont) ? c.apont : []).find((a) => a && a.dia === dia);
     propostas.push({
-      cid, dia, situacao: it.situacao, qtd, causa, obs: texto(it.obs, MAX_OBS), trecho,
-      confianca: CONFIANCAS.includes(it.confianca) ? it.confianca : 'baixa',
+      cid, dia, situacao: sit, qtd, causa, obs: texto(it.obs, MAX_OBS), trecho,
+      confianca: daLista(CONFIANCAS, it.confianca) || 'baixa',
       trecho_confere: trechoConfere(rel, trecho),
       ja_apontado: ja ? { situacao: ja.situacao, qtd: ja.qtd == null ? null : +ja.qtd, causa: ja.causa || null } : null,
     });

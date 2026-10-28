@@ -37,31 +37,36 @@ function resumo998() {
 }
 
 // Supabase e Resend simulados no mesmo fetch
-// Resend: /emails (um) e /emails/batch (lote, valida tudo antes: um endereço ruim recusa o lote inteiro com 422)
-// modoResend: ok | erro (tudo 422) | fora (rede) | lote-recusado (lote 422, um por um passa) | lote-5xx (lote 503)
+// Resend: /emails, um e-mail por pedido. Imita a chave de idempotência da Resend (24 h): mesma chave com o mesmo corpo devolve
+// a resposta guardada sem mandar de novo; mesma chave com outro corpo: 409 invalid_idempotent_request.
+// modoResend: ok | erro (tudo 422) | fora (rede, nada sai) | 5xx (503, nada sai) | aceita-e-some (sai, mas a resposta não volta)
+// m.emails: o que a Resend de fato mandou (cada entrega real); registrarFalha: quantas vezes o registro no banco responde 503
 function criarMundo(chaves) {
-  const m = { chamadas: [], emails: [], lotes: 0, registros: [], modoBanco: 'normal', modoResend: 'ok', resendAtrasoMs: 0, envios: null,
-    resendFalhaPara: null, previaErro: null, obraFalha: null, obraRede: false, previaEnvios: null };
+  const m = { chamadas: [], emails: [], registros: [], modoBanco: 'normal', modoResend: 'ok', resendAtrasoMs: 0, envios: null, idem: new Map(),
+    registrarFalha: 0, resendFalhaPara: null, previaErro: null, obraFalha: null, obraRede: false, previaEnvios: null, resumoExtra: null };
   const resp = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
   const erro = (msg) => resp({ code: 'P0001', message: msg }, 400);
   const recusa = (to) => resp({ statusCode: 422, name: 'validation_error', message: 'Invalid `to` field: ' + to }, 422);
   m.fetch = async function (url, opts) {
     url = String(url);
     m.chamadas.push({ url, opts });
-    if (url === 'https://api.resend.com/emails' || url === 'https://api.resend.com/emails/batch') {
+    if (url === 'https://api.resend.com/emails/batch') return resp({ message: 'o resumo não usa mais o lote' }, 404);
+    if (url === 'https://api.resend.com/emails') {
       if (m.resendAtrasoMs) await new Promise((r) => setTimeout(r, m.resendAtrasoMs));
       if (m.modoResend === 'fora') throw Object.assign(new Error('rede caiu'), { name: 'TypeError' });
-      const b = JSON.parse(opts.body);
-      if (url.endsWith('/batch')) {
-        m.lotes++;
-        if (m.modoResend === 'lote-5xx') return resp({ statusCode: 503, name: 'internal_server_error', message: 'x' }, 503);
-        const ruim = b.find((e) => m.resendFalhaPara && e.to.includes(m.resendFalhaPara));
-        if (m.modoResend === 'erro' || m.modoResend === 'lote-recusado' || ruim) return recusa((ruim || b[0]).to[0]);
-        return resp({ data: b.map((e) => { m.emails.push({ headers: opts.headers, corpo: e, lote: true }); return { id: 'id-falso-' + m.emails.length }; }) });
+      const b = JSON.parse(opts.body), k = opts.headers['Idempotency-Key'];
+      if (k && m.idem.has(k)) {
+        const g = m.idem.get(k);
+        if (g.corpo !== opts.body) return resp({ statusCode: 409, name: 'invalid_idempotent_request', message: 'x' }, 409);
+        return resp(g.r);
       }
-      m.emails.push({ headers: opts.headers, corpo: b });
+      if (m.modoResend === '5xx') return resp({ statusCode: 503, name: 'internal_server_error', message: 'x' }, 503);
       if (m.modoResend === 'erro' || (m.resendFalhaPara && b.to.includes(m.resendFalhaPara))) return recusa(b.to[0]);
-      return resp({ id: 'id-falso-' + m.emails.length });
+      m.emails.push({ headers: opts.headers, corpo: b });
+      const r = { id: 'id-falso-' + m.emails.length };
+      if (k) m.idem.set(k, { corpo: opts.body, r });
+      if (m.modoResend === 'aceita-e-some') throw Object.assign(new Error('demorou'), { name: 'TimeoutError' });
+      return resp(r);
     }
     if (m.modoBanco === 'fora') throw Object.assign(new Error('rede caiu'), { name: 'TypeError' });
     const rota = url.replace(BASE + '/rest/v1/rpc/', '');
@@ -82,7 +87,9 @@ function criarMundo(chaves) {
       if (!robo && !pessoal) return erro(a.p_chave === chaves.geral ? 'USE SUA CHAVE PESSOAL' : 'CHAVE INVALIDA');
       if (m.obraRede) throw Object.assign(new Error('rede caiu'), { name: 'TypeError' });
       if (m.obraFalha === a.p_obra) return resp({ message: 'canceling statement due to statement timeout' }, 500);
-      return resp(a.p_obra === '999' ? resumo999() : a.p_obra === '998' ? resumo998() : null, a.p_obra === '999' || a.p_obra === '998' ? 200 : 400);
+      const o = a.p_obra === '999' ? resumo999() : a.p_obra === '998' ? resumo998() : null;
+      if (o && m.resumoExtra) o.ciclo.frase = (o.ciclo.frase || '') + ' ' + m.resumoExtra;   // o dado da obra mudou entre uma execução e outra
+      return resp(o, o ? 200 : 400);
     }
     if (rota === 'taf_resumo_previa') {
       if (m.previaErro) return erro(m.previaErro);
@@ -94,6 +101,7 @@ function criarMundo(chaves) {
     }
     if (rota === 'taf_resumo_registrar') {
       if (!robo && !pessoal) return erro('CHAVE INVALIDA');
+      if (m.registrarFalha > 0) { m.registrarFalha--; return resp({ message: 'fora do ar' }, 503); }
       m.registros.push({ chave: a.p_chave, envios: a.p_envios });
       return resp({ gravados: a.p_envios.length, ignorados: 0 });
     }
@@ -211,24 +219,22 @@ describe('/api/resumo (Supabase e Resend simulados)', () => {
       assert.deepEqual(mo[0], { p_chave: chaves.robo, p_quando: 'diario', p_limite: handler.CONFIG.maxEnvios });
       assert.deepEqual(mundo.rpc('taf_resumo_obra').map((x) => [x.p_chave === chaves.robo, x.p_obra]), [[true, '998'], [true, '999']]);
       assert.equal(mundo.emails.length, 2);
-      assert.deepEqual(mundo.resend().map((c) => c.url), ['https://api.resend.com/emails/batch'], 'os dois saem num pedido só (lote)');
+      assert.deepEqual(mundo.resend().map((c) => c.url), ['https://api.resend.com/emails', 'https://api.resend.com/emails'], 'um pedido por e-mail');
       const reg = mundo.registros;
       assert.equal(reg.length, 1);
       assert.equal(reg[0].chave, chaves.robo);
       assert.deepEqual(reg[0].envios, [{ envio: 11, ok: true, id: 'id-falso-1', erro: null }, { envio: 12, ok: true, id: 'id-falso-2', erro: null }]);
     });
 
-    it('o e-mail sai do jeito certo para a Resend (lote; remetente, destinatário, assunto, html, texto, chave só no cabeçalho)', async () => {
+    it('o e-mail sai do jeito certo para a Resend (um por pedido; remetente, destinatário, assunto, html, texto, chave só no cabeçalho)', async () => {
       await chamar(handler, cron());
       const c = mundo.resend()[0];
-      assert.equal(c.url, 'https://api.resend.com/emails/batch');
+      assert.equal(c.url, 'https://api.resend.com/emails');
       assert.equal(c.opts.method, 'POST');
       assert.equal(c.opts.redirect, 'error');
       assert.equal(c.opts.headers.Authorization, 'Bearer ' + chaves.resend);
-      assert.match(c.opts.headers['Idempotency-Key'], /^taf-resumo-lote-[0-9a-f]{40}$/);
-      const lote = JSON.parse(c.opts.body);
-      assert.ok(Array.isArray(lote) && lote.length === 2, 'o lote é uma lista de e-mails');
-      const b = lote[0];
+      assert.equal(c.opts.headers['Idempotency-Key'], 'taf-resumo-11');
+      const b = JSON.parse(c.opts.body);
       assert.deepEqual(Object.keys(b).sort(), ['from', 'html', 'subject', 'text', 'to']);
       assert.equal(b.from, 'Resumo TAF <resumo@example.com>');
       assert.deepEqual(b.to, [EMAIL_DIR]);
@@ -254,7 +260,7 @@ describe('/api/resumo (Supabase e Resend simulados)', () => {
       assert.ok(b.html.includes('Projeto &lt;script&gt;alert(1)&lt;/script&gt; aprovado'));
       assert.ok(b.html.includes('href="https://taf-teste.vercel.app/ciclo?obra=999&amp;aba=sit"'));
       // o segundo destinatário recebe só a obra dele
-      const b2 = lote[1];
+      const b2 = JSON.parse(mundo.resend()[1].opts.body);
       assert.deepEqual(b2.to, [EMAIL_OUTRO]);
       assert.ok(b2.text.includes('OBRA 999') && !b2.text.includes('OBRA 998'));
     });
@@ -287,76 +293,111 @@ describe('/api/resumo (Supabase e Resend simulados)', () => {
       assert.equal(r.json().enviados, 3);
     });
 
-    it('12 destinatários com a Resend lenta (400 ms) e a pausa de verdade: saem todos, num pedido só', async () => {
+    it('12 destinatários com a Resend lenta (50 ms) e a pausa de verdade: saem todos, um pedido por e-mail, dentro do tempo', async () => {
       handler.CONFIG.pausaMs = cfgOriginal.pausaMs;
-      mundo.resendAtrasoMs = 400;
+      mundo.resendAtrasoMs = 50;
       mundo.envios = Array.from({ length: 12 }, (_, i) => ({ envio: 100 + i, tentativa: 1, destinatario: i + 1, nome: 'P' + i, email: 'p' + i + '@example.com', obras: ['999'] }));
       const t0 = Date.now();
       const r = await chamar(handler, cron());
       assert.equal(r.statusCode, 200);
       assert.deepEqual([r.json().destinatarios, r.json().enviados, r.json().falhas], [12, 12, 0]);
-      assert.equal(mundo.lotes, 1);
-      assert.ok(Date.now() - t0 < 3000, 'demorou ' + (Date.now() - t0) + ' ms');
+      assert.equal(mundo.resend().length, 12);
+      assert.ok(Date.now() - t0 < 8000, 'demorou ' + (Date.now() - t0) + ' ms');
       assert.ok(mundo.registros[0].envios.every((x) => x.ok && /^id-falso-/.test(x.id)));
     });
 
-    it('100 destinatários (o máximo do cadastro): dois lotes de 50 e ninguém fica para depois', async () => {
+    it('100 destinatários (o máximo do cadastro): um pedido por e-mail, ninguém fica para depois, e a função tem 60 s', async () => {
       assert.equal(handler.CONFIG.maxEnvios, 100);
       mundo.envios = Array.from({ length: 100 }, (_, i) => ({ envio: 1000 + i, tentativa: 1, destinatario: i + 1, nome: 'P' + i, email: 'p' + i + '@example.com', obras: ['999'] }));
       const r = await chamar(handler, cron());
       assert.equal(mundo.rpc('taf_resumo_montar')[0].p_limite, 100);
-      assert.equal(mundo.lotes, 2);
-      assert.deepEqual(mundo.resend().map((c) => JSON.parse(c.opts.body).length), [50, 50]);
+      assert.equal(mundo.resend().length, 100);
       assert.equal(r.json().enviados, 100);
+      /* com a pausa de verdade, 100 e-mails cabem no orçamento, e o orçamento cabe na função */
+      assert.ok(cfgOriginal.pausaMs * 100 < cfgOriginal.orcamentoMs);
+      const v = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'public', 'vercel.json'), 'utf8'));
+      assert.ok(cfgOriginal.orcamentoMs + 2 * cfgOriginal.tempoBancoMs <= v.functions['api/resumo.js'].maxDuration * 1000);
     });
 
-    it('a chave do lote muda com a tentativa (se a execução repetir, a Resend não manda o mesmo lote de novo)', async () => {
+    it('média (integração): a chave de idempotência é a do envio, igual em toda tentativa', async () => {
       await chamar(handler, cron());
-      await chamar(handler, cron());
-      mundo.envios = [{ envio: 11, tentativa: 2, destinatario: 1, nome: 'D', email: EMAIL_DIR, obras: ['999'] }, { envio: 12, tentativa: 3, destinatario: 2, nome: 'O', email: EMAIL_OUTRO, obras: ['999'] }];
-      await chamar(handler, cron());
+      mundo.envios = [{ envio: 11, tentativa: 2, destinatario: 1, nome: 'D', email: EMAIL_DIR, obras: ['998', '999'] }, { envio: 12, tentativa: 3, destinatario: 2, nome: 'O', email: EMAIL_OUTRO, obras: ['999'] }];
+      await chamar(handler, cron({ url: '/api/resumo?quando=diario&repescagem=1' }));
       const k = mundo.resend().map((c) => c.opts.headers['Idempotency-Key']);
-      assert.equal(k[0], k[1], 'mesmos envios e tentativas: mesma chave');
-      assert.notEqual(k[1], k[2], 'tentativa nova: chave nova');
+      assert.deepEqual(k, ['taf-resumo-11', 'taf-resumo-12', 'taf-resumo-11', 'taf-resumo-12']);
+      assert.equal(mundo.emails.length, 2, 'a repescagem não manda de novo o que já saiu');
     });
 
-    it('lote recusado e sem tempo: manda um por um, o primeiro sai, os outros voltam como erro (saem na repescagem)', async () => {
-      mundo.modoResend = 'lote-recusado';
+    it('média (integração): o registro no banco falha depois de mandar e a repescagem não manda de novo', async () => {
+      mundo.registrarFalha = 2;
+      let r = await chamar(handler, cron());
+      assert.equal(r.json().enviados, 2); assert.equal(r.json().registrado, false);
+      /* duas horas depois o banco devolve os dois de novo (reservado parado), com a tentativa somada */
+      mundo.envios = [{ envio: 11, tentativa: 2, destinatario: 1, nome: 'D', email: EMAIL_DIR, obras: ['998', '999'] }, { envio: 12, tentativa: 2, destinatario: 2, nome: 'O', email: EMAIL_OUTRO, obras: ['999'] }];
+      r = await chamar(handler, cron({ url: '/api/resumo?quando=diario&repescagem=1' }));
+      assert.equal(r.json().enviados, 2); assert.equal(r.json().registrado, true);
+      const por = {}; mundo.emails.forEach((e) => { por[e.corpo.to[0]] = (por[e.corpo.to[0]] || 0) + 1; });
+      assert.deepEqual(por, { [EMAIL_DIR]: 1, [EMAIL_OUTRO]: 1 }, 'cada diretor recebeu uma vez só');
+      assert.deepEqual(mundo.registros[mundo.registros.length - 1].envios.map((x) => [x.envio, x.ok]), [[11, true], [12, true]]);
+    });
+
+    it('média (integração): a Resend aceita e a resposta não volta; na repescagem, com o dado da obra mudado, conta como enviado sem mandar de novo', async () => {
+      mundo.modoResend = 'aceita-e-some';
+      let r = await chamar(handler, cron());
+      assert.equal(r.json().falhas, 2);
+      assert.ok(mundo.registros[0].envios.every((x) => !x.ok && /^Resend inacessível \(TimeoutError\)/.test(x.erro)));
+      mundo.modoResend = 'ok'; mundo.resumoExtra = 'dado novo das 9h';
+      mundo.envios = [{ envio: 11, tentativa: 2, destinatario: 1, nome: 'D', email: EMAIL_DIR, obras: ['998', '999'] }, { envio: 12, tentativa: 2, destinatario: 2, nome: 'O', email: EMAIL_OUTRO, obras: ['999'] }];
+      r = await chamar(handler, cron({ url: '/api/resumo?quando=diario&repescagem=1' }));
+      assert.equal(r.json().enviados, 2);
+      assert.equal(mundo.emails.length, 2, 'nada saiu duas vezes');
+      assert.deepEqual(mundo.registros[1].envios, [{ envio: 11, ok: true, id: null, erro: null }, { envio: 12, ok: true, id: null, erro: null }]);
+    });
+
+    it('sem tempo: o primeiro sai, os outros voltam como erro sem ter sido tentados (saem na repescagem)', async () => {
       handler.CONFIG.pausaMs = 15; handler.CONFIG.orcamentoMs = 5;
       const r = await chamar(handler, cron());
       assert.equal(r.statusCode, 200);
-      assert.equal(mundo.emails.length, 1);
+      assert.equal(mundo.emails.length, 1); assert.equal(mundo.resend().length, 1);
       assert.deepEqual(mundo.registros[0].envios[1], { envio: 12, ok: false, id: null, erro: 'sem tempo nesta execução' });
     });
 
-    it('a Resend recusa um destinatário: o lote cai, um por um o outro sai, o erro é registrado sem o e-mail e sem a mensagem da Resend', async () => {
+    it('a Resend recusa um destinatário: o outro sai, o erro é registrado sem o e-mail e sem a mensagem da Resend', async () => {
       mundo.resendFalhaPara = EMAIL_OUTRO;
       const r = await chamar(handler, cron());
       assert.equal(r.statusCode, 200);
       assert.equal(r.json().enviados, 1);
       assert.equal(r.json().falhas, 1);
-      assert.deepEqual(mundo.resend().map((c) => c.url.replace('https://api.resend.com', '')), ['/emails/batch', '/emails', '/emails']);
-      assert.equal(mundo.resend()[1].opts.headers['Idempotency-Key'], 'taf-resumo-11-1');
-      assert.equal(mundo.resend()[2].opts.headers['Idempotency-Key'], 'taf-resumo-12-2', 'a tentativa entra na chave de idempotência');
+      assert.deepEqual(mundo.resend().map((c) => c.url.replace('https://api.resend.com', '')), ['/emails', '/emails']);
+      assert.deepEqual(mundo.resend().map((c) => c.opts.headers['Idempotency-Key']), ['taf-resumo-11', 'taf-resumo-12'], 'a tentativa não entra na chave');
       const e = mundo.registros[0].envios.find((x) => x.envio === 12);
       assert.deepEqual(e, { envio: 12, ok: false, id: null, erro: 'Resend respondeu 422 (validation_error)' });
     });
 
-    it('Resend fora do ar: registra erro, não insiste um por um e responde 200 com as falhas', async () => {
+    it('Resend fora do ar: registra erro e responde 200 com as falhas', async () => {
       mundo.modoResend = 'fora';
       const r = await chamar(handler, cron());
       assert.equal(r.statusCode, 200);
       assert.equal(r.json().falhas, 2);
-      assert.equal(mundo.resend().length, 1, 'pode ter saído: não repete agora');
+      assert.equal(mundo.emails.length, 0);
       assert.ok(mundo.registros[0].envios.every((x) => !x.ok && /^Resend inacessível/.test(x.erro)));
     });
 
-    it('Resend com erro dela (5xx) no lote: não insiste um por um; fica erro para a repescagem', async () => {
-      mundo.modoResend = 'lote-5xx';
+    it('Resend com erro dela (5xx): fica erro para a repescagem (que vai com a mesma chave)', async () => {
+      mundo.modoResend = '5xx';
       const r = await chamar(handler, cron());
       assert.equal(r.json().falhas, 2);
-      assert.equal(mundo.resend().length, 1);
       assert.ok(mundo.registros[0].envios.every((x) => x.erro === 'Resend respondeu 503 (internal_server_error)'));
+    });
+
+    it('baixa (integração): CRON_SECRET com espaço no meio (frase-senha) é aceito; Bearer com outro valor não', async () => {
+      process.env.CRON_SECRET = 'cavalo bateria grampo correto';
+      let r = await chamar(handler, cron({ headers: { authorization: 'Bearer cavalo bateria grampo correto' } }));
+      assert.equal(r.statusCode, 200, r.corpo);
+      r = await chamar(handler, cron({ headers: { authorization: 'Bearer cavalo bateria grampo' } }));
+      assert.equal(r.statusCode, 401);
+      r = await chamar(handler, cron({ headers: { authorization: 'cavalo bateria grampo correto' } }));
+      assert.equal(r.statusCode, 401);
     });
 
     it('repescagem: ?repescagem=1 pede ao banco o mesmo dia (o banco só devolve o que não saiu); outro valor: 400', async () => {
@@ -499,7 +540,7 @@ describe('/api/resumo (Supabase e Resend simulados)', () => {
       assert.equal(mundo.emails.length, 1);
       assert.deepEqual(mundo.emails[0].corpo.to, [EMAIL_DIR]);
       assert.match(mundo.emails[0].corpo.subject, /^\[teste\] Resumo TAF 28\/10:/);
-      assert.equal(mundo.emails[0].headers['Idempotency-Key'], 'taf-resumo-101-1');
+      assert.equal(mundo.emails[0].headers['Idempotency-Key'], 'taf-resumo-101');
       assert.equal(mundo.registros[0].chave, chaves.pessoal);
       assert.deepEqual(mundo.registros[0].envios, [{ envio: 101, ok: true, id: 'id-falso-1', erro: null }]);
     });
@@ -687,8 +728,9 @@ describe('vercel.json: só os crons do resumo foram acrescentados', () => {
   });
   it('o resto continua igual (cabeçalhos e rotas)', () => {
     assert.deepEqual(Object.keys(v).filter((k) => k !== 'functions'), ['headers', 'rewrites', 'crons']);
-    // a única função com tempo próprio é a do assistente (item da IA); o resumo usa o tempo padrão
-    assert.deepEqual(Object.keys(v.functions || {}), ['api/assistente.js']);
+    // funções com tempo próprio: o assistente (item da IA) e o resumo (um e-mail por pedido, até 60 s)
+    assert.deepEqual(Object.keys(v.functions || {}), ['api/assistente.js', 'api/resumo.js']);
+    assert.equal(v.functions['api/resumo.js'].maxDuration, 60);
     assert.deepEqual(v.rewrites.map((r) => r.source), ['/marko', '/ciclo', '/erp']);
     assert.deepEqual(v.headers[0].headers.map((h) => h.key), ['X-Robots-Tag', 'Cache-Control']);
   });

@@ -528,6 +528,19 @@ describe('POST /api/assistente (Supabase e IA simulados)', () => {
 });
 
 describe('conferirRelato (direto)', () => {
+  it('baixa (integração): opção da lista com maiúscula, minúscula ou acento trocados vale pelo valor certo; fora da lista continua descartada', () => {
+    const rec = { porCid: { C1: { cid: 'C1', un: 'm', apont: [] }, C2: { cid: 'C2', un: null, apont: [] } }, dias: ['2026-10-26'] };
+    const it1 = { cid: 'C1', dia: '2026-10-26', situacao: 'Andou', quantidade: 3, causa: null, obs: '', trecho: 'andou', confianca: 'Alta' };
+    const it2 = { cid: 'C2', dia: '2026-10-26', situacao: 'PARADO', quantidade: null, causa: 'MÃO De OBRA', obs: '', trecho: 'parado', confianca: 'MÉDIA' };
+    const r = handler.conferirRelato({ apontamentos: [it1, it2], nao_casou: [] }, rec, 'andou e parado');
+    assert.deepEqual(r.descartadas, []);
+    assert.deepEqual(r.propostas.map((p) => [p.cid, p.situacao, p.causa, p.confianca]), [['C1', 'andou', null, 'alta'], ['C2', 'parado', 'MÃO DE OBRA', 'media']]);
+    const r2 = handler.conferirRelato({ apontamentos: [{ ...it1, situacao: 'andando' }, { ...it2, causa: 'FALTA DE TUDO' }], nao_casou: [] }, rec, 'x');
+    assert.deepEqual(r2.descartadas.map((d) => d.motivo), ['situação inválida', 'parado sem causa válida']);
+    const r3 = handler.conferirRelato({ apontamentos: [{ ...it1, confianca: 'altíssima' }], nao_casou: [] }, rec, 'andou');
+    assert.equal(r3.propostas[0].confianca, 'baixa', 'confiança fora da lista vira baixa');
+  });
+
   it('o trecho confere sem ligar para acento, maiúscula, pontuação e espaço; trecho inventado não confere', () => {
     const rec = { porCid: { C1: { cid: 'C1', un: 'm', apont: [] } }, dias: ['2026-10-26'] };
     const p = (trecho) => ({ apontamentos: [{ cid: 'C1', dia: '2026-10-26', situacao: 'andou', quantidade: 1, causa: null, obs: '', trecho, confianca: 'alta' }], nao_casou: [] });

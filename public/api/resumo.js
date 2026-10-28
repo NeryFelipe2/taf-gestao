@@ -1,12 +1,13 @@
 'use strict';
 // Resumo para o diretor: e-mail no horário com o BI de cada obra (planejador + ERP).
 //   GET  /api/resumo?quando=diario|semanal[&repescagem=1]   Authorization: Bearer <CRON_SECRET> (o agendador da Vercel manda sozinho)
-//        manda o e-mail de cada destinatário ativo da frequência, todos de uma vez (envio em lote da Resend); nada sai duas
-//        vezes no mesmo dia. A repescagem, duas horas depois, manda só o que não saiu (erro ou cadastro novo).
+//        manda o e-mail de cada destinatário ativo da frequência, um pedido à Resend por e-mail, com a chave de idempotência
+//        do envio (a mesma em toda tentativa): nada sai duas vezes no mesmo dia, nem quando uma execução repete.
+//        A repescagem, duas horas depois, manda só o que não saiu (erro ou cadastro novo).
 //   POST /api/resumo   x-chave: <chave pessoal>   corpo { "acao": "previa" | "mandar", "destinatario"?: 7 }
 //        previa: devolve o texto, não manda nada; mandar: manda agora para o e-mail de quem pediu.
 // Sem dado, chave, e-mail nem endereço do banco aqui (o repositório é público). Variáveis da Vercel:
-//   TAF_SUPABASE_URL, TAF_SUPABASE_KEY (as do /api/leitura), CRON_SECRET (16+ caracteres), RESEND_API_KEY,
+//   TAF_SUPABASE_URL, TAF_SUPABASE_KEY (as do /api/leitura), CRON_SECRET (16+ caracteres; espaço no meio vale), RESEND_API_KEY,
 //   RESUMO_REMETENTE (ex.: Resumo TAF <resumo@seu-dominio>), TAF_CHAVE_RESUMO (chave do robô, gerada na tela do ERP),
 //   VERCEL_PROJECT_PRODUCTION_URL (a Vercel preenche) para o link do site.
 // Quem decide o que cada chave pode é o banco (fonte/erp/sql/08_resumo.sql). Nunca vai para log nem para resposta:
@@ -16,14 +17,13 @@
 const crypto = require('crypto');
 const { montarEmail, blocoObra, mascarar, n } = require('./_resumo_email.js');
 
-// maxEnvios: por execução (o banco aceita até 100, o máximo de destinatários ativos: cabem todos numa execução);
-// porLote: e-mails por pedido à Resend (o envio em lote aceita até 100); obrasJuntas: obras lidas no banco ao mesmo tempo;
-// pausaMs: entre pedidos à Resend (ela aceita poucos por segundo); orcamentoMs: só no envio um por um (quando a Resend
-// recusa o lote), depois disso não começa e-mail novo: o que sobrar sai na repescagem ou no dia seguinte, primeiro da fila.
-const CONFIG = { maxEnvios: 100, porLote: 50, maxObras: 30, obrasJuntas: 4, pausaMs: 600, orcamentoMs: 7000, tempoBancoMs: 8000, tempoEmailMs: 8000 };
+// maxEnvios: por execução (o banco aceita até 100, o máximo de destinatários ativos); obrasJuntas: obras lidas no banco ao
+// mesmo tempo; pausaMs: entre pedidos à Resend (ela aceita 10 por segundo por conta; aqui no máximo 4); orcamentoMs: depois
+// disso, contado do começo da execução, não começa e-mail novo: o que sobrar não foi tentado e sai na repescagem ou no dia
+// seguinte, primeiro da fila. A função tem até 60 s (maxDuration em vercel.json): sobra tempo para registrar no banco.
+const CONFIG = { maxEnvios: 100, maxObras: 30, obrasJuntas: 4, pausaMs: 250, orcamentoMs: 40000, tempoBancoMs: 8000, tempoEmailMs: 8000 };
 const LIMITE_BYTES = 4 * 1024;
 const RESEND_URL = 'https://api.resend.com/emails';
-const RESEND_LOTE_URL = 'https://api.resend.com/emails/batch';
 const PARAMS_PROIBIDOS = ['k', 'chave', 'key', 'token', 'apikey', 'api_key', 'senha', 'password', 'secret', 'segredo'];
 const CAMPOS_CORPO = ['acao', 'destinatario'];
 const ACOES = ['previa', 'mandar'];
@@ -206,22 +206,15 @@ async function postResend(cfg, url, idem, corpo) {
   return { ok: r.ok, status: r.status, j, erro: r.ok ? null : 'Resend respondeu ' + r.status + nome };
 }
 
+// 409 invalid_idempotent_request: a chave deste envio já foi usada com outro texto (o dado da obra mudou entre a primeira
+// tentativa e esta). A primeira já saiu: conta como enviado, sem mandar de novo. 409 concurrent_idempotent_requests: outra
+// execução está mandando este mesmo envio agora: fica como erro, e a próxima tentativa (mesma chave) não repete.
+// 429: a Resend pediu para esperar; esta execução para de mandar (os outros não foram tentados).
 async function mandarEmail(cfg, msg) {
   const r = await postResend(cfg, RESEND_URL, msg.idem, corpoEmail(cfg, msg));
   if (r.ok && r.j && typeof r.j.id === 'string') return { ok: true, id: r.j.id.slice(0, 100) };
-  return { ok: false, erro: r.erro || 'Resend respondeu ' + r.status };
-}
-
-// Lote: um pedido só para até 100 e-mails (POST /emails/batch); os ids voltam na mesma ordem.
-// 400/422: a Resend recusou o lote antes de mandar (um endereço ruim derruba o lote inteiro): aí vale mandar um por um.
-async function mandarLote(cfg, lote) {
-  const idem = 'taf-resumo-lote-' + crypto.createHash('sha256').update(lote.map((m) => m.idem).join(',')).digest('hex').slice(0, 40);
-  const r = await postResend(cfg, RESEND_LOTE_URL, idem, lote.map((m) => corpoEmail(cfg, m)));
-  if (r.ok) {
-    const d = r.j && Array.isArray(r.j.data) ? r.j.data : [];
-    return { ok: true, ids: lote.map((_, k) => (d[k] && typeof d[k].id === 'string' ? d[k].id.slice(0, 100) : null)) };
-  }
-  return { ok: false, umPorUm: r.status === 400 || r.status === 422, erro: r.erro };
+  if (r.status === 409 && r.j && r.j.name === 'invalid_idempotent_request') return { ok: true, id: null, jaSaiu: true };
+  return { ok: false, erro: r.erro || 'Resend respondeu ' + r.status, limite: r.status === 429 };
 }
 
 async function registrar(chave, resultados) {   // tenta duas vezes
@@ -233,31 +226,28 @@ async function registrar(chave, resultados) {   // tenta duas vezes
   return false;
 }
 
-// Manda os envios [{envio, tentativa, email, obras}] e devolve o que registrar. Todos de uma vez, em lotes (um pedido à
-// Resend por lote, sem esbarrar no limite por segundo); um e-mail só sai sozinho. Lote recusado por validação: nada saiu,
-// então manda um por um, com pausa, até o orçamento de tempo (o primeiro sempre sai). Rede caída, chave recusada, limite
-// (429) ou erro da Resend (5xx): não insiste agora (pode ter saído); fica como erro e a repescagem tenta de novo.
-// Idempotency-Key = envio + tentativa (no lote, a soma delas): se o registro no banco falhar e a execução repetir, a Resend
-// não manda de novo.
-async function mandarTodos(cfg, envios, resumos, quando, hoje, base) {
-  const t0 = Date.now(), out = [];
-  const msgs = envios.map((env) => {
+// Idempotency-Key do envio: 'taf-resumo-' + número do envio, sem a tentativa. O envio é único por destinatário e dia (o de
+// teste, por pedido) e a Resend guarda a chave por 24 h: se a execução repetir porque o registro no banco falhou, a resposta
+// não chegou (tempo esgotado) ou a Resend deu erro depois de aceitar, a nova tentativa leva a MESMA chave e a Resend não
+// manda de novo. (Antes a chave tinha a tentativa, que o banco soma a cada reserva: toda nova tentativa saía de novo.)
+const idemDe = (env) => 'taf-resumo-' + env.envio;
+
+// Manda os envios [{envio, tentativa, email, obras}] e devolve o que registrar. Um pedido à Resend por e-mail, com pausa
+// entre eles. Sem lote: no lote a chave de idempotência vale para o pedido inteiro, e um e-mail que tivesse saído num lote
+// e voltasse noutro (ou sozinho) sairia de novo. Até o fim do orçamento de tempo (o primeiro sempre sai); o resto não foi
+// tentado e fica para a repescagem. Erro da Resend, rede caída ou tempo esgotado: fica como erro e a repescagem tenta de
+// novo com a mesma chave (se tinha saído, não sai outra vez).
+async function mandarTodos(cfg, envios, resumos, quando, hoje, base, inicio) {
+  const t0 = n(inicio) || Date.now(), out = [];
+  let parou = null;
+  for (let k = 0; k < envios.length; k++) {
+    const env = envios[k];
+    if (!parou && k > 0 && CONFIG.pausaMs) await esperar(CONFIG.pausaMs);
+    if (parou || (k > 0 && Date.now() - t0 > CONFIG.orcamentoMs)) { out.push({ envio: env.envio, ok: false, id: null, erro: parou || 'sem tempo nesta execução' }); continue; }
     const m = montarEmail({ resumos, obras: env.obras, quando, hoje, base });
-    return { envio: env.envio, para: env.email, assunto: m.assunto, html: m.html, texto: m.texto, idem: 'taf-resumo-' + env.envio + '-' + (n(env.tentativa) || 1) };
-  });
-  const marca = (m, r) => out.push({ envio: m.envio, ok: !!r.ok, id: r.id || null, erro: r.ok ? null : r.erro || 'não saiu' });
-  for (let i = 0; i < msgs.length; i += CONFIG.porLote) {
-    const lote = msgs.slice(i, i + CONFIG.porLote);
-    if (i > 0 && CONFIG.pausaMs) await esperar(CONFIG.pausaMs);
-    if (lote.length === 1) { marca(lote[0], await mandarEmail(cfg, lote[0])); continue; }
-    const r = await mandarLote(cfg, lote);
-    if (r.ok) { lote.forEach((m, k) => marca(m, { ok: true, id: r.ids[k] })); continue; }
-    if (!r.umPorUm) { lote.forEach((m) => marca(m, r)); continue; }
-    for (let k = 0; k < lote.length; k++) {
-      if (CONFIG.pausaMs) await esperar(CONFIG.pausaMs);
-      if (k > 0 && Date.now() - t0 > CONFIG.orcamentoMs) { marca(lote[k], { ok: false, erro: 'sem tempo nesta execução' }); continue; }
-      marca(lote[k], await mandarEmail(cfg, lote[k]));
-    }
+    const r = await mandarEmail(cfg, { para: env.email, assunto: m.assunto, html: m.html, texto: m.texto, idem: idemDe(env) });
+    if (r.limite) parou = 'limite da Resend: fica para a próxima execução';
+    out.push({ envio: env.envio, ok: !!r.ok, id: r.id || null, erro: r.ok ? null : r.erro || 'não saiu' });
   }
   return out;
 }
@@ -270,10 +260,13 @@ async function lerOuDevolver(chave, envios) {
 
 // ===================================================================== GET (agendador)
 async function agendador(req, res, url) {
-  const segredo = String(process.env.CRON_SECRET || '').trim();
+  const inicio = Date.now();
+  const bruto = String(process.env.CRON_SECRET || ''), segredo = bruto.trim();
   if (segredo.length < 16) throw new ErroHttp(500, 'servidor sem configuração (CRON_SECRET na Vercel, com pelo menos 16 caracteres)');
-  const b = bearer(req);
-  if (!b || !segredoConfere(b, segredo)) throw new ErroHttp(401, 'não autorizado');
+  // a Vercel manda "Authorization: Bearer <CRON_SECRET>" com o valor exato: compara o cabeçalho inteiro (o segredo pode ter
+  // espaço no meio, como uma frase-senha), sempre pelo hash e em tempo constante
+  const auth = cab(req, 'authorization');
+  if (!auth || !(segredoConfere(auth, 'Bearer ' + bruto) || segredoConfere(auth, 'Bearer ' + segredo))) throw new ErroHttp(401, 'não autorizado');
   const outros = url.todos.filter((k) => k !== 'quando' && k !== 'repescagem');
   if (outros.length) throw new ErroHttp(400, 'parâmetro não aceito: ' + outros.slice(0, 3).map((k) => k.slice(0, 20)).join(', '));
   if (!['diario', 'semanal'].includes(url.quando)) throw new ErroHttp(400, 'use ?quando=diario ou ?quando=semanal');
@@ -291,7 +284,7 @@ async function agendador(req, res, url) {
   if (!envios.length) { console.error('resumo: ' + rotulo + ', nada a mandar'); return responder(res, 200, resumo); }
   const resumos = await lerOuDevolver(robo, envios);
   resumo.obras = Object.keys(resumos).length;
-  const out = await mandarTodos(cfg, envios, resumos, url.quando, mo.hoje, siteBase(req));
+  const out = await mandarTodos(cfg, envios, resumos, url.quando, mo.hoje, siteBase(req), inicio);
   resumo.enviados = out.filter((x) => x.ok).length;
   resumo.falhas = out.length - resumo.enviados;
   resumo.registrado = await registrar(robo, out);

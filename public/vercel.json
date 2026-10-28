@@ -2,6 +2,9 @@
   "functions": {
     "api/assistente.js": {
       "maxDuration": 30
+    },
+    "api/resumo.js": {
+      "maxDuration": 60
     }
   },
   "headers": [
