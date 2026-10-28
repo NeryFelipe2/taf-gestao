@@ -13,7 +13,7 @@ function modalObras(){
   modal(`<h3>Obras</h3><div class="sub">Cada obra é um centro de custo. Fornecedores, insumos e bancos valem para todas.</div>
    <div class="tw"><table class="tbl"><tbody>${emBanco.map(o=>`<tr><td><span class="mono">${esc(o.cod)}</span></td><td>${esc(o.nome)}</td><td class="r">${o.cod===atual?'<span class="pill ok">Aberta</span>':`<button class="btn sm dark" data-act="obra-abrir" data-cod="${esc(o.cod)}">Abrir</button>`}</td></tr>`).join('')}
    ${faltam.map(([c,n])=>`<tr><td><span class="mono">${c}</span></td><td>${esc(n)}<div class="mut" style="font-size:11.5px">ainda não está no banco</div></td><td class="r"><button class="btn sm" data-act="obra-imp" data-cod="${c}" ${podeImp?'':'disabled title="Só Gestão ou Diretoria"'}>Importar</button></td></tr>`).join('')}</tbody></table></div>
-   <div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`)}
+   <div class="acts"><button class="btn" data-act="fechar">Fechar</button>${typeof obraNovaBtn==='function'?obraNovaBtn():''}</div>`)}
 async function abrirObra(cod){closeModal();guardaObra(cod);
   if(MODO_SB){const o=SB.obras.find(x=>x.codigo===cod);if(!o)return toast('Obra não encontrada');S.tab={};S.view='dash';await sbCarregar(o);return}
   await abreDemo(cod)}
