@@ -10,8 +10,8 @@ const RD={carregado:false,carregando:false,erro:'',semCadastro:false,dados:null,
 const RD_API='/api/resumo';
 const RD_FREQ={diaria:'Diária: todo dia útil às 7h',semanal:'Semanal: segunda às 7h30'};
 if(MODO_CH){const a=AREAS.find(x=>x.k==='adm');
-  if(a&&!a.tabs.some(t=>t[0]==='resumo')){const i=a.tabs.findIndex(t=>t[0]==='admin')+1;a.tabs.splice(i||a.tabs.length,0,['resumo','Resumo para o diretor']);
-    const j=NAV_BASE.findIndex(n=>n[0]==='admin')+1;NAV_BASE.splice(j||NAV_BASE.length,0,['resumo','Resumo para o diretor',a.i])}}
+  if(a&&!a.tabs.some(t=>t[0]==='resumo')){const ia=a.tabs.findIndex(t=>t[0]==='acessos'),i=(ia>=0?ia:a.tabs.findIndex(t=>t[0]==='admin'))+1;a.tabs.splice(i||a.tabs.length,0,['resumo','Resumo para o diretor']);
+    const ja=NAV_BASE.findIndex(n=>n[0]==='acessos'),j=(ja>=0?ja:NAV_BASE.findIndex(n=>n[0]==='admin'))+1;NAV_BASE.splice(j||NAV_BASE.length,0,['resumo','Resumo para o diretor',a.i])}}
 
 /* mensagens do banco em português de obra */
 function rdMsg(e){const m=String(e&&e.message||e);let x;

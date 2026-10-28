@@ -665,7 +665,9 @@ describe('vercel.json: só os crons do resumo foram acrescentados', () => {
     for (const c of v.crons) assert.match(c.schedule, /^\d{1,2} \d{1,2} \* \* [0-9-]+$/);
   });
   it('o resto continua igual (cabeçalhos e rotas)', () => {
-    assert.deepEqual(Object.keys(v), ['headers', 'rewrites', 'crons']);
+    assert.deepEqual(Object.keys(v).filter((k) => k !== 'functions'), ['headers', 'rewrites', 'crons']);
+    // a única função com tempo próprio é a do assistente (item da IA); o resumo usa o tempo padrão
+    assert.deepEqual(Object.keys(v.functions || {}), ['api/assistente.js']);
     assert.deepEqual(v.rewrites.map((r) => r.source), ['/marko', '/ciclo', '/erp']);
     assert.deepEqual(v.headers[0].headers.map((h) => h.key), ['X-Robots-Tag', 'Cache-Control']);
   });

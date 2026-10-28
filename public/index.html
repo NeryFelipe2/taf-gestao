@@ -506,6 +506,11 @@ body::before{content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;ba
 .imp-prev{display:grid;gap:3px;font-size:14px;border:1px solid var(--line2);border-radius:10px;padding:8px 12px;background:var(--raised);margin-bottom:8px}
 .imp-msg{margin-top:10px;font-size:14px;color:var(--hd)}
 .imp .lnk{background:none;border:0;color:var(--mu);cursor:pointer;font:inherit;padding:0 2px}
+.obn-c{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}
+.obn-c .lbl{font:600 11.5px var(--f-mono);letter-spacing:.05em;text-transform:uppercase;color:var(--mu2)}
+.obn-c .edi{background:transparent;border:1px solid var(--line2);border-radius:8px;color:var(--tx);font:14px var(--f-tx);padding:6px 8px;width:6.5em;min-height:36px}
+.obn-c .edi:focus{border-color:var(--ac2);outline:0}
+@media (max-width:820px){.obn-c .edi{min-height:44px;font-size:16px}}
 .rotl{display:grid;grid-template-columns:minmax(0,1fr);gap:8px}
 .rotl>div{border:1px solid var(--line2);border-radius:10px;padding:10px 12px;background:var(--raised);display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
 .rotl b{font:600 15px var(--f-hd);color:var(--hd);min-width:120px}
@@ -1062,8 +1067,22 @@ function rObrasPrazo(){
         '<button type="button" class="btn" data-pz-cr="'+esc(p.obra)+'">Ver cronograma</button>';
     }
     return h+'</div>'}).join('');
-  el.innerHTML='<div class="card"><div class="lista-h"><div><h3>As obras estão no prazo?</h3><p class="hint">Atraso em dias corridos contra a referência de cada obra. Status: Atrasada (marco ou fim além da referência), Atenção (pendência vencida, marco em até 7 dias com demanda aberta, ou dado desatualizado), No prazo (nada disso). Falta de dado nunca vira No prazo.</p></div></div>'+rows+'</div>'}
+  el.innerHTML='<div class="card"><div class="lista-h"><div><h3>As obras estão no prazo?</h3><p class="hint">Atraso em dias corridos contra a referência de cada obra. Status: Atrasada (marco ou fim além da referência), Atenção (pendência vencida, marco em até 7 dias com demanda aberta, ou dado desatualizado), No prazo (nada disso). Falta de dado nunca vira No prazo.</p></div></div>'+rows+
+    '<div class="pz-l"><div class="pz-d">Obra nova, ainda fora desta lista: digite o código e importe o cronograma.</div>'+obraNovaCampo('painel')+'</div></div>'}
 function irObraCrono(o,ativ){if(OB.indexOf(o)>=0){S.obras=[o];OBRA_FORCE=''}else OBRA_FORCE=o;ir('tarefas','crono',ativ?{ativ:ativ}:null)}
+/* obra nova (código digitado): abre a importação do cronograma sem pôr ?obra= no endereço. O valor e o foco sobrevivem ao redesenho da tela. */
+var OBN={v:'',foco:''};
+function obraNovaCampo(onde){return '<div class="obn-c" data-obn-onde="'+onde+'"><label class="lbl" for="obn-'+onde+'">Obra nova (código)</label><input class="edi" id="obn-'+onde+'" data-obn-cod="1" inputmode="numeric" maxlength="3" autocomplete="off" placeholder="ex.: 344" value="'+esc(OBN.v)+'"><button type="button" class="btn" data-obn-ir="1">Importar cronograma</button></div>'}
+function obnIr(box){var i=box&&box.querySelector('[data-obn-cod]'),o=String(i&&i.value||'').trim();
+  if(!/^\d{3}$/.test(o)){toast('Código da obra nova: 3 números, por exemplo 344.');if(i)i.focus();return}
+  OBN.v='';OBN.foco='';irObraCrono(o)}
+function obnRestaura(){if(!OBN.foco)return;var a=document.activeElement;if(a&&a!==document.body)return;var i=document.getElementById('obn-'+OBN.foco);if(i){i.focus();try{i.setSelectionRange(i.value.length,i.value.length)}catch(e){}}}
+function obnCampo(t){return t&&t.hasAttribute&&t.hasAttribute('data-obn-cod')}
+document.addEventListener('input',function(e){if(obnCampo(e.target))OBN.v=e.target.value});
+document.addEventListener('focusin',function(e){OBN.foco=obnCampo(e.target)?e.target.closest('[data-obn-onde]').getAttribute('data-obn-onde'):''});
+document.addEventListener('focusout',function(e){if(obnCampo(e.target)&&!e.relatedTarget&&document.contains(e.target))OBN.foco=''});
+document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('[data-obn-ir]');if(b)obnIr(b.closest('.obn-c'))});
+document.addEventListener('keydown',function(e){if(e.key==='Enter'&&obnCampo(e.target)){e.preventDefault();obnIr(e.target.closest('.obn-c'))}});
 document.addEventListener('click',function(e){
   var b=e.target.closest&&e.target.closest('[data-pz-cr],[data-pz-imp],[data-cr-a],[data-ligf],[data-fila-tudo],[data-so-o]');if(!b)return;
   if(b.dataset.pzCr){irObraCrono(b.dataset.pzCr);return}
@@ -1185,6 +1204,7 @@ document.addEventListener('input',function(e){var o=impBox(e);if(!o)return;var k
   if(k==='uni'&&st.rows){impLer(o,st.rows,st.arq);telas()}else if(k==='ep'&&st.ativs){var ep=st.ep;st.erros=st.erros.filter(function(x){return !/dia zero/.test(x)});if(st.ativs.some(function(a){return a.ini<ep}))st.erros.push('Há atividade que começa antes do dia zero ('+dt(ep)+'): confira o dia zero.');telas()}});
 document.addEventListener('change',function(e){var o=impBox(e);if(!o)return;
   if(e.target.getAttribute('data-imp')==='uni'){var st0=impSt(o);st0.uni=e.target.value;if(st0.rows)impLer(o,st0.rows,st0.arq);telas();return}
+  if(/^(nome|eng)$/.test(e.target.getAttribute('data-imp')||'')&&impSt(o).ativs){telas();return}   /* preencheu depois da prévia: o botão Gravar aparece ao sair do campo */
   if(!e.target.hasAttribute('data-imp-arq'))return;var f=e.target.files[0];if(!f)return;var rd=new FileReader();
   rd.onload=function(){var st=impSt(o);try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array',cellDates:true}),ws=wb.Sheets[wb.SheetNames[0]];
       var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true,defval:''});st.rows=rows;st.msg='';impLer(o,rows,f.name)}catch(er){st.ativs=null;st.erros=['Não consegui ler o arquivo: '+er.message]}telas()};rd.readAsArrayBuffer(f)});
@@ -1546,7 +1566,7 @@ function baixarPlanilha(){
   try{XLSX.writeFile(wb,nome,{compression:true});toast('Planilha baixada: '+nome)}catch(e){toast('Não consegui gerar a planilha')}}
 
 /* ---------- Versão nova do site ---------- */
-var BUILD='a6a2136ab1',VK='taf-recarga';
+var BUILD='fce85e72ef',VK='taf-recarga';
 function verConf(){
   if(location.protocol.indexOf('http')!==0||document.hidden)return;
   fetch('versao.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.ok?r.json():null}).then(function(j){
@@ -1669,7 +1689,7 @@ function render(){
   cab();
   TABS.forEach(function(t){$('t-'+t).setAttribute('aria-selected',String(t===S.tab));$('p-'+t).hidden=t!==S.tab});
   $('resumo').innerHTML=esc(RS())+(S.obras.length?' · obras: <b>'+S.obras.join(', ')+'</b>':'');
-  telas();rotinaBar();
+  telas();rotinaBar();obnRestaura();
 }
 function ir(t,sub,par,push){
   if(sub&&SUBS[t])S.sub[t]=sub;
@@ -1736,7 +1756,7 @@ function telas(){
   var mod=d[2],par=d[3],k=t+'|'+mod,f=EF[k],ex=S.par;S.par=null;
   var av=box.querySelector(':scope>.aviso'),ibx=box.querySelector(':scope>.impbox');if(ibx)ibx.hidden=true;
   var aviso=function(h){if(!av){av=document.createElement('div');av.className='aviso';box.insertBefore(av,box.firstChild)}av.innerHTML=h;Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=true})};
-  if(!ob){aviso('<b>Selecione uma obra</b> para abrir '+esc(d[1])+': '+obrasTodas().map(function(o){return '<button type="button" class="chip" data-so-o="'+esc(o)+'">'+esc(nomeObra(o))+'</button>'}).join(' '));return}
+  if(!ob){aviso('<b>Selecione uma obra</b> para abrir '+esc(d[1])+': '+obrasTodas().map(function(o){return '<button type="button" class="chip" data-so-o="'+esc(o)+'">'+esc(nomeObra(o))+'</button>'}).join(' ')+(d[0]==='crono'?obraNovaCampo('crono'):''));return}
   if(OBR.lista==null){aviso('Lendo as obras do banco…');return}
   if(mod==='erp'?!temErp(ob):!temCrono(ob)){
     if(mod!=='erp'&&d[0]==='crono'){if(av)av.remove();Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=true});rImportar(box,ob);return}

@@ -53,11 +53,13 @@ test('modo aberto (sem a chave do site): a tela não entra no menu', () => {
   assert.equal(api.vistaPermitida('resumo'), false);
 });
 
-test('modo chave: "Resumo para o diretor" fica em Gestão e administração, logo depois de Administração, e só para quem vê Administração ou tudo', () => {
+test('modo chave: "Resumo para o diretor" fica em Gestão e administração, logo depois de Administração e Acessos, e só para quem vê Administração ou tudo', () => {
   const api = carregaModoChave();
   abre(api, obra999(), estado999(), 'diretoria');
   const adm = J(api.AREAS).find((a) => a.k === 'adm');
-  const i = adm.tabs.findIndex((t) => t[0] === 'admin');
+  const ia = adm.tabs.findIndex((t) => t[0] === 'acessos');
+  const i = ia >= 0 ? ia : adm.tabs.findIndex((t) => t[0] === 'admin');
+  if (ia >= 0) assert.equal(adm.tabs[ia - 1][0], 'admin', 'Acessos logo depois de Administração');
   assert.deepEqual(adm.tabs[i + 1], ['resumo', 'Resumo para o diretor']);
   assert.equal(J(api.NAV_BASE).filter((n) => n[0] === 'resumo').length, 1);
   assert.equal(api.vistaPermitida('resumo'), true);
