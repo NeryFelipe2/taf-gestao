@@ -12,10 +12,11 @@
 //   TAF_IA_MODELO      = modelo (opcional; padrão claude-haiku-5-5, o pequeno e barato)
 //   TAF_SUPABASE_URL e TAF_SUPABASE_KEY = os mesmos do /api/leitura
 //
-// Passos: (1) taf_ia_contar confere a chave, o acesso à obra e o limite do dia (fonte/erp/sql/07_ia.sql);
-// (2) lê a obra com a chave da própria pessoa (taf_ciclo_ler ou taf_ciclo_situacao) e manda à IA só esse recorte;
-// (3) pede a resposta num formato fixo (json_schema); (4) confere a saída contra os compromissos e descarta o inválido;
-// (5) devolve a proposta. A chave de acesso nunca vai para log, para a IA nem para a resposta.
+// Passos: (1) lê a obra com a chave da própria pessoa (taf_ciclo_ler ou taf_ciclo_situacao, que conferem a chave e o
+// acesso à obra) e recorta; o que já se sabe que não vai à IA (semana fechada, não publicada, sem compromisso) para aqui,
+// sem gastar uso; (2) taf_ia_contar confere o papel e o limite do dia e conta (fonte/erp/sql/07_ia.sql), logo antes da IA;
+// (3) manda à IA só o recorte e pede a resposta num formato fixo (json_schema); (4) confere a saída contra os
+// compromissos e descarta o inválido; (5) devolve a proposta. A chave de acesso nunca vai para log, para a IA nem para a resposta.
 
 const LIMITE_BYTES = 96 * 1024;
 const MAX_RELATO = 20000, MIN_RELATO = 10, MAX_PERGUNTA = 500, MIN_PERGUNTA = 3;
@@ -370,13 +371,18 @@ async function handler(req, res) {
     const chaveIa = String(process.env.ANTHROPIC_API_KEY || '').trim();
     if (!chaveIa) throw new ErroHttp(503, 'A IA ainda não está ligada neste sistema. Aponte à mão; o Felipe liga a IA na configuração do site.', { ia: 'desligada' });
     const cfg = configBanco();
-    // (1) chave, acesso à obra e limite do dia: conta antes de gastar
-    const uso = await banco(cfg, 'taf_ia_contar', { p_chave: chave, p_obra: d.obra, p_acao: d.acao, p_quem: d.quem }, prazo);
-    const usoRes = objSimples(uso) ? { usado: uso.usado, limite: uso.limite, resta: uso.resta } : null;
+    // (1) chave e limite do dia (taf_ia_contar): conta só quando a chamada vai mesmo à IA. Antes, lê a obra com a chave
+    // da própria pessoa (que já confere a chave e o acesso à obra) e recorta; semana fechada, não publicada ou sem
+    // compromisso aberto responde 409 sem gastar uso. Depois de contar, a próxima chamada é a da IA.
+    const contar = async () => {
+      const uso = await banco(cfg, 'taf_ia_contar', { p_chave: chave, p_obra: d.obra, p_acao: d.acao, p_quem: d.quem }, prazo);
+      return objSimples(uso) ? { usado: uso.usado, limite: uso.limite, resta: uso.resta } : null;
+    };
     if (d.acao === 'relato') {
       // (2) recorte da obra, lido com a chave da própria pessoa
       const L = await banco(cfg, 'taf_ciclo_ler', { p_chave: chave, p_obra: d.obra, p_seg: d.seg, p_quem: d.quem }, prazo);
       const rec = recorteRelato(L);
+      const usoRes = await contar();
       // (3) proposta da IA, (4) conferida
       const ia = await chamarIa(chaveIa, SISTEMA_RELATO, mensagemRelato(rec, d.relato), SCHEMA_RELATO, prazo);
       const c = conferirRelato(ia.saida, rec, d.relato);
@@ -386,6 +392,7 @@ async function handler(req, res) {
     }
     const X = await banco(cfg, 'taf_ciclo_situacao', { p_chave: chave, p_obra: d.obra, p_quem: d.quem }, prazo);
     const dados = recortePergunta(X);
+    const usoRes = await contar();
     const conteudo = 'SITUAÇÃO DA OBRA ' + d.obra + ' (JSON):\n' + JSON.stringify(dados) + '\n\nPERGUNTA:\n<pergunta>\n' + d.pergunta.replace(/<\/?pergunta>/gi, '') + '\n</pergunta>';
     const ia = await chamarIa(chaveIa, SISTEMA_PERGUNTA, conteudo, SCHEMA_PERGUNTA, prazo);
     const resposta = limparResposta(ia.saida.resposta);

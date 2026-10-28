@@ -244,10 +244,13 @@ describe('POST /api/assistente (Supabase e IA simulados)', () => {
   });
 
   describe('chave e limite (banco)', () => {
-    it('chave errada: 403, a IA não é chamada', async () => {
-      const r = await chamar(handler, ok(undefined, { headers: { 'x-chave': novaChave() } }));
-      assert.equal(r.statusCode, 403);
-      assert.deepEqual(mundo.banco.map((c) => c.fn), ['taf_ia_contar']);
+    it('chave errada: 403, a IA não é chamada e nada é contado', async () => {
+      for (const corpo of [relato(), pergunta()]) {
+        const r = await chamar(handler, ok(corpo, { headers: { 'x-chave': novaChave() } }));
+        assert.equal(r.statusCode, 403);
+      }
+      assert.deepEqual(mundo.banco.map((c) => c.fn), ['taf_ciclo_ler', 'taf_ciclo_situacao'], 'a leitura com a chave da pessoa recusa antes de contar');
+      assert.equal(mundo.usos, 0);
       semIa();
     });
 
@@ -294,31 +297,50 @@ describe('POST /api/assistente (Supabase e IA simulados)', () => {
       semIa();
     });
 
-    it('conta o uso ANTES de chamar a IA, com a chave de acesso só no corpo para o banco', async () => {
-      await chamar(handler, ok());
-      const c = mundo.banco[0];
-      assert.equal(c.fn, 'taf_ia_contar');
-      assert.deepEqual(c.b, { p_chave: chave, p_obra: '999', p_acao: 'relato', p_quem: null });
-      assert.equal(c.opts.redirect, 'error');
-      assert.ok(mundo.chamadas.findIndex((x) => x.url.endsWith('/taf_ia_contar')) < mundo.chamadas.findIndex((x) => x.url === URL_IA));
+    it('conta o uso logo ANTES de chamar a IA (depois de ler a obra), com a chave de acesso só no corpo para o banco', async () => {
+      const saidaPergunta = { resposta: 'Nenhum EVENTO em risco.', achou_nos_dados: true };
+      for (const [corpo, ler, saidaIa] of [[relato(), 'taf_ciclo_ler', saidaBoa()], [pergunta(), 'taf_ciclo_situacao', saidaPergunta]]) {
+        mundo.chamadas = []; mundo.banco = []; mundo.saida = saidaIa;
+        assert.equal((await chamar(handler, ok(corpo))).statusCode, 200);
+        assert.deepEqual(mundo.banco.map((c) => c.fn), [ler, 'taf_ia_contar']);
+        const c = mundo.banco[1];
+        assert.deepEqual(c.b, { p_chave: chave, p_obra: '999', p_acao: corpo.acao, p_quem: null });
+        assert.equal(c.opts.redirect, 'error');
+        // a ordem é: ler, contar, IA (nada entre contar e a IA)
+        const iContar = mundo.chamadas.findIndex((x) => x.url.endsWith('/taf_ia_contar'));
+        assert.equal(mundo.chamadas[iContar + 1].url, URL_IA);
+      }
+      assert.equal(mundo.usos, 2);
     });
 
-    it('semana não publicada: 409 e a IA não é chamada', async () => {
+    it('semana não publicada ou fechada: 409, a IA não é chamada e o uso do dia NÃO é gasto', async () => {
       mundo.L.semana.estado = 'rascunho';
       const r = await chamar(handler, ok());
       assert.equal(r.statusCode, 409);
       assert.match(r.json().erro, /publicada/);
       semIa();
       mundo.L.semana.estado = 'fechada';
-      assert.equal((await chamar(handler, ok())).statusCode, 409);
+      assert.equal((await chamar(handler, ok(relato({ seg: '2026-10-19' })))).statusCode, 409);
       semIa();
+      assert.ok(!mundo.banco.some((c) => c.fn === 'taf_ia_contar'), 'contou uso numa chamada que não foi à IA');
+      assert.equal(mundo.usos, 0);
     });
 
-    it('semana sem compromisso aberto: 409', async () => {
+    it('semana sem compromisso aberto: 409 sem gastar uso', async () => {
       mundo.L.semana.comps = mundo.L.semana.comps.filter((c) => c.cid === 'C4');
       const r = await chamar(handler, ok());
       assert.equal(r.statusCode, 409);
       semIa();
+      assert.equal(mundo.usos, 0);
+    });
+
+    it('semana que ainda não começou: 409 sem gastar uso', async () => {
+      mundo.L.hoje = '2026-10-25';
+      const r = await chamar(handler, ok());
+      assert.equal(r.statusCode, 409);
+      assert.match(r.json().erro, /não começou/);
+      semIa();
+      assert.equal(mundo.usos, 0);
     });
   });
 
@@ -391,7 +413,7 @@ describe('POST /api/assistente (Supabase e IA simulados)', () => {
       assert.equal(p5.confianca, 'baixa');
       assert.deepEqual(j.nao_casou, [{ trecho: 'Caminhão pipa passou na Rua B.', motivo: 'Rua B não tem compromisso nesta semana' }]);
       assert.deepEqual(j.descartadas, []);
-      assert.deepEqual(mundo.banco.map((c) => c.fn), ['taf_ia_contar', 'taf_ciclo_ler']);
+      assert.deepEqual(mundo.banco.map((c) => c.fn), ['taf_ciclo_ler', 'taf_ia_contar']);
     });
 
     it('saída inválida é descartada, com o motivo, e o resto continua', async () => {
@@ -473,7 +495,9 @@ describe('POST /api/assistente (Supabase e IA simulados)', () => {
 
     it('a semana pedida (seg) e o nome (quem) seguem para o banco', async () => {
       await chamar(handler, ok(relato({ seg: SEG, quem: 'Alguem Teste' })));
-      assert.deepEqual(mundo.banco[1].b, { p_chave: chave, p_obra: '999', p_seg: SEG, p_quem: 'Alguem Teste' });
+      const ler = mundo.banco.find((c) => c.fn === 'taf_ciclo_ler'), contar = mundo.banco.find((c) => c.fn === 'taf_ia_contar');
+      assert.deepEqual(ler.b, { p_chave: chave, p_obra: '999', p_seg: SEG, p_quem: 'Alguem Teste' });
+      assert.equal(contar.b.p_quem, 'Alguem Teste');
     });
   });
 
@@ -488,8 +512,8 @@ describe('POST /api/assistente (Supabase e IA simulados)', () => {
       assert.equal(j.resposta, 'Nenhum EVENTO em risco, a base ainda não foi aprovada.\n\nConfira com o gestor.');
       assert.equal(j.achou_nos_dados, true);
       assert.equal(j.gravado, false);
-      assert.deepEqual(mundo.banco.map((c) => c.fn), ['taf_ia_contar', 'taf_ciclo_situacao']);
-      assert.equal(mundo.banco[0].b.p_acao, 'pergunta');
+      assert.deepEqual(mundo.banco.map((c) => c.fn), ['taf_ciclo_situacao', 'taf_ia_contar']);
+      assert.equal(mundo.banco[1].b.p_acao, 'pergunta');
       const { corpo } = mundo.ia[0];
       assert.deepEqual(corpo.output_config.format.schema, handler.SCHEMA_PERGUNTA);
       assert.match(corpo.messages[0].content, /Qual o maior risco/);

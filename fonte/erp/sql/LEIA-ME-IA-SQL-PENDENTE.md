@@ -23,7 +23,9 @@ Sem os passos abaixo, as telas mostram "A IA ainda não está ligada neste siste
 
 ## Limite e desligar
 
-- Padrão: 30 usos por chave por dia (relato e pergunta somados), dia de Brasília. Mudar:
+- Padrão: 30 usos por chave por dia (relato e pergunta somados), dia de Brasília. O endpoint lê a obra primeiro e só
+  conta logo antes de chamar a IA: semana fechada, não publicada ou sem compromisso aberto não gasta uso; IA que falha
+  depois de chamada (ocupada, demorou) conta. Mudar:
   `update public.taf_ia_param set valor = 50, em = now(), quem = 'Felipe' where nome = 'limite_dia';`
 - Desligar pelo banco: `valor = 0`. Desligar pelo site: apagar `ANTHROPIC_API_KEY` na Vercel.
 - Quem usa: relato só quem aponta (engenheiro); pergunta engenheiro, gestor e diretoria. Chave de leitura não usa.
