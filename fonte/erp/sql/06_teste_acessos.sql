@@ -318,6 +318,38 @@ begin
   insert into t06 values ('k_dir3b', k_dir3b), ('k_eng7', k_eng7);
 end $t$;
 
+-- ---------- 15. [integração] com o 04 aplicado: obra criada pela tela não tira de ninguém o "todas as obras",
+--             e obra que só existe no planejador não entra na chave de quem não cuida dela
+reset role;
+insert into public.taf_ciclo_obra (obra, nome, engenheiro, ep, base_rev, equipe)
+values ('996', 'OBRA 996 · SO PLANEJADOR (fictícia)', 'Engenheiro 996', date '2026-09-07', 'teste 06', '{}') on conflict (obra) do nothing;
+set local role anon;
+do $t$
+declare r jsonb; e text; k_dir3b text := (select v from t06 where k = 'k_dir3b'); k_soc text := (select v from t06 where k = 'k_soc');
+  k_ges text := (select v from t06 where k = 'k_ges'); id_soc text;
+begin
+  if to_regprocedure('public.taf_erp_obra_criar(text, text, text, text, text, text)') is null then
+    raise notice 'sem o 04 aplicado: passo 15 pulado'; return; end if;
+  -- a Diretoria limitada (sócio) cria a 950 pela tela: a Diretoria com todas recebe a obra e continua com todas
+  r := public.taf_erp_obra_criar(k_soc, '950', 'OBRA 950 · DO SOCIO (fictícia)', 'Cliente fictício');
+  perform pg_temp.ok(r->'obras_da_chave' = '["999","950"]'::jsonb and (r->>'diretorias_com_a_obra')::int = 1, '15a socio cria a 950: ' || r::text);
+  r := public.taf_acesso_listar(k_dir3b);
+  perform pg_temp.ok((r#>>'{ator,geral}')::boolean and not (r->'sem_diretoria' ? '950') and r#>'{ator,obras}' ? '950', '15b a Diretoria com todas continua com todas: ' || (r->>'ator'));
+  select c->>'id' into id_soc from jsonb_array_elements(r->'chaves') c where c->>'pessoa' = 'Socio Demonstração';
+  perform pg_temp.ok(id_soc is not null and (select c->>'bloqueio' from jsonb_array_elements(r->'chaves') c where c->>'id' = id_soc) is null, '15c a Diretoria com todas ainda pode desativar o socio');
+  e := pg_temp.err(format('select public.taf_erp_ler(%L, %L, null, null, null)', k_dir3b, '950'));
+  perform pg_temp.ok(e = 'OK', '15d a Diretoria com todas abre a 950 no ERP: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_soc, 'Eng 997 pelo socio', 'Eng Sete', 'engenheiro', '997'));
+  perform pg_temp.ok(e like 'SEM ACESSO A OBRA 997:%', '15e o socio continua sem a 997: ' || e);
+  -- o gestor (só a 999) não "cria" o ERP da 996, que só existe no planejador, e não ganha a obra
+  e := pg_temp.err(format('select public.taf_erp_obra_criar(%L, %L, %L, %L, null, null)', k_ges, '996', 'Qualquer nome', 'Qualquer'));
+  perform pg_temp.ok(e = 'OBRA 996 JA EXISTE NO PLANEJADOR E NAO ESTA NA SUA CHAVE: PECA A DIRETORIA', '15f gestor e obra do planejador: ' || e);
+  e := pg_temp.err(format('select public.taf_acesso_criar(%L, %L, %L, %L, array[%L], null)', k_ges, 'Eng 996', 'Eng Amigo', 'engenheiro', '996'));
+  perform pg_temp.ok(e like 'SEM ACESSO A OBRA 996%', '15g gestor continua sem dar acesso na 996: ' || e);
+  e := pg_temp.err(format('select public.taf_erp_obra_criar(%L, %L, %L, %L, %L, %L)', 'chave-geral-teste', '996', 'Nome inventado', 'XX', 'Qualquer Um', 'gestao'));
+  perform pg_temp.ok(e like 'OBRA 996 JA EXISTE NO PLANEJADOR: O ERP DELA SO E CRIADO COM A CHAVE PESSOAL%', '15h chave geral e obra do planejador: ' || e);
+end $t$;
+
 -- ---------- conferências como dono do banco
 reset role;
 do $t$
@@ -341,11 +373,12 @@ begin
   -- a regra da Diretoria com todas as obras e a da última, direto na função (pela tela quem chega nelas é recusado antes:
   -- só desativa Diretoria quem tem as obras dela, e ninguém desativa a própria)
   select * into c from public.taf_ciclo_chave k where k.papel = 'diretoria' and k.ativo and k.obras @> array['997','998','999'];
-  perform pg_temp.ok(public._taf_acesso_bloqueio('pessoal', 'diretoria', array['997','998','999'], repeat('0', 64), c)
+  perform pg_temp.ok(public._taf_acesso_bloqueio('pessoal', 'diretoria', c.obras, repeat('0', 64), c)
                      = 'SEM OUTRA DIRETORIA COM TODAS AS OBRAS: CRIE ANTES OUTRA CHAVE DE DIRETORIA COM TODAS AS OBRAS', '12g a limitada nao fica sozinha');
-  perform pg_temp.ok(exists (select 1 from public.taf_ciclo_chave k where k.papel = 'diretoria' and k.ativo and k.obras = array['999']), '12g2 o socio continua ativo');
+  perform pg_temp.ok(exists (select 1 from public.taf_ciclo_chave k where k.papel = 'diretoria' and k.ativo and k.pessoa = 'Socio Demonstração'
+                             and not (k.obras @> array['997','998'])), '12g2 o socio continua ativo e limitado');
   update public.taf_ciclo_chave k set ativo = false where k.papel = 'diretoria' and k.ativo and k.hash <> c.hash;
-  perform pg_temp.ok(public._taf_acesso_bloqueio('pessoal', 'diretoria', array['997','998','999'], repeat('0', 64), c) like 'ULTIMA CHAVE DE DIRETORIA ATIVA%', '12g3 ultima diretoria');
+  perform pg_temp.ok(public._taf_acesso_bloqueio('pessoal', 'diretoria', c.obras, repeat('0', 64), c) like 'ULTIMA CHAVE DE DIRETORIA ATIVA%', '12g3 ultima diretoria');
   -- grants: só as três de entrada
   perform pg_temp.ok(has_function_privilege('anon', 'public.taf_acesso_listar(text, text)', 'execute')
                  and has_function_privilege('anon', 'public.taf_acesso_criar(text, text, text, text, text[], text)', 'execute')

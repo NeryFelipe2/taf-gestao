@@ -10,7 +10,8 @@
 --   entrada  taf_erp_obra_criar(...)    cria a obra no ERP: código de 3 números, nome e contratante;
 --   entrada  taf_erp_base_gravar(...)   grava a base da obra (base_gz em gzip+base64) e as linhas de taf_erp_item;
 --   interna  _taf_erp_gestor(...)       quem chama e se pode (só Gestão ou Diretoria);
---   interna  _taf_erp_base_voltar(...)  volta a base de uma obra para uma versão guardada no histórico (só por SQL).
+--   interna  _taf_erp_base_voltar(...)  volta a base de uma obra para uma versão guardada no histórico (só por SQL);
+--   interna  _taf_erp_base_trava_meta   recusa mudar o orçamento de obra com proposta de meta pendente ou aprovada (05).
 --
 -- Quem pode (as duas entradas):
 --   chave pessoal (taf_ciclo_chave) de gestor ou de diretoria; chave de leitura nunca grava;
@@ -20,17 +21,27 @@
 --     passo 1, campo "Seu papel" sem nada marcado). Por isso a chave geral tem menos alcance (abaixo).
 --   engenheiro (chave pessoal ou chave do Marko) não cria obra nem grava base.
 --   Se a chave pessoal tem lista de obras, a obra nova entra na lista dela (senão ela não abriria a própria obra).
+--   [integração] A obra nova entra também nas chaves de Diretoria "com todas as obras" (as que têm todas as obras que alguma
+--     Diretoria ativa tem, a mesma regra do 06), contadas antes de criar. Assim a obra criada pelo gestor, pela Diretoria limitada
+--     (sócio de consórcio) ou pela chave geral não tira de ninguém o "todas as obras" (Acessos do 06 e Resumo do 08).
+--     [SUPOSIÇÃO: falta o ok do Felipe, ver o LEIA-ME-06.]
+--   [integração] Obra que já existe no PLANEJADOR (taf_ciclo_obra, por exemplo importada antes de ter ERP) só ganha o ERP com
+--     chave pessoal que já cuida dela: a chave tem esse código, ou é Diretoria com todas as obras. A chave geral não cria o ERP
+--     dela, e quem não tem a obra não passa a ter (antes, "criar" o ERP punha a obra do planejador na chave de quem pedia).
 --
 -- Quando o orçamento (a base) pode ser gravado:
 --   só em obra criada por taf_erp_obra_criar (tem a linha 'criar' em taf_erp_base_hist). Obra antiga, carregada pelo carga.py,
 --     nunca é regravada por aqui: o caminho dela é o "Atualizar pela planilha" do ERP;
 --   só em obra sem NENHUM documento lançado (de qualquer tipo: solicitação, pedido, nota, medição, boletim, tarefa ligada,
 --     apontamento, contrato, título...), sem linha de base congelada e sem meta ou ajuste no estado (metaOv, baseOv, basePac);
+--   [integração] só em obra sem proposta de meta pendente ou aprovada (taf_erp_meta_prop, do 05): a proposta fica presa ao
+--     código do item, e o item novo com o mesmo código receberia a meta pensada para o antigo;
 --   chave geral: só a PRIMEIRA gravação, e só na obra que a própria chave geral criou. Regravar, ou gravar o orçamento de obra
 --     criada por chave pessoal, só com chave pessoal de gestor ou diretoria.
 --
 -- O que é recusado:
---   código que não tem 3 números, ou que já existe no ERP; nome ou contratante vazio, longo demais, com < > ou aspas;
+--   código que não tem 3 números, ou que já existe no ERP; código que já existe no planejador, para quem não cuida dele (acima);
+--   nome ou contratante vazio, longo demais, com < > ou aspas;
 --   base vazia, que não é gzip em base64, com base_sha que não confere (sha256 do texto base64) ou grande demais
 --     (mais de 3.000.000 de caracteres); planilha sem item ou com mais de 5.000 itens;
 --   item com código repetido, vazio ou com caractere fora de [0-9 A-Z a-z . _ / -]; descrição com < > ou aspas;
@@ -46,7 +57,8 @@
 -- aspas, número só número; extrato, ficha e listas não entram. A base sem a marca (carga.py) abre como sempre.
 -- As linhas de taf_erp_item são o índice que o banco usa para ligar compra e BM ao evento (02_rastro.sql).
 --
--- Antes de aplicar: backup (PASSO A de 99_reverter.sql). Fora do horário de uso.
+-- Antes de aplicar: backup (PASSO A de 99_reverter.sql e PASSO A de fonte/ciclo/sql/99_reverter.sql, que tem taf_ciclo_chave,
+--   salvos em arquivo fora do repositório). Fora do horário de uso.
 -- Depois de aplicado e usado: o PASSO A do 99_reverter.sql NÃO guarda a base nem os itens (conta que voltam do carga.py).
 --   A obra criada pela tela não tem carga.py: antes de rodar o 99_reverter, rodar também a cópia do fim deste arquivo.
 -- Como desfazer: ver o fim do arquivo.
@@ -96,6 +108,7 @@ create or replace function public.taf_erp_obra_criar(p_chave text, p_codigo text
 returns jsonb language plpgsql volatile security definer set search_path = public, extensions as $$
 declare a record; v_cod text := trim(coalesce(p_codigo, '')); v_nome text := regexp_replace(trim(coalesce(p_nome, '')), '\s+', ' ', 'g');
         v_ct text := regexp_replace(trim(coalesce(p_contratante, '')), '\s+', ' ', 'g'); v_ord int; v_lista text[]; v_hid bigint;
+        v_cob text[] := '{}'; v_dir_todas boolean := false; v_ndir int := 0; v_plan boolean := false;
 begin
   select * into a from public._taf_erp_gestor(p_chave, p_quem, p_papel);
   if v_cod !~ '^[0-9]{3}$' then raise exception 'CODIGO DA OBRA INVALIDO: USE 3 NUMEROS (EX.: 344)'; end if;
@@ -105,7 +118,27 @@ begin
   if v_nome ~ '[<>"[:cntrl:]]' or v_ct ~ '[<>"[:cntrl:]]' then raise exception 'NOME OU CONTRATANTE COM CARACTERE NAO ACEITO (< > OU ASPAS)'; end if;
 
   perform pg_advisory_xact_lock(hashtext('taf_erp_obra_criar'));          -- duas criações ao mesmo tempo: a segunda encontra a obra
+  perform pg_advisory_xact_lock(hashtext('taf_acesso'));                  -- [integração] a mesma trava do 06: as obras das chaves não mudam no meio
   if exists (select 1 from public.taf_erp_obra where codigo = v_cod) then raise exception 'OBRA % JA EXISTE NO ERP', v_cod; end if;
+
+  -- [integração] obras que têm Diretoria ativa, contadas ANTES de criar; Diretoria com todas = tem todas essas (a regra do 06)
+  if to_regclass('public.taf_ciclo_chave') is not null then
+    select coalesce(array_agg(distinct u.x), '{}') into v_cob
+      from public.taf_ciclo_chave c cross join lateral unnest(c.obras) as u(x)
+     where c.papel = 'diretoria' and c.ativo;
+    v_dir_todas := a.fixo and a.papel = 'diretoria' and v_cob <@ coalesce(a.obras, '{}');
+  end if;
+  -- [integração] obra que já existe no planejador: só quem já cuida dela cria o ERP (a chave não ganha obra que não tinha)
+  if to_regclass('public.taf_ciclo_obra') is not null then
+    select exists (select 1 from public.taf_ciclo_obra o where o.obra = v_cod) into v_plan;
+  end if;
+  if v_plan then
+    if not a.fixo then
+      raise exception 'OBRA % JA EXISTE NO PLANEJADOR: O ERP DELA SO E CRIADO COM A CHAVE PESSOAL DE QUEM JA CUIDA DELA', v_cod; end if;
+    if not (v_cod = any(coalesce(a.obras, '{}'))) and not v_dir_todas then
+      raise exception 'OBRA % JA EXISTE NO PLANEJADOR E NAO ESTA NA SUA CHAVE: PECA A DIRETORIA', v_cod; end if;
+  end if;
+
   select coalesce(max(ordem), 0) + 1 into v_ord from public.taf_erp_obra;  -- obra nova vai para o fim da lista
   insert into public.taf_erp_obra (codigo, nome, contratante, ordem, atualizado_por) values (v_cod, v_nome, v_ct, v_ord, a.nome);
 
@@ -116,15 +149,39 @@ begin
     returning c.obras into v_lista;
     v_lista := coalesce(v_lista, a.obras);
   end if;
+  -- [integração] e nas Diretorias com todas as obras (contadas antes): a obra nova não tira delas o "todas as obras"
+  if to_regclass('public.taf_ciclo_chave') is not null then
+    update public.taf_ciclo_chave c set obras = c.obras || v_cod
+     where c.ativo and c.papel = 'diretoria' and v_cob <@ c.obras and not (v_cod = any(c.obras));
+    get diagnostics v_ndir = row_count;
+  end if;
 
   insert into public.taf_erp_base_hist (codigo, acao, quem, papel, verificado, detalhe)
   values (v_cod, 'criar', a.nome, a.papel, a.fixo,
-          jsonb_build_object('nome', v_nome, 'contratante', v_ct, 'chave', case when a.fixo then 'pessoal' else 'geral' end))
+          jsonb_build_object('nome', v_nome, 'contratante', v_ct, 'chave', case when a.fixo then 'pessoal' else 'geral' end,
+                             'planejador', v_plan, 'diretorias_com_a_obra', v_ndir))
   returning hid into v_hid;
 
   return jsonb_build_object('ok', true, 'obra', jsonb_build_object('codigo', v_cod, 'nome', v_nome, 'contratante', v_ct),
                             'quem', a.nome, 'papel', a.papel, 'chave', case when a.fixo then 'pessoal' else 'geral' end,
-                            'obras_da_chave', to_jsonb(v_lista), 'hid', v_hid);
+                            'obras_da_chave', to_jsonb(v_lista), 'diretorias_com_a_obra', v_ndir, 'hid', v_hid);
+end $$;
+
+-- ===================================================================== trava das propostas de meta (05)
+-- [integração] A proposta de meta (taf_erp_meta_prop, do 05) guarda só o código do item. Regravar ou voltar o orçamento com
+-- proposta pendente, ou com meta aprovada, poria a meta pensada para o item antigo no item novo de mesmo código (e o
+-- navegador aplicaria sozinho, porque o "antes" da decisão bate com o item novo). Sem o 05 aplicado, não faz nada.
+create or replace function public._taf_erp_base_trava_meta(p_obra text) returns void
+language plpgsql stable security definer set search_path = public as $$
+declare v_pend int := 0; v_aprov int := 0;
+begin
+  if to_regclass('public.taf_erp_meta_prop') is null then return; end if;
+  execute 'select count(*) filter (where situacao = ''pendente''), count(*) filter (where situacao = ''aprovada'')
+             from public.taf_erp_meta_prop where obra = $1' into v_pend, v_aprov using p_obra;
+  if v_pend > 0 then
+    raise exception 'OBRA % TEM PROPOSTA DE META PENDENTE (%): DECIDA OU CANCELE ANTES DE MUDAR O ORCAMENTO', p_obra, v_pend; end if;
+  if v_aprov > 0 then
+    raise exception 'OBRA % JA TEM META APROVADA: O ORCAMENTO NAO SE REGRAVA. USE ATUALIZAR PELA PLANILHA', p_obra; end if;
 end $$;
 
 -- ===================================================================== (b) gravar a base da obra
@@ -203,6 +260,8 @@ begin
      or coalesce(o.estado -> 'baseOv', '{}'::jsonb) not in ('{}'::jsonb, 'null'::jsonb)
      or coalesce(o.estado -> 'basePac', '{}'::jsonb) not in ('{}'::jsonb, 'null'::jsonb) then
     raise exception 'OBRA % JA TEM META OU AJUSTE NA LINHA DE BASE: O ORCAMENTO NAO SE REGRAVA. USE ATUALIZAR PELA PLANILHA', p_obra; end if;
+  -- [integração] proposta de meta (05) presa ao código do item de agora
+  perform public._taf_erp_base_trava_meta(p_obra);
   -- [revisão] chave geral: só a primeira gravação e só na obra que a chave geral criou
   if not a.fixo then
     if o.base_sha is not null then
@@ -251,6 +310,7 @@ begin
      or coalesce(o.estado -> 'baseOv', '{}'::jsonb) not in ('{}'::jsonb, 'null'::jsonb)
      or coalesce(o.estado -> 'basePac', '{}'::jsonb) not in ('{}'::jsonb, 'null'::jsonb) then
     raise exception 'OBRA % JA TEM META OU AJUSTE NA LINHA DE BASE: NAO VOLTA A BASE', p_obra; end if;
+  perform public._taf_erp_base_trava_meta(p_obra);                          -- [integração] proposta de meta pendente ou aprovada
   select jsonb_agg(to_jsonb(i) - 'obra' order by i.codigo) into v_ant from public.taf_erp_item i where i.obra = p_obra;
   insert into public.taf_erp_base_hist (codigo, acao, base_gz, base_sha, itens, sha_novo, n_itens, quem, papel, verificado, detalhe)
   values (p_obra, 'voltar', o.base_gz, o.base_sha, v_ant, h.base_sha, coalesce(jsonb_array_length(h.itens), 0), left(coalesce(p_quem, 'SQL'), 60), 'sql', true,
@@ -266,7 +326,8 @@ end $$;
 
 -- ===================================================================== permissões
 -- Só as duas entradas ficam chamáveis pela API; as internas e a tabela não (o Supabase dá execute por padrão).
-revoke all on function public._taf_erp_gestor(text, text, text), public._taf_erp_base_voltar(text, bigint, text) from public, anon, authenticated;
+revoke all on function public._taf_erp_gestor(text, text, text), public._taf_erp_base_voltar(text, bigint, text),
+  public._taf_erp_base_trava_meta(text) from public, anon, authenticated;
 revoke all on function public.taf_erp_obra_criar(text, text, text, text, text, text),
   public.taf_erp_base_gravar(text, text, text, text, jsonb, text, text) from public;
 grant execute on function public.taf_erp_obra_criar(text, text, text, text, text, text),
@@ -299,6 +360,7 @@ grant execute on function public.taf_erp_obra_criar(text, text, text, text, text
 --      drop function if exists public.taf_erp_base_gravar(text, text, text, text, jsonb, text, text);
 --      drop function if exists public._taf_erp_base_voltar(text, bigint, text);
 --      drop function if exists public._taf_erp_gestor(text, text, text);
+--      drop function if exists public._taf_erp_base_trava_meta(text);
 --      drop table if exists public.taf_erp_base_hist;
 --    As bases já gravadas ficam com a marca "tela:" no base_sha: o ERP continua abrindo pela lista fechada de campos.
 -- 3. Tirar uma obra criada por engano (só se não tem documento nenhum; o 01_erp.sql não deixa apagar obra, por isso o gatilho sai e volta):
@@ -307,5 +369,14 @@ grant execute on function public.taf_erp_obra_criar(text, text, text, text, text
 --      delete from public.taf_erp_obra where codigo = '<código>' and not exists (select 1 from public.taf_erp_doc d where d.obra = '<código>');
 --      alter table public.taf_erp_obra enable trigger taf_erp_obra_trg;
 --      update public.taf_ciclo_chave set obras = array_remove(obras, '<código>') where '<código>' = any(obras);
+--    [integração] Com o 05 aplicado, a obra que tem proposta de meta não sai assim: a proposta aponta para a obra (chave estrangeira)
+--    e não se apaga (gatilho "NADA E APAGADO"), então o delete da obra falha e nada muda. Confira antes:
+--      select count(*) from public.taf_erp_meta_prop where obra = '<código>';
+--    Com proposta, só com o sim do Felipe e numa transação: guardar a cópia das propostas da obra fora do repositório
+--      (select jsonb_agg(to_jsonb(p)) from public.taf_erp_meta_prop p where p.obra = '<código>'), depois
+--      alter table public.taf_erp_meta_prop disable trigger taf_erp_meta_trg;
+--      delete from public.taf_erp_meta_prop where obra = '<código>';
+--      alter table public.taf_erp_meta_prop enable trigger taf_erp_meta_trg;
+--    e então os passos acima. A obra do planejador (taf_ciclo_obra), se existir, não é tocada.
 -- O 99_reverter.sql (ERP inteiro) apaga as funções taf_erp_* deste arquivo, mas não a tabela taf_erp_base_hist: tirar com o passo 2.
 -- E o 99_reverter perde a base e os itens das obras criadas pela tela se a cópia acima não for feita antes.

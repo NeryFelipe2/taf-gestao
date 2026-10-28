@@ -318,6 +318,9 @@ const obnErro=e=>{const m=String(e&&e.message||e);
   if(/Could not find the function|PGRST202/.test(m))return 'O banco ainda não tem a obra nova: falta aplicar o 04_obra_nova.sql (pedido de autorização do Felipe).';
   if(/SEM PERMISSAO/.test(m))return 'Só Gestão ou Diretoria cria obra. Com a chave do site, escolha o papel Gestão ou Diretoria.';
   if(/JA EXISTE NO ERP/.test(m))return 'Já existe esta obra no ERP. Escolha outro código.';
+  /* [integração] obra que já está no planejador: só quem já cuida dela cria o ERP */
+  if(/JA EXISTE NO PLANEJADOR/.test(m))return 'Esta obra já existe no planejador. O ERP dela só é criado com a chave pessoal de quem já cuida dela: peça à Diretoria.';
+  if(/PROPOSTA DE META PENDENTE/.test(m))return 'A obra tem proposta de meta pendente: decida ou cancele em Obra → Metas antes de regravar o orçamento.';
   if(/CARACTERE NAO ACEITO/.test(m))return 'Nome ou contratante com caractere não aceito (< > ou aspas).';
   if(/NAO FOI CRIADA PELA TELA/.test(m))return 'Esta obra não foi criada pela tela: o orçamento dela só muda por Orçamento → Atualizar pela planilha.';
   if(/JA TEM DOCUMENTO LANCADO|JA TEM META|JA CONGELADA/.test(m))return 'A obra já tem lançamento, meta ou linha de base congelada: o orçamento não se regrava. Use Orçamento → Atualizar pela planilha.';

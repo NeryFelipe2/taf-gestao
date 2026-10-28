@@ -440,11 +440,11 @@ test('SQL 04: rascunho não aplicado, idempotente, funções security definer co
   assert.ok(!/^\s*create (table|index) (?!if not exists)/im.test(sql), 'create sem if not exists');
   assert.ok(!/^\s*create function/im.test(sql), 'função sem or replace');
   const fns = [...sql.matchAll(/create or replace function public\.(\w+)\(/g)].map(m => m[1]);
-  assert.deepEqual(fns, ['_taf_erp_gestor', 'taf_erp_obra_criar', 'taf_erp_base_gravar', '_taf_erp_base_voltar']);
+  assert.deepEqual(fns, ['_taf_erp_gestor', 'taf_erp_obra_criar', '_taf_erp_base_trava_meta', 'taf_erp_base_gravar', '_taf_erp_base_voltar']);
   for (const bloco of sql.split(/create or replace function /).slice(1)) assert.match(bloco.split('$$')[0], /security definer set search_path = public/);
   const grant = sql.match(/grant execute on function([\s\S]*?) to anon, authenticated;/)[1];
   assert.ok(grant.includes('taf_erp_obra_criar') && grant.includes('taf_erp_base_gravar') && !/_taf_erp/.test(grant));
-  assert.match(sql, /revoke all on function public\._taf_erp_gestor\(text, text, text\), public\._taf_erp_base_voltar\(text, bigint, text\) from public, anon, authenticated/);
+  assert.match(sql, /revoke all on function public\._taf_erp_gestor\(text, text, text\), public\._taf_erp_base_voltar\(text, bigint, text\),\s+public\._taf_erp_base_trava_meta\(text\) from public, anon, authenticated/);
   assert.match(sql, /revoke all on public\.taf_erp_base_hist from public, anon, authenticated/);
   assert.ok(!/function public\.(taf_erp_salvar|_taf_erp_pode|_taf_erp_ator)\(/.test(sql), 'não redefine funções que já existem');
   assert.match(sql, /como desfazer/i);
@@ -457,4 +457,29 @@ test('SQL 04: rascunho não aplicado, idempotente, funções security definer co
   assert.match(sql, /JA TEM META OU AJUSTE NA LINHA DE BASE/);
   assert.match(sql, /SO E GRAVADO UMA VEZ/); assert.match(sql, /FOI CRIADA COM CHAVE PESSOAL/);
   assert.match(sql, /copia_obras_da_tela/, 'cópia das obras da tela antes do 99_reverter');
+});
+
+test('integração (alta e média): obra do planejador, Diretoria com todas as obras e proposta de meta no 04, e a tela explica a recusa', () => {
+  const sql = fs.readFileSync(path.join(RAIZ, 'fonte', 'erp', 'sql', '04_obra_nova.sql'), 'utf8');
+  const criar = sql.split('create or replace function public.taf_erp_obra_criar(')[1].split('end $$;')[0];
+  /* código que já existe no planejador: a chave geral não cria, e a pessoal só se já tem a obra ou é Diretoria com todas */
+  assert.match(criar, /from public\.taf_ciclo_obra o where o\.obra = v_cod/);
+  assert.match(criar, /JA EXISTE NO PLANEJADOR: O ERP DELA SO E CRIADO COM A CHAVE PESSOAL/);
+  assert.match(criar, /JA EXISTE NO PLANEJADOR E NAO ESTA NA SUA CHAVE/);
+  assert.ok(criar.indexOf('JA EXISTE NO PLANEJADOR') < criar.indexOf('insert into public.taf_erp_obra'), 'a recusa vem antes de criar');
+  /* a obra nova entra nas Diretorias com todas as obras, contadas antes de criar */
+  assert.match(criar, /where c\.ativo and c\.papel = 'diretoria' and v_cob <@ c\.obras and not \(v_cod = any\(c\.obras\)\)/);
+  assert.ok(criar.indexOf('into v_cob') < criar.indexOf('insert into public.taf_erp_obra'), 'Diretorias contadas antes');
+  /* proposta de meta pendente ou aprovada trava a gravação e a volta da base */
+  const gravar = sql.split('create or replace function public.taf_erp_base_gravar(')[1].split('end $$;')[0];
+  const voltar = sql.split('create or replace function public._taf_erp_base_voltar(')[1].split('end $$;')[0];
+  for (const b of [gravar, voltar]) assert.match(b, /perform public\._taf_erp_base_trava_meta\(p_obra\);/);
+  assert.match(sql, /PROPOSTA DE META PENDENTE \(%\): DECIDA OU CANCELE ANTES DE MUDAR O ORCAMENTO/);
+  /* o desfazer avisa da proposta de meta (chave estrangeira) */
+  assert.match(sql, /taf_erp_meta_prop_obra|proposta aponta para a obra \(chave estrangeira\)/);
+  const obnErro = f('obnErro');
+  assert.match(obnErro(new Error('OBRA 996 JA EXISTE NO PLANEJADOR E NAO ESTA NA SUA CHAVE: PECA A DIRETORIA')), /já existe no planejador/);
+  assert.match(obnErro(new Error('OBRA 996 JA EXISTE NO PLANEJADOR: O ERP DELA SO E CRIADO COM A CHAVE PESSOAL DE QUEM JA CUIDA DELA')), /chave pessoal de quem já cuida dela/);
+  assert.match(obnErro(new Error('OBRA 951 TEM PROPOSTA DE META PENDENTE (1): DECIDA OU CANCELE ANTES DE MUDAR O ORCAMENTO')), /proposta de meta pendente.*Metas/);
+  assert.match(obnErro(new Error('OBRA 951 JA TEM META APROVADA: O ORCAMENTO NAO SE REGRAVA. USE ATUALIZAR PELA PLANILHA')), /Atualizar pela planilha/);
 });

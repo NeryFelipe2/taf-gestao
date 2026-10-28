@@ -10,7 +10,10 @@ begin;
 
 insert into public.taf_ciclo_chave (hash, nome, pessoa, papel, obras, ativo) values
   (encode(extensions.digest('teste04-gestor', 'sha256'), 'hex'), 'teste', 'Teste Gestora', 'gestor', array['342'], true),
-  (encode(extensions.digest('teste04-dir', 'sha256'), 'hex'), 'teste', 'Teste Diretor', 'diretoria', array['342'], true),
+  (encode(extensions.digest('teste04-dir', 'sha256'), 'hex'), 'teste', 'Teste Diretor', 'diretoria', array['342','343'], true),
+  -- [integração] Diretoria limitada (sócio de consórcio): só a 343; a teste04-dir tem todas as obras que alguma Diretoria tem
+  (encode(extensions.digest('teste04-socio', 'sha256'), 'hex'), 'teste', 'Teste Socio', 'diretoria', array['343'], true),
+  (encode(extensions.digest('teste04-gestor989', 'sha256'), 'hex'), 'teste', 'Teste Gestor 989', 'gestor', array['989'], true),
   (encode(extensions.digest('teste04-eng', 'sha256'), 'hex'), 'teste', 'Teste Engenheira', 'engenheiro', array['342'], true),
   (encode(extensions.digest('teste04-ler', 'sha256'), 'hex'), 'teste', null, 'leitura', array['342'], true);
 
@@ -36,6 +39,10 @@ begin
   if (select obras from public.taf_ciclo_chave where hash = pg_temp.sha('teste04-gestor')) <> array['342','997'] then raise exception 'FALHOU 1b: a obra nao entrou na lista da chave'; end if;
   if (select ordem from public.taf_erp_obra where codigo = '997') <> (select max(ordem) from public.taf_erp_obra) then raise exception 'FALHOU 1c: obra nova nao foi para o fim'; end if;
   if not exists (select 1 from public.taf_erp_base_hist where codigo = '997' and acao = 'criar' and quem = 'Teste Gestora' and verificado) then raise exception 'FALHOU 1d: sem historico'; end if;
+  -- [integração] a obra nova entra também na Diretoria com todas as obras (não na limitada), e ela continua com todas
+  if (select obras from public.taf_ciclo_chave where hash = pg_temp.sha('teste04-dir')) <> array['342','343','997'] or (r->>'diretorias_com_a_obra')::int <> 1
+     then raise exception 'FALHOU 1e: a Diretoria com todas as obras nao recebeu a 997: %', r; end if;
+  if (select obras from public.taf_ciclo_chave where hash = pg_temp.sha('teste04-socio')) <> array['343'] then raise exception 'FALHOU 1f: a Diretoria limitada recebeu a 997'; end if;
 
   -- 2. código repetido e inválido
   m := pg_temp.erro($$select public.taf_erp_obra_criar('teste04-gestor', '997', 'Outra', 'X Y')$$);
@@ -97,8 +104,8 @@ begin
      or m not like '%unidade inválida%' or m not like '%pacote inválido%' or m not like '%evento inválido%' then raise exception 'FALHOU 7g: %', m; end if;
   m := pg_temp.erro($$select pg_temp.grava('teste04-eng', '997', pg_temp.gz('v1'), pg_temp.itens(2))$$);
   if m not like 'SEM PERMISSAO%' then raise exception 'FALHOU 7h: %', m; end if;
-  m := pg_temp.erro($$select pg_temp.grava('teste04-dir', '997', pg_temp.gz('v1'), pg_temp.itens(2))$$);
-  if m is distinct from 'SEM ACESSO A OBRA' then raise exception 'FALHOU 7i (diretor sem a 997 na lista): %', m; end if;
+  m := pg_temp.erro($$select pg_temp.grava('teste04-socio', '997', pg_temp.gz('v1'), pg_temp.itens(2))$$);
+  if m is distinct from 'SEM ACESSO A OBRA' then raise exception 'FALHOU 7i (Diretoria limitada sem a 997 na lista): %', m; end if;
   m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '995', pg_temp.gz('v1'), pg_temp.itens(2))$$);
   if m is distinct from 'OBRA INVALIDA' then raise exception 'FALHOU 7j: %', m; end if;
 
@@ -158,8 +165,9 @@ begin
     m := pg_temp.erro($$select pg_temp.grava('chave-geral-teste', '998', pg_temp.gz('v1'), pg_temp.itens(4), 'gestao', 'Intruso')$$);
     if m not like 'COM A CHAVE DO SITE O ORCAMENTO SO E GRAVADO UMA VEZ%' then raise exception 'FALHOU 14c: %', m; end if;
     if (select base_sha from public.taf_erp_obra where codigo = '998') <> 'tela:' || pg_temp.sha(pg_temp.gz('v2')) then raise exception 'FALHOU 14d'; end if;
-    -- chave pessoal de diretoria (com a 998 na lista) regrava a obra limpa
-    update public.taf_ciclo_chave set obras = obras || '998'::text where hash = pg_temp.sha('teste04-dir');
+    -- chave pessoal de diretoria (com a 998 na lista: [integração] entrou sozinha quando a chave geral criou a 998) regrava a obra limpa
+    if not (select '998' = any(obras) from public.taf_ciclo_chave where hash = pg_temp.sha('teste04-dir')) then
+      raise exception 'FALHOU 14e0: a obra criada pela chave geral nao entrou na Diretoria com todas as obras'; end if;
     r := pg_temp.grava('teste04-dir', '998', pg_temp.gz('v1'), pg_temp.itens(3));
     if (r->>'itens')::int <> 3 or r->>'quem' <> 'Teste Diretor' then raise exception 'FALHOU 14e: %', r; end if;
     -- [revisão] chave geral não grava a primeira base de obra criada por chave pessoal (a 996 é da diretoria; sem a trava de congelada)
@@ -216,6 +224,61 @@ begin
   if m not like 'ORCAMENTO RECUSADO (1 PROBLEMA(S)): 1.1: descrição com < > ou aspas%' then raise exception 'FALHOU 19b: %', m; end if;
   r := pg_temp.grava('teste04-gestor', '994', pg_temp.gz('v1'), '[{"codigo":"1.1","descricao":"Tubo 4″ PVC ‹DN 100›","qtd":1,"venda":1}]');
   if (select descricao from public.taf_erp_item where obra = '994' and codigo = '1.1') <> 'Tubo 4″ PVC ‹DN 100›' then raise exception 'FALHOU 19c: %', r; end if;
+
+  -- 20. [integração] obra que já existe só no PLANEJADOR: quem não cuida dela não cria o ERP nem passa a ter a obra
+  insert into public.taf_ciclo_obra (obra, nome, engenheiro, ep, base_rev, equipe)
+  values ('989', 'OBRA 989 · SO PLANEJADOR (fictícia)', 'Engenheiro 989', date '2026-09-07', 'teste 04', '{}'),
+         ('988', 'OBRA 988 · SO PLANEJADOR (fictícia)', 'Engenheiro 988', date '2026-09-07', 'teste 04', '{}');
+  m := pg_temp.erro($$select public.taf_erp_obra_criar('teste04-gestor', '989', 'Nome inventado', 'Qualquer')$$);
+  if m is distinct from 'OBRA 989 JA EXISTE NO PLANEJADOR E NAO ESTA NA SUA CHAVE: PECA A DIRETORIA' then raise exception 'FALHOU 20a: %', m; end if;
+  m := pg_temp.erro($$select public.taf_erp_obra_criar('teste04-socio', '989', 'Nome inventado', 'Qualquer')$$);
+  if m is distinct from 'OBRA 989 JA EXISTE NO PLANEJADOR E NAO ESTA NA SUA CHAVE: PECA A DIRETORIA' then raise exception 'FALHOU 20b (Diretoria limitada): %', m; end if;
+  if v_geral then
+    m := pg_temp.erro($$select public.taf_erp_obra_criar('chave-geral-teste', '989', 'Nome inventado', 'Qualquer', 'Qualquer Um', 'gestao')$$);
+    if m not like 'OBRA 989 JA EXISTE NO PLANEJADOR: O ERP DELA SO E CRIADO COM A CHAVE PESSOAL%' then raise exception 'FALHOU 20c (chave geral): %', m; end if;
+  end if;
+  if exists (select 1 from public.taf_erp_obra where codigo = '989')
+     or exists (select 1 from public.taf_ciclo_chave where '989' = any(obras) and hash in (pg_temp.sha('teste04-gestor'), pg_temp.sha('teste04-socio'))) then
+    raise exception 'FALHOU 20d: a recusa deixou rastro'; end if;
+  -- o gestor que já tem a 989 na chave cria o ERP dela (a chave não muda; a Diretoria com todas recebe a obra)
+  r := public.taf_erp_obra_criar('teste04-gestor989', '989', 'OBRA 989 ERP', 'CONTRATANTE FICTÍCIO');
+  if r->'obras_da_chave' <> '["989"]'::jsonb or not (select '989' = any(obras) from public.taf_ciclo_chave where hash = pg_temp.sha('teste04-dir')) then
+    raise exception 'FALHOU 20e: %', r; end if;
+  -- a Diretoria com todas as obras cria o ERP de obra do planejador que ainda não estava na chave dela
+  r := public.taf_erp_obra_criar('teste04-dir', '988', 'OBRA 988 ERP', 'CONTRATANTE FICTÍCIO');
+  if not (r->'obras_da_chave' ? '988') then raise exception 'FALHOU 20f: %', r; end if;
+
+  -- 21. [integração] a Diretoria limitada cria obra nova: entra na chave dela e na Diretoria com todas, que continua com todas
+  r := public.taf_erp_obra_criar('teste04-socio', '993', 'OBRA 993 DO SOCIO', 'CONTRATANTE FICTÍCIO');
+  if r->'obras_da_chave' <> '["343","993"]'::jsonb then raise exception 'FALHOU 21a: %', r; end if;
+  if not ((select coalesce(array_agg(distinct u.x), '{}') from public.taf_ciclo_chave c cross join lateral unnest(c.obras) u(x) where c.papel = 'diretoria' and c.ativo)
+          <@ (select obras from public.taf_ciclo_chave where hash = pg_temp.sha('teste04-dir'))) then
+    raise exception 'FALHOU 21b: a Diretoria com todas as obras deixou de ter todas'; end if;
+
+  -- 22. [integração] proposta de meta (05) presa ao código do item: com pendente ou aprovada, o orçamento não muda
+  if to_regclass('public.taf_erp_meta_prop') is not null then
+    perform public.taf_erp_obra_criar('teste04-gestor', '992', 'OBRA 992 TESTE', 'CONTRATANTE FICTÍCIO');
+    perform pg_temp.grava('teste04-gestor', '992', pg_temp.gz('v1'),
+      '[{"codigo":"1.1","descricao":"Barracão","unidade":"vb","qtd":1,"venda":1000,"meta":800,"teto":900}]');
+    r := public.taf_erp_meta_propor('teste04-gestor', '992', null, null, 'item', '1.1', 700, null, null, 'reduzir a meta', null);
+    m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '992', pg_temp.gz('v2'), '[{"codigo":"1.1","descricao":"Outro servico","qtd":1,"venda":50,"meta":40,"teto":45}]')$$);
+    if m is distinct from 'OBRA 992 TEM PROPOSTA DE META PENDENTE (1): DECIDA OU CANCELE ANTES DE MUDAR O ORCAMENTO' then raise exception 'FALHOU 22a: %', m; end if;
+    if (select descricao from public.taf_erp_item where obra = '992' and codigo = '1.1') <> 'Barracão' then raise exception 'FALHOU 22b: o item mudou'; end if;
+    -- cancelada, regrava; a volta também confere
+    perform public.taf_erp_meta_cancelar('teste04-gestor', '992', null, (r->>'id')::bigint, 'planilha errada');
+    r := pg_temp.grava('teste04-gestor', '992', pg_temp.gz('v2'), '[{"codigo":"1.1","descricao":"Outro servico","qtd":1,"venda":50,"meta":40,"teto":45}]');
+    if (r->>'igual')::boolean then raise exception 'FALHOU 22c: %', r; end if;
+    r := public.taf_erp_meta_propor('teste04-gestor', '992', null, null, 'item', '1.1', 30, null, null, 'outra meta', null);
+    m := pg_temp.erro(format('select public._taf_erp_base_voltar(%L, %s)', '992', (select max(hid) from public.taf_erp_base_hist where codigo = '992' and acao = 'base')));
+    if m not like 'OBRA 992 TEM PROPOSTA DE META PENDENTE%' then raise exception 'FALHOU 22d (voltar): %', m; end if;
+    perform public.taf_erp_meta_cancelar('teste04-gestor', '992', null, (r->>'id')::bigint, null);
+    -- meta aprovada (direta, pela Diretoria com todas, que recebeu a 992) ainda não aplicada no estado: não regrava
+    perform public.taf_erp_meta_direta('teste04-dir', '992', null, null, 'item', '1.1', 35, null, null, 'meta da Diretoria', null);
+    m := pg_temp.erro($$select pg_temp.grava('teste04-gestor', '992', pg_temp.gz('v1'), '[{"codigo":"1.1","descricao":"Barracão","qtd":1,"venda":1000}]')$$);
+    if m is distinct from 'OBRA 992 JA TEM META APROVADA: O ORCAMENTO NAO SE REGRAVA. USE ATUALIZAR PELA PLANILHA' then raise exception 'FALHOU 22e: %', m; end if;
+  else
+    raise notice 'sem o 05 aplicado: passo 22 (proposta de meta) pulado';
+  end if;
 end $t$;
 
 -- 15. como o site chama (papel anon): as duas entradas funcionam; as internas e a tabela não
@@ -231,6 +294,8 @@ begin
   begin perform public._taf_erp_gestor('teste04-gestor', null, null); raise exception 'FALHOU 15c: anon chamou _taf_erp_gestor';
   exception when insufficient_privilege then null; end;
   begin perform public._taf_erp_base_voltar('995', 1, 'x'); raise exception 'FALHOU 15d: anon chamou _taf_erp_base_voltar';
+  exception when insufficient_privilege then null; end;
+  begin perform public._taf_erp_base_trava_meta('995'); raise exception 'FALHOU 15d2: anon chamou _taf_erp_base_trava_meta';
   exception when insufficient_privilege then null; end;
   begin perform count(*) from public.taf_erp_base_hist; raise exception 'FALHOU 15e: anon leu taf_erp_base_hist';
   exception when insufficient_privilege then null; end;
