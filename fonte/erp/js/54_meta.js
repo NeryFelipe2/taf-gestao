@@ -200,12 +200,12 @@ function metaModal(alvo,cod,direta){
    <div class="sub">${direta?'A meta muda agora, sem proposta, e entra na linha de base como versão nova com o seu motivo.':'A proposta vai para Gerente, Gestão ou Diretoria aprovar. Nada muda na meta até a aprovação.'}</div>
    <label for="mt-alvo">${alvo==='pacote'?'Pacote':'Item'}</label><select id="mt-alvo" data-mt-alvo="1">${opts}</select>
    <div class="sub">${esc(h.nome)}</div>
-   <div class="kpi4"><div><div class="k-l">Licitado</div><div class="v">${brl(h.venda,true)}</div></div><div><div class="k-l">Meta hoje</div><div class="v">${h.meta==null?'—':brl(h.meta,true)}</div></div>
-    <div><div class="k-l">Teto hoje</div><div class="v ${h.meta!=null&&h.teto!=null&&h.meta>h.teto?'neg':''}">${h.teto==null?'—':brl(h.teto,true)}</div></div><div><div class="k-l">Margem hoje</div><div class="v ${mg!=null&&mg<0?'neg':''}">${metaPct(mg)}</div></div></div>
+   <div class="kpi4"><div><div class="k-l">Licitado</div><div class="v">${brl(h.venda)}</div></div><div><div class="k-l">Meta hoje</div><div class="v">${h.meta==null?'—':brl(h.meta)}</div></div>
+    <div><div class="k-l">Teto hoje</div><div class="v ${h.meta!=null&&h.teto!=null&&h.meta>h.teto?'neg':''}">${h.teto==null?'—':brl(h.teto)}</div></div><div><div class="k-l">Margem hoje</div><div class="v ${mg!=null&&mg<0?'neg':''}">${metaPct(mg)}</div></div></div>
    ${alvo==='pacote'?`<div class="sub" style="margin-top:8px">${h.n} itens · soma das metas dos itens ${brl(h.somaMeta)} · soma dos tetos ${brl(h.somaTeto)} · fechar até ${fdata(h.fechar_ate)}${h.soma?'. Com a chave “Eventos e pacotes pela soma dos itens” ligada, as telas usam a soma dos itens: a meta e o teto do pacote ficam como valor de cadastro.':''}</div>`:''}
-   ${pe?`<div class="alert" style="margin-top:12px"><div class="g" style="color:var(--warn)">!</div><div><b>Já tem proposta esperando decisão</b><p>Nº ${pe.id} de ${esc(pe.proposto_por)} em ${fdata(String(pe.proposto_em||'').slice(0,10))}: ${esc(metaResumoProp(pe))}. Motivo: ${esc(pe.motivo)}</p>${metaEhMeu(pe)?`<button class="btn sm no" data-act="meta-cancelar" data-id="${esc(pe.id)}">Cancelar a minha proposta</button>`:''}</div></div>`:''}
-   <div class="${alvo==='pacote'?'g3':'g2'}" style="margin-top:10px"><div><label for="mt-m">Meta nova (R$)</label><input id="mt-m" data-mt="1" type="number" inputmode="decimal" step="0.01" min="0" placeholder="vazio = mantém"></div>
-    <div><label for="mt-t">Teto novo (R$)</label><input id="mt-t" data-mt="1" type="number" inputmode="decimal" step="0.01" min="0" placeholder="vazio = mantém"></div>
+   ${pe?`<div class="alert" style="margin-top:12px"><div class="g" style="color:var(--warn)">!</div><div><b>Já tem proposta esperando decisão</b><p>Nº ${esc(pe.id)} de ${esc(pe.proposto_por)} em ${metaQuando(pe.proposto_em)}: ${esc(metaResumoProp(pe))}. Motivo: ${esc(pe.motivo)}</p>${metaEhMeu(pe)?`<button class="btn sm no" data-act="meta-cancelar" data-id="${esc(pe.id)}">Cancelar a minha proposta</button>`:''}</div></div>`:''}
+   <div class="${alvo==='pacote'?'g3':'g2'}" style="margin-top:10px"><div><label for="mt-m">Meta nova (R$)</label><input id="mt-m" data-mt="1" type="number" inputmode="decimal" step="0.01" min="0" placeholder="mantém"></div>
+    <div><label for="mt-t">Teto novo (R$)</label><input id="mt-t" data-mt="1" type="number" inputmode="decimal" step="0.01" min="0" placeholder="mantém"></div>
     ${alvo==='pacote'?`<div><label for="mt-f">Fechar até</label><input id="mt-f" data-mt="1" type="date"></div>`:''}</div>
    <label for="mt-mo">Motivo (obrigatório)</label><textarea id="mt-mo" rows="2" maxlength="500" placeholder="ex.: cotação do fornecedor veio acima da meta"></textarea>
    <div id="mt-prev" class="sub" style="margin-top:8px"></div><div id="mt-msg" class="sub"></div>
@@ -275,20 +275,21 @@ async function metaCancelaOk(){const x=MDX,B=metaBack();if(!x||!B||!x.cancelar)r
 
 /* hoje x proposto, com licitado, folga até o teto e margem */
 function metaTabela(p,h){
-  const linha=(rot,a,b,f)=>`<tr><td>${rot}</td><td class="r">${a==null?'—':f(a)}</td><td class="r">${b==null?'<span class="mut">mantém</span>':'<b>'+f(b)+'</b>'}</td></tr>`;
+  const linha=(rot,a,b,f)=>`<tr><td>${rot}</td><td class="r">${a==null?'—':esc(f(a))}</td><td class="r">${b==null?'<span class="mut">mantém</span>':'<b>'+esc(f(b))+'</b>'}</td></tr>`;
   const metaN=metaTem(p,'meta')?+p.meta:h.meta,tetoN=metaTem(p,'teto')?+p.teto:h.teto,folga=(m,t)=>m==null||t==null?null:t-m;
   const venda=h.venda,mg0=metaMargem(venda,p.alvo==='pacote'?h.somaMeta:h.meta),mg1=p.alvo==='pacote'?null:metaMargem(venda,metaN);
-  return `<div class="tw"><table class="tbl"><thead><tr><th></th><th class="r">Hoje</th><th class="r">Proposto</th></tr></thead><tbody>
+  /* grw: tabela curta do cartão, sem a barra de filtros que 42_filtros.js põe nas listas */
+  return `<div class="tw grw"><table class="tbl"><thead><tr><th></th><th class="r">Hoje</th><th class="r">Proposto</th></tr></thead><tbody>
    ${linha('Meta',h.meta,metaTem(p,'meta')?+p.meta:null,v=>brl(v))}${linha('Teto',h.teto,metaTem(p,'teto')?+p.teto:null,v=>brl(v))}
    ${p.alvo==='pacote'?linha('Fechar até',h.fechar_ate||null,metaTem(p,'fechar_ate')?String(p.fechar_ate).slice(0,10):null,fdata):''}
    <tr><td>Licitado</td><td class="r mut">${brl(venda)}</td><td class="r mut">${brl(venda)}</td></tr>
    <tr><td>Folga até o teto</td><td class="r">${folga(h.meta,h.teto)==null?'—':brl(folga(h.meta,h.teto))}</td><td class="r ${folga(metaN,tetoN)!=null&&folga(metaN,tetoN)<0?'neg':''}">${folga(metaN,tetoN)==null?'—':brl(folga(metaN,tetoN))}</td></tr>
-   ${p.alvo==='pacote'?`<tr><td>Margem pela soma dos itens</td><td class="r">${metaPct(mg0)}</td><td class="r mut">igual (a meta dos itens não muda)</td></tr>`:`<tr><td>Margem (licitado menos meta)</td><td class="r">${metaPct(mg0)}</td><td class="r ${mg1!=null&&mg1<0?'neg':''}">${metaPct(mg1)}</td></tr>`}
+   ${p.alvo==='pacote'?`<tr><td>Margem dos itens</td><td class="r">${metaPct(mg0)}</td><td class="r mut">igual</td></tr>`:`<tr><td>Margem (licitado menos meta)</td><td class="r">${metaPct(mg0)}</td><td class="r ${mg1!=null&&mg1<0?'neg':''}">${metaPct(mg1)}</td></tr>`}
    </tbody></table></div>`}
 
 /* ---------- tela Obra → Metas ---------- */
 const metaQuemTxt=p=>`${esc(p.proposto_por)} · ${esc((ROLES[p.proposto_papel]||{}).n||p.proposto_papel)}${p.proposto_pessoal?'':' · chave do site (nome digitado)'}`;
-const metaQuando=s=>s?fdata(String(s).slice(0,10))+' '+String(s).slice(11,16):'';
+const metaQuando=s=>s?esc(fdata(String(s).slice(0,10))+' '+String(s).slice(11,16)):'';
 function metaCartao(p){const h=metaHoje(p.alvo,p.codigo)||{},st=metaSituacao(p),pd=metaPodeDecidir(p);
   const dec=p.situacao!=='pendente'&&p.decidido_por?`<div class="sub">${p.situacao==='cancelada'?'Cancelada':p.origem==='direta'?'Mudada direto':p.situacao==='aprovada'?'Aprovada':'Recusada'} por ${esc(p.decidido_por)} (${esc((ROLES[p.decidido_papel]||{}).n||p.decidido_papel||'')}) em ${metaQuando(p.decidido_em)}${p.decisao_motivo?': '+esc(p.decisao_motivo):''}</div>`:'';
   const acoes=p.situacao!=='pendente'?'':pd[0]?`<button class="btn sm no" data-act="meta-recusar" data-id="${esc(p.id)}">Recusar</button><button class="btn sm ok" data-act="meta-aprovar" data-id="${esc(p.id)}">Aprovar</button>`

@@ -47,3 +47,10 @@ python -m http.server 8791 --bind 127.0.0.1 --directory <pasta>
 
 Abrir `http://127.0.0.1:8791/erp-demo.html`. A página sai do `public/erp.html` sem o endereço do Supabase e sem a chave pública, bloqueia qualquer conexão
 (`connect-src 'none'`) e guarda o estado no próprio navegador. As chaves novas começam desligadas: ligue em **Suprimentos → Compras → Parâmetros → Chaves desta obra**.
+
+## Meta pela tela (item 2 do "sistema sozinho")
+
+| Arquivo | Prova |
+|---|---|
+| `meta.test.js` | Chave `par.meta_tela` (padrão desligada): desligada, sem aba Metas, sem botões e Remanejar só de Gerente e Diretoria. Ligada: o engenheiro propõe (nada muda até aprovar); Gestão aprova e a meta entra na linha de base (baseOv, versão nova, histórico com o número da proposta, auditoria); recusar pede motivo; quem propôs não decide; cancelar só a própria; pacote (meta, teto, fechar até) vai para basePac; Gestão e Diretoria mudam direto; item remanejado; estado velho gravado por cima volta a aplicar uma vez só; ordem das aprovadas; proposta de outra obra nunca entra; texto digitado escapado; argumentos das funções `taf_erp_meta_*` com o `chRpc` simulado; motivo obrigatório na Atualizar pela planilha; 300 cenários aleatórios. |
+| `carga999_sql.js` | Gera o SQL que carrega a obra 999 num banco LOCAL de teste (base_gz, itens, pedidos e notas; com `--chaves`, chaves pessoais de teste). Usado no teste de ponta a ponta com o imitador do Supabase. O SQL das regras está em `fonte/erp/sql/05_teste_999.sql` (roda em transação e desfaz). |
