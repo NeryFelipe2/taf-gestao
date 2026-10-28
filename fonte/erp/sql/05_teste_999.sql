@@ -40,13 +40,15 @@ declare r jsonb; n int; geral constant text := 'chave-geral-teste';
   v_geral boolean := (select (v #>> '{}')::boolean from t05 where k = 'geral');
 begin
   -- 1. engenheira propõe a meta do item T05.1: fica pendente, o "antes" vem do banco
-  r := public.taf_erp_meta_propor('teste05-eng', '999', null, null, 'item', 'T05.1', 850, 950, null, 'cotação real veio maior', '{"meta": 1}');
+  r := public.taf_erp_meta_propor('teste05-eng', '999', null, null, 'item', 'T05.1', 850, 950, null, E'  cotação real\n\n  veio maior ', '{"meta": 1}');
   perform pg_temp.confere('1 situacao', r->>'situacao', 'pendente');
   perform pg_temp.confere('1 quem', r->>'proposto_por', 'Engenheira Teste');
   perform pg_temp.confere('1 papel', r->>'proposto_papel', 'engenheiro');
   perform pg_temp.confere('1 pessoal', r->>'proposto_pessoal', 'true');
   perform pg_temp.confere('1 antes da meta (do banco, não da tela)', r->'antes'->>'meta', '800');
   perform pg_temp.confere('1 antes do teto', r->'antes'->>'teto', '900');
+  perform pg_temp.confere('1 motivo sem quebra de linha nem espaço sobrando', r->>'motivo', 'cotação real veio maior');
+  perform pg_temp.confere('1 sem antes da decisão', r->>'antes_decisao', null);
   insert into t05 values ('p1', r);
 
   -- 2. segunda proposta pendente no mesmo item: recusada
@@ -58,6 +60,10 @@ begin
   perform pg_temp.confere('5', pg_temp.erro($q$select public.taf_erp_meta_propor('teste05-eng','999',null,null,'item','T05.2',10,null,'2030-01-01','motivo')$q$), 'FECHAR ATE SO NO PACOTE');
   perform pg_temp.confere('6', pg_temp.erro($q$select public.taf_erp_meta_propor('teste05-eng','999',null,null,'item','T05.2',null,null,null,'motivo')$q$), 'INFORME META, TETO OU DATA');
   perform pg_temp.confere('7', pg_temp.erro($q$select public.taf_erp_meta_propor('teste05-eng','999',null,null,'item','T05.2',-1,null,null,'motivo')$q$), 'VALOR INVALIDO');
+  -- 7d a 7f. motivo feito só de quebra de linha, tabulação ou espaço invisível não vale (a tela barra; aqui é quem chama direto)
+  perform pg_temp.confere('7d', pg_temp.erro($q$select public.taf_erp_meta_propor('teste05-eng','999',null,null,'item','T05.2',100,null,null,E'\n\n\n\n')$q$), 'MOTIVO OBRIGATORIO');
+  perform pg_temp.confere('7e', pg_temp.erro($q$select public.taf_erp_meta_propor('teste05-eng','999',null,null,'item','T05.2',100,null,null,E'\t \r\n\t')$q$), 'MOTIVO OBRIGATORIO');
+  perform pg_temp.confere('7f', pg_temp.erro($q$select public.taf_erp_meta_propor('teste05-eng','999',null,null,'item','T05.2',100,null,null,U&'\00A0\00A0\200B\FEFF\3000')$q$), 'MOTIVO OBRIGATORIO');
   perform pg_temp.confere('7b', pg_temp.erro($q$select public.taf_erp_meta_propor('teste05-eng','999',null,null,'pacote','NAO_EXISTE',10,null,null,'motivo')$q$), 'PACOTE NAO EXISTE NA OBRA');
   perform pg_temp.confere('7c', pg_temp.erro($q$select public.taf_erp_meta_propor('teste05-eng','999',null,null,'evento','T05.2',10,null,null,'motivo')$q$), 'ALVO INVALIDO');
   -- 8 e 9. quem não propõe
@@ -82,11 +88,15 @@ begin
   -- 12. engenheira não decide
   perform pg_temp.confere('12', pg_temp.erro(format($q$select public.taf_erp_meta_decidir('teste05-eng','999',null,null,%s,true,null)$q$, (select v->>'id' from t05 where k = 'p1'))),
     'PAPEL ENGENHEIRO NAO DECIDE META');
-  -- 13. recusar pede motivo
+  -- 13. recusar pede motivo (espaço, quebra de linha e tabulação não contam)
   perform pg_temp.confere('13', pg_temp.erro(format($q$select public.taf_erp_meta_decidir('teste05-ges','999',null,null,%s,false,' ')$q$, (select v->>'id' from t05 where k = 'p1'))),
     'RECUSAR PEDE MOTIVO');
-  -- 14. gestor (chave pessoal) aprova a da engenheira
-  r := public.taf_erp_meta_decidir('teste05-ges', '999', 'nome ignorado', 'compras', (select (v->>'id')::bigint from t05 where k = 'p1'), true, null);
+  perform pg_temp.confere('13b', pg_temp.erro(format($q$select public.taf_erp_meta_decidir('teste05-ges','999',null,null,%s,false,E'\n\t\n\t')$q$, (select v->>'id' from t05 where k = 'p1'))),
+    'RECUSAR PEDE MOTIVO');
+  -- 14. gestor (chave pessoal) aprova a da engenheira; guarda o que a tela dele mostrava (só número e data, 2 casas)
+  r := public.taf_erp_meta_decidir('teste05-ges', '999', 'nome ignorado', 'compras', (select (v->>'id')::bigint from t05 where k = 'p1'), true, null,
+                                   '{"meta": 800.0000000001, "teto": 900, "fechar_ate": "x", "lixo": "<b>"}');
+  perform pg_temp.confere('14 antes da decisão', (r->'antes_decisao')::text, '{"meta": 800.00, "teto": 900.00}');
   perform pg_temp.confere('14 situacao', r->>'situacao', 'aprovada');
   perform pg_temp.confere('14 quem', r->>'decidido_por', 'Gestor Teste');
   perform pg_temp.confere('14 papel', r->>'decidido_papel', 'gestao');
@@ -141,9 +151,11 @@ begin
   perform pg_temp.confere('19e', r->>'origem', 'direta');
   perform pg_temp.confere('19f', r->>'decidido_por', 'Gestor Teste');
   perform pg_temp.confere('19g antes com a meta remanejada do estado', r->'antes'->>'meta', '333');
+  perform pg_temp.confere('19g2 mudança direta sem antes da tela', (r->'antes_decisao')::text, '{}');
   if (r->>'ordem')::bigint <= (select (v->>'ordem')::bigint from t05 where k = 'a1') then raise exception 'FALHOU 19h: ordem não cresce'; end if;
-  r := public.taf_erp_meta_direta('teste05-dir', '999', null, null, 'pacote', 'QT05', null, null, '2031-03-01', 'data nova do pacote', '{"fechar_ate": "2030-05-05"}');
+  r := public.taf_erp_meta_direta('teste05-dir', '999', null, null, 'pacote', 'QT05', null, null, '2031-03-01', 'data nova do pacote', '{"fechar_ate": "2030-05-05", "meta": 2800}');
   perform pg_temp.confere('19i', r->>'fechar_ate', '2031-03-01');
+  perform pg_temp.confere('19j antes da decisão na mudança direta', (r->'antes_decisao')::text, '{"meta": 2800.00, "fechar_ate": "2030-05-05"}');
 
   -- 20. listar: a obra inteira, a mais nova primeiro; sem acesso à obra não lista
   r := public.taf_erp_meta_listar('teste05-eng', '999', null);
@@ -158,6 +170,8 @@ begin
   perform pg_temp.confere('21b', pg_temp.erro($q$update public.taf_erp_meta_prop set meta = 1$q$), 'permission denied for table taf_erp_meta_prop');
   perform pg_temp.confere('21c', pg_temp.erro($q$select public._taf_erp_meta_valida('999','item','T05.1',1,null,null,'x x x')$q$), 'permission denied for function _taf_erp_meta_valida');
   perform pg_temp.confere('21d', pg_temp.erro($q$select public._taf_erp_meta_norm('x')$q$), 'permission denied for function _taf_erp_meta_norm');
+  perform pg_temp.confere('21e', pg_temp.erro($q$select public._taf_erp_meta_texto('x')$q$), 'permission denied for function _taf_erp_meta_texto');
+  perform pg_temp.confere('21f', pg_temp.erro($q$select public._taf_erp_meta_tela('{}')$q$), 'permission denied for function _taf_erp_meta_tela');
   raise notice '05 (como o site): regras 1 a 21 conferidas';
 end $t$;
 
@@ -173,7 +187,13 @@ begin
   if has_table_privilege('anon', 'public.taf_erp_meta_prop', 'select') or has_sequence_privilege('anon', 'public.taf_erp_meta_ordem_seq', 'usage') then
     raise exception 'FALHOU 23: tabela ou sequência aberta para anon'; end if;
   if not has_function_privilege('anon', 'public.taf_erp_meta_listar(text, text, text)', 'execute') then raise exception 'FALHOU 23b: listar fechado para anon'; end if;
-  raise notice '05 OK: 23 grupos de regras conferidos na obra 999';
+  -- 24. uma função de decidir só (a assinatura velha do rascunho, sem p_antes, não fica junto)
+  if (select count(*) from pg_proc where proname = 'taf_erp_meta_decidir' and pronamespace = 'public'::regnamespace) <> 1 then
+    raise exception 'FALHOU 24: mais de uma taf_erp_meta_decidir'; end if;
+  -- 25. a tabela também recusa motivo só de espaço (se alguém gravar sem passar pelas funções)
+  perform pg_temp.confere('25', pg_temp.erro($q$insert into public.taf_erp_meta_prop (obra, alvo, codigo, meta, motivo, proposto_por, proposto_papel, proposto_pessoal)
+    values ('999', 'item', 'T05.2', 1, E'\n\n\n\n', 'x', 'engenheiro', true)$q$), 'new row for relation "taf_erp_meta_prop" violates check constraint "taf_erp_meta_prop_motivo_check"');
+  raise notice '05 OK: 25 grupos de regras conferidos na obra 999';
 end $t$;
 
 rollback;

@@ -16,10 +16,26 @@
 -- (Gestão, Diretoria ou Gerente), pelo mesmo caminho do Remanejar e do Atualizar pela planilha (estado.baseOv / estado.basePac,
 -- versão nova da linha de base, histórico e auditoria), em fonte/erp/js/54_meta.js. O histórico da linha de base guarda o número
 -- da proposta aplicada; ao abrir a obra, um aprovador aplica as aprovadas que ainda não estão no histórico.
+-- Na decisão (e na mudança direta) o banco guarda em antes_decisao a meta, o teto e o "fechar até" que a tela de quem decidiu
+-- mostrava. Antes de aplicar, o navegador confere: se o item (ou pacote) mudou depois da decisão, não aplica sozinho e mostra
+-- "precisa de conferência" para Gerente, Gestão ou Diretoria escolherem (aplicar mesmo assim ou não aplicar).
 -- Não mexe em taf_erp_salvar, _taf_erp_pode, _taf_erp_ator nem em nenhuma tabela que já existe.
 --
 -- ATENÇÃO (achado): as chaves pessoais (taf_ciclo_chave) só têm os papéis engenheiro, gestor, diretoria e leitura.
 -- Não existe chave pessoal de Gerente. A função aceita Gerente com chave pessoal, mas hoje só Gestão (gestor) e Diretoria decidem.
+--
+-- RISCOS QUE ESTE ARQUIVO NÃO RESOLVE (precisam do sim do Felipe, em item separado):
+--   1. A regra D4 protege a PROPOSTA e a DECISÃO (estas funções). A meta em si mora no estado da obra, e o taf_erp_salvar
+--      (01_erp.sql, que esta tarefa não pode redefinir) grava o estado para Gestão, Diretoria e Gerente também com a chave geral
+--      do site, em que o papel é escolhido na tela. Quem tem a chave geral pode mudar baseOv/metaOv/basePac pela planilha, pelo
+--      Remanejar ou chamando taf_erp_salvar direto, e pode gravar marcas hist[].prop falsas (a proposta marcada não é aplicada).
+--      A D4 da meta só fica completa quando taf_erp_salvar recusar mudança em baseOv, metaOv, basePac e hist vinda de chave não pessoal.
+--   2. O ERP não confere a versão do estado antes de gravar: um navegador com o estado velho grava por cima do que outro gravou
+--      (vale para tudo do estado, não só para a meta). A meta aprovada que some assim volta a ser aplicada, ou fica "precisa de
+--      conferência" se o item mudou; mas o que o navegador velho apagou de outros (um remanejamento, uma planilha) se perde.
+--      Enquanto isso, o banco fica sem a meta até um navegador de Gestão, Diretoria ou Gerente com a obra aberta ler o banco
+--      (o ERP lê a cada 30 segundos e a tela de metas confere a cada minuto) ou, se nenhum estiver aberto, até alguém desses
+--      papéis abrir a obra. A correção de fundo é conferir a versão antes de gravar (taf_erp_salvar e chSync).
 --
 -- Antes de aplicar: backup (PASSO A de 99_reverter.sql). Pode rodar mais de uma vez (tudo é "if not exists" ou "create or replace").
 -- Para desfazer: ver o fim do arquivo.
@@ -35,7 +51,7 @@ create table if not exists public.taf_erp_meta_prop (
   teto numeric(16, 2) check (teto is null or teto between 0 and 9999999999),
   fechar_ate date check (fechar_ate is null or fechar_ate between date '2000-01-01' and date '2100-12-31'),
   antes jsonb not null default '{}'::jsonb,                 -- o que valia na hora da proposta (item: lido do banco; pacote: o que a tela mostrava)
-  motivo text not null check (length(btrim(motivo)) between 3 and 500),
+  motivo text not null check (length(btrim(regexp_replace(motivo, '[[:space:]]+', ' ', 'g'))) between 3 and 500),
   origem text not null default 'proposta' check (origem in ('proposta', 'direta')),
   situacao text not null default 'pendente' check (situacao in ('pendente', 'aprovada', 'recusada', 'cancelada')),
   proposto_por text not null,
@@ -53,6 +69,8 @@ create table if not exists public.taf_erp_meta_prop (
   check ((situacao = 'aprovada') = (ordem is not null))
 );
 -- uma proposta pendente por item (ou pacote) de cada vez: a segunda espera a primeira ser decidida ou cancelada
+-- o que a tela de quem decidiu mostrava (meta, teto e, no pacote, "fechar até"): o navegador só aplica sozinho se o item ainda estiver assim
+alter table public.taf_erp_meta_prop add column if not exists antes_decisao jsonb;
 create unique index if not exists taf_erp_meta_prop_pendente on public.taf_erp_meta_prop (obra, alvo, codigo) where situacao = 'pendente';
 create index if not exists taf_erp_meta_prop_obra on public.taf_erp_meta_prop (obra, id);
 
@@ -89,6 +107,20 @@ create or replace function public._taf_erp_meta_num(p text) returns numeric
 language sql immutable set search_path = public as $$
   select case when p ~ '^-?[0-9]{1,13}(\.[0-9]{1,6})?$' then p::numeric end $$;
 
+-- Texto digitado (motivo): qualquer sequência de espaço, quebra de linha, tabulação ou espaço invisível vira um espaço só, sem
+-- espaço nas pontas. "Motivo" feito só disso fica vazio (a tela já barra; aqui vale para quem chama a função direto).
+create or replace function public._taf_erp_meta_texto(p text) returns text
+language sql immutable set search_path = public as $$
+  select btrim(regexp_replace(coalesce(p, ''), '[[:space:]   -​    　﻿]+', ' ', 'g')) $$;
+
+-- O que a tela de quem decide mostrava (meta, teto, "fechar até"), mandado pelo navegador: só número (2 casas) e data; o resto some.
+create or replace function public._taf_erp_meta_tela(p jsonb) returns jsonb
+language sql immutable set search_path = public as $$
+  select jsonb_strip_nulls(jsonb_build_object(
+    'meta', case when coalesce(p->>'meta', '') ~ '^[0-9]{1,13}(\.[0-9]{1,20})?$' then round((p->>'meta')::numeric, 2) end,
+    'teto', case when coalesce(p->>'teto', '') ~ '^[0-9]{1,13}(\.[0-9]{1,20})?$' then round((p->>'teto')::numeric, 2) end,
+    'fechar_ate', case when coalesce(p->>'fechar_ate', '') ~ '^\d{4}-\d{2}-\d{2}$' then p->>'fechar_ate' end)) $$;
+
 -- O que vale hoje no item, pela mesma regra de _taf_erp_valores (02_rastro.sql): meta remanejada, senão a da linha de base, senão a da carga.
 create or replace function public._taf_erp_meta_item_atual(p_obra text, p_codigo text) returns jsonb
 language sql stable security definer set search_path = public as $$
@@ -113,8 +145,8 @@ begin
   if p_meta < 0 or p_teto < 0 or p_meta > 9999999999 or p_teto > 9999999999 then raise exception 'VALOR INVALIDO'; end if;
   if p_alvo = 'item' and p_fechar_ate is not null then raise exception 'FECHAR ATE SO NO PACOTE'; end if;
   if p_fechar_ate is not null and p_fechar_ate not between date '2000-01-01' and date '2100-12-31' then raise exception 'DATA INVALIDA'; end if;
-  if length(btrim(coalesce(p_motivo, ''))) < 3 then raise exception 'MOTIVO OBRIGATORIO'; end if;
-  if length(btrim(p_motivo)) > 500 then raise exception 'MOTIVO GRANDE DEMAIS'; end if;
+  if length(public._taf_erp_meta_texto(p_motivo)) < 3 then raise exception 'MOTIVO OBRIGATORIO'; end if;
+  if length(public._taf_erp_meta_texto(p_motivo)) > 500 then raise exception 'MOTIVO GRANDE DEMAIS'; end if;
   if exists (select 1 from public.taf_erp_meta_prop where obra = p_obra and alvo = p_alvo and codigo = p_codigo and situacao = 'pendente') then
     raise exception 'JA HA PROPOSTA PENDENTE PARA ESTE %', upper(p_alvo); end if;
   if (select count(*) from public.taf_erp_meta_prop where obra = p_obra and situacao = 'pendente') >= 300 then
@@ -148,7 +180,7 @@ begin
   insert into public.taf_erp_meta_prop (obra, alvo, codigo, meta, teto, fechar_ate, antes, motivo, origem, situacao,
                                         proposto_por, proposto_papel, proposto_pessoal)
   values (p_obra, p_alvo, p_codigo, p_meta, p_teto, p_fechar_ate, public._taf_erp_meta_antes(p_obra, p_alvo, p_codigo, p_antes),
-          btrim(p_motivo), 'proposta', 'pendente', a.nome, a.papel, coalesce(a.fixo, false))
+          public._taf_erp_meta_texto(p_motivo), 'proposta', 'pendente', a.nome, a.papel, coalesce(a.fixo, false))
   returning * into r;
   return to_jsonb(r);
 end $$;
@@ -168,10 +200,11 @@ begin
   if not (a.papel = any(array['gestao', 'diretoria'])) then raise exception 'SO GESTAO E DIRETORIA MUDAM META DIRETO'; end if;
   perform pg_advisory_xact_lock(hashtext('taf_erp_meta_' || p_obra));
   perform public._taf_erp_meta_valida(p_obra, p_alvo, p_codigo, p_meta, p_teto, p_fechar_ate, p_motivo);
-  insert into public.taf_erp_meta_prop (obra, alvo, codigo, meta, teto, fechar_ate, antes, motivo, origem, situacao,
+  insert into public.taf_erp_meta_prop (obra, alvo, codigo, meta, teto, fechar_ate, antes, antes_decisao, motivo, origem, situacao,
                                         proposto_por, proposto_papel, proposto_pessoal, decidido_por, decidido_papel, decidido_em, ordem)
   values (p_obra, p_alvo, p_codigo, p_meta, p_teto, p_fechar_ate, public._taf_erp_meta_antes(p_obra, p_alvo, p_codigo, p_antes),
-          btrim(p_motivo), 'direta', 'aprovada', a.nome, a.papel, true, a.nome, a.papel, now(), nextval('public.taf_erp_meta_ordem_seq'))
+          public._taf_erp_meta_tela(p_antes), public._taf_erp_meta_texto(p_motivo), 'direta', 'aprovada', a.nome, a.papel, true,
+          a.nome, a.papel, now(), nextval('public.taf_erp_meta_ordem_seq'))
   returning * into r;
   return to_jsonb(r);
 end $$;
@@ -189,8 +222,12 @@ end $$;
 
 -- Aprovar ou recusar. Só Gerente, Gestão ou Diretoria, com CHAVE PESSOAL (D4: com a chave geral do site o nome é digitado,
 -- ninguém aprova). Quem propôs não decide (mesmo nome, com qualquer chave). Recusar pede motivo.
+-- p_antes: meta, teto e "fechar até" que a tela de quem decide mostrava (fica em antes_decisao; o navegador só aplica sozinho
+-- se o item ainda estiver assim). A versão anterior deste rascunho não tinha p_antes: a assinatura velha é removida para não
+-- ficarem duas funções com o mesmo nome.
+drop function if exists public.taf_erp_meta_decidir(text, text, text, text, bigint, boolean, text);
 create or replace function public.taf_erp_meta_decidir(p_chave text, p_obra text, p_quem text, p_papel text, p_id bigint,
-  p_aprovar boolean, p_motivo text default null)
+  p_aprovar boolean, p_motivo text default null, p_antes jsonb default null)
 returns jsonb language plpgsql volatile security definer set search_path = public as $$
 declare a record; r public.taf_erp_meta_prop;
 begin
@@ -205,11 +242,12 @@ begin
   if r.id is null then raise exception 'PROPOSTA NAO EXISTE'; end if;
   if r.situacao <> 'pendente' then raise exception 'PROPOSTA JA DECIDIDA'; end if;
   if public._taf_erp_meta_norm(r.proposto_por) = public._taf_erp_meta_norm(a.nome) then raise exception 'QUEM PROPOS NAO DECIDE'; end if;
-  if not p_aprovar and length(btrim(coalesce(p_motivo, ''))) < 3 then raise exception 'RECUSAR PEDE MOTIVO'; end if;
+  if not p_aprovar and length(public._taf_erp_meta_texto(p_motivo)) < 3 then raise exception 'RECUSAR PEDE MOTIVO'; end if;
   update public.taf_erp_meta_prop
      set situacao = case when p_aprovar then 'aprovada' else 'recusada' end,
          decidido_por = a.nome, decidido_papel = a.papel, decidido_em = now(),
-         decisao_motivo = nullif(left(btrim(coalesce(p_motivo, '')), 500), ''),
+         decisao_motivo = nullif(left(public._taf_erp_meta_texto(p_motivo), 500), ''),
+         antes_decisao = public._taf_erp_meta_tela(p_antes),
          ordem = case when p_aprovar then nextval('public.taf_erp_meta_ordem_seq') end
    where id = r.id
   returning * into r;
@@ -233,7 +271,7 @@ begin
   if r.proposto_pessoal and coalesce(a.fixo, false) is not true then raise exception 'CANCELE COM A SUA CHAVE PESSOAL'; end if;
   update public.taf_erp_meta_prop
      set situacao = 'cancelada', decidido_por = a.nome, decidido_papel = a.papel, decidido_em = now(),
-         decisao_motivo = nullif(left(btrim(coalesce(p_motivo, '')), 500), '')
+         decisao_motivo = nullif(left(public._taf_erp_meta_texto(p_motivo), 500), '')
    where id = r.id
   returning * into r;
   return to_jsonb(r);
@@ -241,17 +279,18 @@ end $$;
 
 -- Só as funções de entrada ficam chamáveis pela API; as internas e a tabela, não.
 revoke all on function public._taf_erp_meta_trg(), public._taf_erp_meta_norm(text), public._taf_erp_meta_num(text),
+  public._taf_erp_meta_texto(text), public._taf_erp_meta_tela(jsonb),
   public._taf_erp_meta_item_atual(text, text), public._taf_erp_meta_valida(text, text, text, numeric, numeric, date, text),
   public._taf_erp_meta_antes(text, text, text, jsonb) from public, anon, authenticated;
 revoke all on function public.taf_erp_meta_propor(text, text, text, text, text, text, numeric, numeric, date, text, jsonb),
   public.taf_erp_meta_direta(text, text, text, text, text, text, numeric, numeric, date, text, jsonb),
   public.taf_erp_meta_listar(text, text, text),
-  public.taf_erp_meta_decidir(text, text, text, text, bigint, boolean, text),
+  public.taf_erp_meta_decidir(text, text, text, text, bigint, boolean, text, jsonb),
   public.taf_erp_meta_cancelar(text, text, text, bigint, text) from public;
 grant execute on function public.taf_erp_meta_propor(text, text, text, text, text, text, numeric, numeric, date, text, jsonb),
   public.taf_erp_meta_direta(text, text, text, text, text, text, numeric, numeric, date, text, jsonb),
   public.taf_erp_meta_listar(text, text, text),
-  public.taf_erp_meta_decidir(text, text, text, text, bigint, boolean, text),
+  public.taf_erp_meta_decidir(text, text, text, text, bigint, boolean, text, jsonb),
   public.taf_erp_meta_cancelar(text, text, text, bigint, text) to anon, authenticated;
 
 -- ===================== COMO DESFAZER =====================
@@ -261,10 +300,11 @@ grant execute on function public.taf_erp_meta_propor(text, text, text, text, tex
 -- 3. Remover só o que este arquivo criou:
 --    drop function if exists public.taf_erp_meta_propor(text, text, text, text, text, text, numeric, numeric, date, text, jsonb),
 --      public.taf_erp_meta_direta(text, text, text, text, text, text, numeric, numeric, date, text, jsonb),
---      public.taf_erp_meta_listar(text, text, text), public.taf_erp_meta_decidir(text, text, text, text, bigint, boolean, text),
+--      public.taf_erp_meta_listar(text, text, text), public.taf_erp_meta_decidir(text, text, text, text, bigint, boolean, text, jsonb),
 --      public.taf_erp_meta_cancelar(text, text, text, bigint, text),
 --      public._taf_erp_meta_antes(text, text, text, jsonb), public._taf_erp_meta_valida(text, text, text, numeric, numeric, date, text),
---      public._taf_erp_meta_item_atual(text, text), public._taf_erp_meta_num(text), public._taf_erp_meta_norm(text);
+--      public._taf_erp_meta_item_atual(text, text), public._taf_erp_meta_num(text), public._taf_erp_meta_norm(text),
+--      public._taf_erp_meta_texto(text), public._taf_erp_meta_tela(jsonb);
 --    drop table if exists public.taf_erp_meta_prop;          -- leva junto o gatilho e os índices
 --    drop function if exists public._taf_erp_meta_trg();
 --    drop sequence if exists public.taf_erp_meta_ordem_seq;
