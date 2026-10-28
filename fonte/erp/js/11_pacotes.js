@@ -16,6 +16,6 @@ function modalPac(cod){
    ${p.observacoes?`<div class="sub" style="margin-top:6px">${esc(p.observacoes)}</div>`:''}
    <div class="tw" style="max-height:50vh"><table class="tbl"><thead><tr><th>Item</th><th class="r">Meta</th><th class="r">Teto</th><th class="r">Saldo</th><th></th></tr></thead><tbody>
    ${p._it.map(i=>`<tr class="clk" data-item="${i.codigo}"><td><span class="mono">${i.codigo}</span><div class="mut" style="font-size:11.5px">${esc(i.descricao.slice(0,60))}</div></td><td class="r">${brl(i.meta_total)}</td><td class="r ${i.meta_total>i.teto_total?'neg':''}">${brl(i.teto_total)}</td><td class="r">${brl(S.sd[i.codigo].livre)}</td><td>${i.status_cotacao==='A cotar'?'<span class="pill warn">estimado</span>':''}</td></tr>`).join('')}</tbody></table></div>
-   <div class="acts"><button class="btn" data-act="fechar">Fechar</button></div>`);
+   <div class="acts"><button class="btn" data-act="fechar">Fechar</button>${typeof metaBotoes==='function'?metaBotoes('pacote',cod):''}</div>`);
 }
 
