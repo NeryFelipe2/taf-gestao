@@ -15,7 +15,7 @@ function viewEap(X){
    ${S.t.frozen?'':`<button class="btn dark" data-act="congelar" ${can('congelar')?'':'disabled title="Só Gestão ou Diretoria"'}>Congelar v1</button>`}<button class="btn" data-act="remanejar" ${can('remanejar')&&S.t.frozen?'':'disabled'}>Remanejar saldo</button><button class="btn" data-act="sync-novo" ${can('congelar')?'':'disabled title="Só Gestão ou Diretoria"'}>Atualizar pela planilha</button></div></div>
   <div class="toolbar"><input class="search" id="q" placeholder="Buscar código ou descrição…" value="${esc(S.q)}"><span class="sub">${S.D.items.length} itens · soma do licitado ${brl(X.venda)}${S.D.relatorio?.diferenca_contrato?` · difere do contrato em ${brl(S.D.relatorio.diferenca_contrato)}`:''}</span></div>
   <div class="tw"><table class="tbl"><thead><tr><th>Código</th><th>Descrição</th><th class="r">Licitado</th><th class="r">Meta</th><th class="r">Teto</th><th class="r">Comprom.</th><th class="r">Realizado</th><th>Consumo</th><th></th></tr></thead><tbody>${rows.join('')}</tbody></table></div>
-  ${S.t.hist.length?`<div class="sub" style="margin-top:10px">Histórico da linha de base: ${S.t.hist.map(h=>`v${h.versao} (${esc(h.motivo)})`).join(' · ')}</div>`:''}`;
+  ${S.t.hist.length?`<div class="sub" style="margin-top:10px">Histórico da linha de base: ${S.t.hist.map(h=>`${h.fora?'sem versão nova':'v'+h.versao} (${esc(h.motivo)})`).join(' · ')}</div>`:''}`;
 }
 function modalItem(cod){
   const i=S.byCod[cod],s=S.sd[cod];

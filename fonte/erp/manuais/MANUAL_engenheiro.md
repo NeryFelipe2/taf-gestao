@@ -9,7 +9,7 @@
 - **Medição de subempreiteiro** (Contratos e ativos → Contratos → Nova medição): você lança; Gerente/Diretoria aprova. A aprovação gera a nota do subempreiteiro (com retenção de INSS) e o custo do item.
 - **Projetos** (Contratos e ativos → Projetos): etapas, % concluído e horas apropriadas.
 - **Propor meta** (com a chave "Meta pela tela" ligada na obra): em Obra → Orçamento, abra o item e clique em **Propor meta**; em Obra → Pacotes, abra o pacote e clique em **Propor meta do pacote**. A janela mostra licitado, meta, teto e margem de hoje. Escreva a meta nova e/ou o teto novo (no pacote também o "fechar até") e o motivo. Vazio = mantém o valor de hoje.
-- **Acompanhar as suas propostas** (Obra → Metas → Minhas propostas): aguardando decisão, aprovada (com a versão da linha de base em que entrou), recusada (com o motivo) ou cancelada. Enquanto espera decisão, você pode **cancelar** a sua.
+- **Acompanhar as suas propostas** (Obra → Metas → Minhas propostas): aguardando decisão, aprovada (com a versão da linha de base em que entrou), precisa de conferência (o item mudou depois da aprovação e a Gestão confere), não entrou (decisão da conferência), recusada (com o motivo) ou cancelada. Enquanto espera decisão, você pode **cancelar** a sua. Na proposta decidida, o cartão mostra "Antes" (o que valia na decisão) e "Aprovado" ou "Proposto".
 
 ## Regras que bloqueiam
 - Compra acima da meta (amarelo) exige justificativa e vai ao Gerente; acima do teto (vermelho) vai à Diretoria; item sem meta ou fora da planilha é bloqueado.

@@ -236,13 +236,13 @@ test('caminho do banco: as funções taf_erp_meta_* recebem os argumentos certos
   const R = g('MPR');
   await R.listar();
   await R.propor({ alvo: 'item', codigo: '1.1', meta: 1, teto: null, fechar_ate: null, motivo: 'abc', antes: { meta: 2 } });
-  await R.decidir(5, true, '');
+  await R.decidir(5, true, '', { meta: 9000, teto: 9900, fechar_ate: null });
   await R.cancelar(6, 'm');
   await R.direta({ alvo: 'pacote', codigo: 'CANT', meta: null, teto: 3, fechar_ate: '2030-01-01', motivo: 'abc', antes: {} });
   assert.deepEqual(chamadas.map(c => c[0]), ['taf_erp_meta_listar', 'taf_erp_meta_propor', 'taf_erp_meta_decidir', 'taf_erp_meta_cancelar', 'taf_erp_meta_direta']);
   assert.deepEqual(chamadas[0][1], { p_chave: 'chave-de-teste', p_obra: '999', p_quem: 'Nome Digitado' });
   assert.deepEqual(chamadas[1][1], { p_chave: 'chave-de-teste', p_obra: '999', p_quem: 'Nome Digitado', p_papel: 'engenheiro', p_alvo: 'item', p_codigo: '1.1', p_meta: 1, p_teto: null, p_fechar_ate: null, p_motivo: 'abc', p_antes: { meta: 2 } });
-  assert.deepEqual(chamadas[2][1], { p_chave: 'chave-de-teste', p_obra: '999', p_quem: 'Nome Digitado', p_papel: 'engenheiro', p_id: 5, p_aprovar: true, p_motivo: null });
+  assert.deepEqual(chamadas[2][1], { p_chave: 'chave-de-teste', p_obra: '999', p_quem: 'Nome Digitado', p_papel: 'engenheiro', p_id: 5, p_aprovar: true, p_motivo: null, p_antes: { meta: 9000, teto: 9900, fechar_ate: null } });
   assert.deepEqual(chamadas[3][1], { p_chave: 'chave-de-teste', p_obra: '999', p_quem: 'Nome Digitado', p_id: 6, p_motivo: 'm' });
   const msg = g('metaMsg');
   assert.equal(msg(new Error('DECIDIR META SO COM CHAVE PESSOAL')), 'Decidir meta exige a chave pessoal. Com a chave geral do site ninguém aprova.');
@@ -270,7 +270,7 @@ test('aviso na planilha: item com meta aprovada pela tela que a planilha mudaria
   const { api, g, S } = novo();
   const p = await propoe(api, g, 'item', '1.1', { meta: 9300 }); papel(api, S, 'gestao'); await decide(api, g, p.id, true);
   const d = api.calculaDiff({ itens: [{ codigo: '1.1', qtd: 1, meta: 9000, teto: 9900, status: 'Cotado' }], pacotes: [] });
-  assert.match(g('metaAvisoPlanilha')(d), /1 item\(ns\) com meta aprovada pela tela/);
+  assert.match(g('metaAvisoPlanilha')(d), /esta planilha muda 1 item\(ns\) \(1\.1\) com meta aprovada pela tela/);
 });
 
 test('300 cenários aleatórios: aplicar uma meta aprovada muda só o item (ou pacote) dela e a meta total muda exatamente a diferença', () => {
@@ -295,4 +295,230 @@ test('300 cenários aleatórios: aplicar uma meta aprovada muda só o item (ou p
     assert.equal(J(S.t.hist).at(-1).prop, seed);
     assert.deepEqual(J(g('metaParaAplicar')([p], S.t)), [], 'semente ' + seed + ' marcada como aplicada');
   }
+});
+
+/* ---------- revisão: conferência antes de reaplicar (estado velho por cima), prep sem valor grudado, tabela "Antes" e aviso de pacote ---------- */
+/* Remanejar pela mesma função da tela (doRemanejar), no navegador do api dado */
+function remaneja(api, de, pa, v, m = 'remanejamento de teste') {
+  api.derive(); api.el('#rm-de').value = de; api.el('#rm-para').value = pa; api.el('#rm-v').value = String(v); api.el('#rm-m').value = m; api.el('#rm-msg');
+  api.doRemanejar();
+}
+const totalMeta = S => S.D.items.reduce((s, i) => s + (+i.meta_total || 0), 0);
+/* o navegador do aprovador recebe do banco o estado gravado por outro (como o chPull: Object.assign no S.t e prep, SEM recarregar os dados da carga) */
+function recebe(api, S, est) { Object.assign(S.t, J(est)); api.prep(); api.derive(); }
+/* outro navegador (G2) que abriu a obra ANTES da aprovação, faz uma coisa e grava o estado inteiro por cima */
+function navegadorVelho(velho, papelG2 = 'gerente') {
+  const api2 = carrega('trabalho');
+  const S2 = abre(api2, obra999(), velho, papelG2); api2.derive();
+  return { api2, S2 };
+}
+
+test('revisão (cenário do revisor): meta aprovada no 3.3, navegador velho remaneja do 3.3 para o 1.1 e grava por cima: a meta NÃO entra sozinha, nada aparece do nada', async () => {
+  const { api, g, S } = novo();
+  const p = await propoe(api, g, 'item', '3.3', { meta: 3500, motivo: 'cotação 3.3' });
+  papel(api, S, 'diretoria');
+  const velho = J(api.estadoObra()), t0 = totalMeta(S);
+  await decide(api, g, p.id, true);
+  perto(S.byCod['3.3'].meta_total, 3500, 'aplicada'); assert.equal(S.t.versao, 2);
+  const dp = J(g('MP').lista).find(x => x.id === p.id); perto(dp.antes_decisao.meta, 3000, 'antes da decisão guardado');
+  /* G2 (estado velho, sem a aprovação) remaneja R$ 500 do 3.3 para o 1.1 e grava o estado inteiro */
+  const { api2, S2 } = navegadorVelho(velho);
+  remaneja(api2, '3.3', '1.1', 500, 'remanejamento depois da aprovação');
+  perto(S2.byCod['3.3'].meta_total, 2500, 'G2 tirou do 3.3'); const E2 = J(api2.estadoObra());
+  assert.deepEqual(E2.metaOv, { '3.3': 2500, '1.1': 9500 });
+  /* o navegador da diretora (o MESMO que aplicou) lê o banco */
+  recebe(api, S, E2);
+  perto(S.byCod['3.3'].meta_total, 2500, '3.3 como o banco'); perto(S.byCod['3.3'].meta_base, 3000, 'sem valor grudado: a linha de base do 3.3 voltou à carga');
+  perto(S.byCod['1.1'].meta_total, 9500, '1.1 como o banco'); perto(totalMeta(S), t0, 'o total do estado de G2 é o de antes da aprovação');
+  const plano = J(g('metaPlano')(g('MP').lista, S.t));
+  assert.equal(plano.length, 1); assert.deepEqual(plano[0].conflito, [{ campo: 'meta', base: 3000, hoje: 2500 }]);
+  /* a passada NÃO aplica: o estado continua o de G2 (o remanejamento ficou dos dois lados e o total não mudou) */
+  assert.equal(await g('metaAplicarAprovadas')(), 0);
+  assert.deepEqual(J(S.t.metaOv), { '3.3': 2500, '1.1': 9500 }); assert.equal(S.t.baseOv['3.3'], undefined); perto(totalMeta(S), t0, 'nada apareceu do nada');
+  assert.deepEqual(J(g('metaSituacao')(dp)), ['bad', 'aprovada · precisa de conferência: o item mudou depois da aprovação']);
+  /* quem confere: a diretora vê no contador, no sino e na aba; o engenheiro (quem propôs) só vê a situação */
+  assert.equal(g('metaParaMim')().length, 1); assert.match(g('metaBadge')(), /badge hot">1</);
+  const a = []; g('metaAlertas')(a); assert.ok(a.some(x => x[0] === 'bad' && /1 meta\(s\) aprovada\(s\) precisam de conferência/.test(x[1])), JSON.stringify(a));
+  S.view = 'metas'; S.tab.metas = 'aprovar'; let h = g('viewMetas')();
+  assert.match(h, /precisam de conferência/); assert.match(h, /data-act="meta-conf-aplicar"/); assert.match(h, /data-act="meta-conf-fora"/);
+  assert.match(h, /Na aprovação/); assert.match(h, /meta na aprovação R\$\s3\.000,00, hoje R\$\s2\.500,00/);
+  papel(api, S, 'engenheiro'); assert.equal(g('metaPodeConferir')(dp)[0], false); S.tab.metas = 'minhas'; h = g('viewMetas')();
+  assert.doesNotMatch(h, /data-act="meta-conf-aplicar"/); assert.match(h, /precisa de conferência/);
+  /* "Não aplicar", com motivo: marca no histórico sem versão nova; o estado de G2 continua; a próxima passada não mexe */
+  papel(api, S, 'diretoria'); api.limpaMsgs();
+  g('metaConfModal')(p.id, false); api.el('#mc-m').value = ' '; await g('metaConfOk')(); assert.ok(api.msgs().includes('Escreva o motivo.'));
+  api.el('#mc-m').value = 'o remanejamento de G2 vale'; await g('metaConfOk')();
+  const m = J(S.t.hist).find(x => x.prop === p.id); assert.equal(m.fora, true); assert.equal(m.versao, S.t.versao);
+  assert.match(m.motivo, /não entrou na linha de base: o item mudou depois da aprovação/); assert.match(m.motivo, /o remanejamento de G2 vale/);
+  assert.deepEqual(J(S.t.metaOv), { '3.3': 2500, '1.1': 9500 }); perto(totalMeta(S), t0, 'continua sem nada do nada');
+  assert.ok(J(S.t.aud).some(x => x.campo === 'meta_conferencia' && /não aplicada/.test(x.depois)));
+  assert.deepEqual(J(g('metaSituacao')(dp)), ['mute', 'aprovada · não entrou (conferência de ' + api.user() + ')']);
+  assert.equal(await g('metaAplicarAprovadas')(), 0); assert.equal(g('metaParaMim')().length, 0);
+  assert.match(api.viewEap(api.derive()), /sem versão nova \(Meta item 3\.3/);
+});
+
+test('revisão: "Aplicar mesmo assim" depois da conferência põe a meta aprovada por cima, com motivo e aviso do remanejamento desfeito', async () => {
+  const { api, g, S } = novo();
+  const p = await propoe(api, g, 'item', '3.3', { meta: 3500, motivo: 'cotação 3.3' });
+  papel(api, S, 'gestao'); const velho = J(api.estadoObra()); await decide(api, g, p.id, true);
+  const { api2 } = navegadorVelho(velho); remaneja(api2, '3.3', '1.1', 500); recebe(api, S, api2.estadoObra());
+  g('metaConfModal')(p.id, true);
+  const jan = api.el('#mbox').innerHTML;
+  assert.match(jan, /Aplicar mesmo assim a meta nº/); assert.match(jan, /O item mudou depois da aprovação/);
+  assert.match(jan, /Este item tem remanejamento/); assert.match(jan, /desfaz o remanejamento deste item/);
+  api.el('#mc-m').value = 'conferi com a engenheira: vale a cotação'; await g('metaConfOk')();
+  perto(S.byCod['3.3'].meta_total, 3500, 'entrou'); assert.equal(S.t.metaOv['3.3'], undefined); perto(S.byCod['1.1'].meta_total, 9500, 'o outro lado do remanejamento fica');
+  const h = J(S.t.hist).at(-1); assert.equal(h.prop, p.id); assert.ok(!h.fora); assert.match(h.motivo, /aplicada mesmo assim na conferência/); assert.match(h.motivo, /conferi com a engenheira/);
+  assert.ok(J(S.t.aud).some(x => x.ref === '3.3' && x.campo === 'remanejamento' && x.antes === '2500'));
+  assert.equal(await g('metaAplicarAprovadas')(), 0, 'uma vez só');
+  /* quem propôs não confere a própria; com a chave de leitura ninguém confere */
+  papel(api, S, 'engenheiro'); assert.equal(g('metaPodeConferir')(J(g('MP').lista)[0])[0], false);
+});
+
+test('revisão: navegador velho remaneja OUTROS itens: a meta aprovada entra de novo sozinha, também no navegador que já tinha aplicado (sem valor grudado)', async () => {
+  const { api, g, S } = novo();
+  const p = await propoe(api, g, 'item', '3.3', { meta: 3500 });
+  papel(api, S, 'diretoria'); const velho = J(api.estadoObra()); await decide(api, g, p.id, true);
+  const { api2 } = navegadorVelho(velho); remaneja(api2, '1.1', '2.1', 700); const E2 = J(api2.estadoObra()), tG2 = 9000 + 6000 + 30000 + 11000 + 7000 + 6000 + 3000 + 4000 + 2000;
+  recebe(api, S, E2);
+  perto(S.byCod['3.3'].meta_total, 3000, 'no navegador da diretora o 3.3 volta ao valor do banco (sem a meta)');
+  perto(totalMeta(S), tG2, 'total do estado de G2');
+  assert.equal(await g('metaAplicarAprovadas')(), 1);
+  perto(S.byCod['3.3'].meta_total, 3500, 'aprovada de volta'); perto(S.byCod['1.1'].meta_total, 8300, 'remanejamento de G2 fica'); perto(S.byCod['2.1'].meta_total, 30700, 'dos dois lados');
+  perto(totalMeta(S), tG2 + 500, 'o total muda só a diferença da meta aprovada');
+  assert.equal(J(S.t.hist).filter(h => h.prop === p.id).length, 1);
+});
+
+test('revisão: duas aprovadas do mesmo item perdidas juntas voltam as duas, na ordem, sem conferência', async () => {
+  const { api, g, S } = novo();
+  const p1 = await propoe(api, g, 'item', '3.4', { meta: 4200 });
+  papel(api, S, 'gestao'); const velho = J(api.estadoObra()); await decide(api, g, p1.id, true);
+  papel(api, S, 'engenheiro'); const p2 = await propoe(api, g, 'item', '3.4', { meta: 4300, teto: 4600 });
+  papel(api, S, 'gestao'); await decide(api, g, p2.id, true);
+  perto(S.byCod['3.4'].meta_total, 4300, 'as duas aplicadas'); assert.equal(S.t.versao, 3);
+  const d2 = J(g('MP').lista).find(x => x.id === p2.id); perto(d2.antes_decisao.meta, 4200, 'a segunda foi decidida com a primeira já aplicada');
+  recebe(api, S, velho); perto(S.byCod['3.4'].meta_total, 4000, 'estado velho');
+  assert.ok(J(g('metaPlano')(g('MP').lista, S.t)).every(x => !x.conflito), 'a primeira entra e a segunda encontra o valor da primeira');
+  assert.equal(await g('metaAplicarAprovadas')(), 2);
+  perto(S.byCod['3.4'].meta_total, 4300, 'a mais nova vale'); perto(S.byCod['3.4'].teto_total, 4600, 'teto da segunda');
+  assert.deepEqual(J(S.t.hist).filter(h => h.prop != null).map(h => h.prop), [p1.id, p2.id]);
+});
+
+test('revisão: aprovada que ainda não entrou e item remanejado depois da decisão também espera conferência', async () => {
+  const { api, g, S } = novo({ meta_tela: true }, 'engenheiro');
+  const p = await propoe(api, g, 'item', '3.4', { meta: 4500 });
+  papel(api, S, 'gestao');
+  /* aprovada no banco, mas o navegador fechou antes de aplicar (aqui: chamada direta, sem aplicar) */
+  await g('MPL').decidir(p.id, true, '', g('metaHojeCampos')(g('metaHoje')('item', '3.4'))); await g('metaSincroniza')();
+  perto(S.byCod['3.4'].meta_total, 4500, 'sem mudança no meio: entra');
+  /* agora: aprovada, não aplicada, e um remanejamento no item antes de alguém aplicar */
+  papel(api, S, 'engenheiro'); const q = await propoe(api, g, 'item', '3.1', { meta: 7600 });
+  papel(api, S, 'gestao'); await g('MPL').decidir(q.id, true, '', g('metaHojeCampos')(g('metaHoje')('item', '3.1')));
+  papel(api, S, 'gerente'); remaneja(api, '3.4', '3.1', 300);
+  perto(S.byCod['3.1'].meta_total, 7300, 'remanejado');
+  await g('metaSincroniza')();
+  perto(S.byCod['3.1'].meta_total, 7300, 'não entrou sozinha'); assert.equal(S.t.metaOv['3.1'], 7300);
+  assert.match(g('metaSituacao')(J(g('MP').lista).find(x => x.id === q.id))[1], /precisa de conferência/);
+});
+
+test('revisão: o item muda enquanto a janela de aprovar está aberta: aprova, mas a meta espera conferência', async () => {
+  const { api, g, S } = novo();
+  const p = await propoe(api, g, 'item', '1.2', { meta: 6400 });
+  papel(api, S, 'diretoria');
+  g('metaDecideModal')(p.id, true); api.el('#md-m').value = '';
+  /* enquanto a janela está aberta, chega do banco um remanejamento no 1.2 */
+  const est = J(api.estadoObra()); est.metaOv = { '1.2': 5800, '1.1': 9200 }; est.versao = 2; recebe(api, S, est);
+  api.limpaMsgs(); await g('metaDecideOk')();
+  assert.equal(J(g('MP').lista)[0].situacao, 'aprovada'); perto(S.byCod['1.2'].meta_total, 5800, 'não entrou');
+  assert.ok(api.msgs().some(m => /O item mudou enquanto você decidia/.test(m)), api.msgs().join(' | '));
+});
+
+test('revisão: prep sem valor grudado só com a chave ligada (desligada, o prep é o de sempre)', () => {
+  const { api, S } = novo();
+  S.t.baseOv = { '2.2': { meta_total: 11500, teto_total: 12500, status_cotacao: 'Cotado', meta_unit: 11500 } }; S.t.basePac = { CANT: { meta: 15500, teto: 17000, fechar_ate: '2030-02-01' } };
+  api.prep(); perto(S.byCod['2.2'].meta_total, 11500, 'linha de base'); perto(S.D.pacotes.find(p => p.codigo === 'CANT').meta, 15500, 'pacote');
+  S.t.baseOv = {}; S.t.basePac = {}; api.prep();
+  perto(S.byCod['2.2'].meta_total, 11000, 'meta volta à carga'); perto(S.byCod['2.2'].teto_total, 12100, 'teto volta à carga');
+  const c = S.D.pacotes.find(p => p.codigo === 'CANT'); perto(c.meta, 15000, 'pacote volta'); assert.equal(c.fechar_ate, '2030-01-10');
+  /* desligada: igual ao código de partida (o valor fica como estava, que é o comportamento antigo) */
+  const b = carrega('base'), Sb = abre(b, obra999(), estado999({}), 'gestao'), w = carrega('trabalho'), Sw = abre(w, obra999(), estado999({}), 'gestao');
+  for (const [A, X] of [[b, Sb], [w, Sw]]) { X.t.baseOv = { '2.2': { meta_total: 11500, teto_total: 12500, status_cotacao: 'Cotado', meta_unit: 11500 } }; A.prep(); X.t.baseOv = {}; A.prep(); }
+  assert.deepEqual([Sw.byCod['2.2'].meta_total, Sw.byCod['2.2'].teto_total], [Sb.byCod['2.2'].meta_total, Sb.byCod['2.2'].teto_total]);
+});
+
+test('revisão: cartão de proposta decidida mostra "Antes" (o que valia na decisão) e "Aprovado", não o valor de hoje', async () => {
+  const { api, g, S } = novo();
+  const p = await propoe(api, g, 'item', '1.1', { meta: 9500 }); papel(api, S, 'gestao'); await decide(api, g, p.id, true);
+  const d = J(g('MP').lista)[0];
+  let c = g('metaCartao')(d);
+  assert.match(c, /<th class="r">Antes<\/th><th class="r">Aprovado<\/th>/); assert.doesNotMatch(c, />Hoje</);
+  assert.match(c, /R\$\s9\.000,00<\/td><td class="r"><b>R\$\s9\.500,00/);
+  /* a planilha volta o 1.1 para 9.000 depois: o cartão continua dizendo de quanto para quanto foi a decisão */
+  const dd = api.calculaDiff({ itens: [{ codigo: '1.1', qtd: 1, meta: 9000, teto: 9900, status: 'Cotado' }], pacotes: [] });
+  api.ctx.__d = dd; vm.runInContext('SYNC=Object.assign(__d,{arquivo:"velha.json",pedeMotivo:true})', api.ctx); api.el('#sy-m').value = 'teste da planilha'; api.syncAplicar();
+  perto(S.byCod['1.1'].meta_total, 9000, 'planilha aplicada');
+  c = g('metaCartao')(d); assert.match(c, /R\$\s9\.000,00<\/td><td class="r"><b>R\$\s9\.500,00/); assert.doesNotMatch(c, />Hoje</);
+  /* pendente continua "Hoje x Proposto" */
+  papel(api, S, 'engenheiro'); const q = await propoe(api, g, 'item', '1.2', { meta: 6100 });
+  assert.match(g('metaCartao')(q), /<th class="r">Hoje<\/th><th class="r">Proposto<\/th>/);
+});
+
+test('revisão: aviso na planilha também para PACOTE com meta, teto ou "fechar até" aprovados pela tela', async () => {
+  const { api, g, S } = novo();
+  const p = await propoe(api, g, 'pacote', 'HIDR', { meta: 46000, fechar: '2030-02-15' }); papel(api, S, 'gestao'); await decide(api, g, p.id, true);
+  const d = api.calculaDiff({ itens: [], pacotes: [{ codigo: 'HIDR', meta: 45000, teto: 49500, fechar_ate: '2030-01-20' }, { codigo: 'CANT', meta: 15100, teto: 16500, fechar_ate: '2030-01-10' }] });
+  assert.equal(d.pacs.length, 2);
+  const av = g('metaAvisoPlanilha')(d); assert.match(av, /esta planilha muda 1 pacote\(s\) \(HIDR\) com meta aprovada pela tela/); assert.doesNotMatch(av, /CANT/);
+});
+
+test('revisão: 200 cenários de navegador velho: meta aprovada nunca põe dinheiro do nada; entra sozinha só se o item não mudou', async () => {
+  const cods = ['1.1', '1.2', '2.1', '2.2', '3.1', '3.2', '3.3', '3.4', '3.5'];
+  const api = carrega('trabalho'), g = n => vm.runInContext(n, api.ctx), api2 = carrega('trabalho');
+  for (let seed = 1; seed <= 200; seed++) {
+    const A = cods[seed % cods.length], B = cods[(seed * 7 + 3) % cods.length], C = cods[(seed * 5 + 1) % cods.length];
+    if (B === C) continue;
+    const S = abre(api, obra999(), estado999({ meta_tela: true }), 'engenheiro'); api.derive(); vm.runInContext('MP.lista=[];MP.obra=null;MP.falhas={};localStorage.clear&&localStorage.clear()', api.ctx);
+    const velho = J(api.estadoObra()), mA = S.byCod[A].meta_total, nova = Math.round(mA * (1.05 + (seed % 5) / 20) * 100) / 100;
+    const p = await propoe(api, g, 'item', A, { meta: nova, motivo: 'semente ' + seed });
+    papel(api, S, 'gestao'); await decide(api, g, p.id, true); perto(S.byCod[A].meta_total, nova, 'semente ' + seed + ' aplicada');
+    /* G2 com o estado velho remaneja de B para C (o item de origem tem saldo: v pequeno) */
+    const S2 = abre(api2, obra999(), velho, 'gerente'); api2.derive(); const v = 100 + seed;
+    remaneja(api2, B, C, v); const E2 = J(api2.estadoObra()); const tG2 = totalMeta(S2);
+    assert.ok(E2.metaOv[B] != null && E2.metaOv[C] != null, 'semente ' + seed + ' G2 remanejou de verdade');
+    recebe(api, S, E2); perto(totalMeta(S), tG2, 'semente ' + seed + ' recebeu o estado de G2');
+    await g('metaAplicarAprovadas')();
+    const mexeu = A === B || A === C;
+    if (mexeu) {
+      perto(totalMeta(S), tG2, 'semente ' + seed + ': item mexido, nada entra sozinho');
+      assert.deepEqual(J(S.t.metaOv), E2.metaOv, 'semente ' + seed + ' remanejamento de G2 intacto');
+      assert.match(g('metaSituacao')(J(g('MP').lista).find(x => x.id === p.id))[1], /precisa de conferência/, 'semente ' + seed);
+    } else {
+      perto(totalMeta(S), tG2 + nova - mA, 'semente ' + seed + ': entra só a diferença da meta aprovada');
+      perto(S.byCod[A].meta_total, nova, 'semente ' + seed + ' meta aprovada');
+      assert.deepEqual(J(S.t.metaOv), E2.metaOv, 'semente ' + seed + ' remanejamento de G2 intacto');
+    }
+  }
+});
+
+test('revisão: gerador de carga da 999 sem chave fixa no repositório e com trava de banco', () => {
+  const { principal, TRAVA } = require('./carga999_sql');
+  const crypto = require('node:crypto'), h = t => crypto.createHash('sha256').update(t, 'utf8').digest('hex');
+  /* sem CARGA_LOCAL=1 não gera chave nenhuma */
+  assert.match(principal(['--chaves'], {}).erro, /CARGA_LOCAL=1/);
+  assert.match(principal(['--chaves'], { CARGA_LOCAL: '0' }).erro, /CARGA_LOCAL=1/);
+  /* sem --chaves: só a obra, com a trava antes de tudo */
+  const s0 = principal([], {}).sql;
+  assert.ok(s0.indexOf(TRAVA) > 0 && s0.indexOf(TRAVA) < s0.indexOf('insert into public.taf_erp_obra'), 'trava antes da carga');
+  assert.match(TRAVA, /codigo not in \('999', '998'\)/); assert.doesNotMatch(s0, /taf_ciclo_chave/);
+  /* com CARGA_LOCAL=1: chaves sorteadas a cada vez; no SQL só o hash, nunca o texto da chave */
+  const a = principal(['--chaves'], { CARGA_LOCAL: '1' }), b = principal(['--chaves'], { CARGA_LOCAL: '1' });
+  assert.deepEqual(Object.keys(a.chaves), ['engenheira', 'gestor', 'diretoria', 'leitura']);
+  for (const k of Object.keys(a.chaves)) {
+    assert.notEqual(a.chaves[k], b.chaves[k], 'sorteada: ' + k); assert.ok(a.chaves[k].length > 20);
+    assert.ok(!a.sql.includes(a.chaves[k]), 'texto da chave fora do SQL: ' + k); assert.ok(a.sql.includes(h(a.chaves[k])), 'hash no SQL: ' + k);
+  }
+  assert.doesNotMatch(a.sql, /digest\(|teste-dir-999|teste-gestor-999|teste-eng-999/);
+  /* o arquivo do repositório não tem mais as chaves fixas antigas */
+  const fonte = require('node:fs').readFileSync(require('node:path').join(__dirname, 'carga999_sql.js'), 'utf8');
+  assert.doesNotMatch(fonte, /teste-(dir|gestor|eng|leitura)-999/);
 });
