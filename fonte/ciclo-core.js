@@ -199,6 +199,33 @@ CC.rpcErp = function (fn, extra, o) {
   return CC.rpc(fn, Object.assign({ p_chave: C.chave, p_obra: C.obra, p_quem: C.quem || null }, extra || {}), o);
 };
 CC.folga = function (ativ) { return CC.rpc('taf_ciclo_folga', { p_chave: C.chave, p_obra: C.obra, p_ativ: ativ, p_quem: C.quem || null }); };
+// assistente (IA, ciclo-ia.js): POST /api/assistente no mesmo site, com a chave só no cabeçalho x-chave. Só lê; nunca grava.
+// corpo: {acao:'relato', relato, seg} ou {acao:'pergunta', pergunta}. Erro: Error com .message (texto do servidor), .status, .rede.
+CC.IA_URL = '/api/assistente';
+CC.assistente = function (corpo, o) {
+  o = o || {};
+  var ctl = W.AbortController ? new W.AbortController() : null, tm = null, estourou = false;
+  return new Promise(function (ok, falha) {
+    if (!C.chave) { var e0 = new Error('Sem chave: entre de novo.'); e0.status = 401; falha(e0); return; }
+    if (ctl) tm = setTimeout(function () { estourou = true; ctl.abort(); }, o.timeout || 40000);
+    var b = Object.assign({ obra: C.obra }, C.quem ? { quem: String(C.quem).slice(0, 60) } : {}, corpo || {});
+    fetch(CC.IA_URL, { method: 'POST', cache: 'no-store', credentials: 'same-origin', redirect: 'error',
+      headers: { 'Content-Type': 'application/json', 'x-chave': C.chave }, body: JSON.stringify(b), signal: ctl ? ctl.signal : undefined
+    }).then(function (r) {
+      return r.text().then(function (t) {
+        clearTimeout(tm);
+        var j = null;
+        try { j = t ? JSON.parse(t) : null; } catch (e) { j = null; }
+        if (!r.ok || !j || j.ok !== true) {
+          var e = new Error(j && typeof j.erro === 'string' && j.erro ? j.erro :
+            r.status === 404 ? 'O assistente ainda não está no ar neste site.' : 'O assistente não respondeu (erro ' + r.status + ').');
+          e.status = r.status; e.rede = false; e.dados = j; falha(e); return;
+        }
+        ok(j);
+      }, function () { clearTimeout(tm); falha(erroRede(estourou)); });
+    }, function () { clearTimeout(tm); falha(erroRede(estourou)); });
+  });
+};
 
 // ===================================================================== tradução de erro
 // CHECK nomeado (frase) -> o nome. CHECK sem nome (gerado pelo Postgres) -> frase curta equivalente.
