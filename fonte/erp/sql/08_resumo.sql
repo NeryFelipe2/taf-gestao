@@ -5,14 +5,19 @@
 -- O que faz
 --  1. taf_resumo_dest: quem recebe o resumo por e-mail (nome, e-mail, obras ou todas, diária ou semanal, ativo, quem cadastrou).
 --     Nada se apaga: desativar guarda a linha; cada mudança guarda a versão anterior em taf_resumo_dest_hist.
+--     Cadastro com dono ("É o meu e-mail"): só o dono ou a Diretoria editam ou desativam; se outra pessoa troca o e-mail,
+--     o cadastro deixa de ter dono (o "Mandar agora para mim" do dono não vai para o endereço novo).
 --  2. taf_resumo_envio: cada e-mail reservado, mandado ou com erro. Um por destinatário por dia (semanal: um por semana);
---     o envio de teste ("Mandar agora para mim") fica à parte, com limite de 5 por pessoa por dia.
+--     o envio de teste ("Mandar agora para mim") fica à parte, com limite de 5 por pessoa por dia, e leva só as obras
+--     da chave que também estão no cadastro.
 --  3. taf_resumo_robo: qual chave é a do robô que manda o e-mail. É uma chave pessoal de papel leitura, sem obra nenhuma
 --     (não abre ERP nem planejador); só serve para estas funções. Ela é criada pela tela (taf_resumo_robo_gerar) e aparece uma vez.
 --  4. _taf_resumo_obra: o resumo de uma obra juntando o planejador e o ERP, com as funções que já existem:
 --     _taf_ciclo_situacao (luzes, frase, última semana fechada, EVENTOs em risco), _taf_ciclo_resumo (semana atual),
 --     _taf_ciclo_prazos, as demandas abertas, os apontamentos e _taf_erp_valores (licitado, meta, comprometido, realizado).
 --     Vazio não é zero: o que não tem dado sai null e o e-mail escreve "sem dado".
+--     O motivo de cada luz é o do indicador que deu a cor (P2/P3/P4 na produção, P6/P8/P10 no plano).
+--     A parte do planejador segue a regra do planejador: a chave do site só vê a obra de que é o engenheiro.
 --
 -- Funções de entrada (as únicas chamáveis pela API):
 --   taf_resumo_destinatarios, taf_resumo_destinatario_salvar, taf_resumo_destinatario_desativar
@@ -20,15 +25,16 @@
 --        Só cadastra as obras da própria chave; "todas" só quem tem todas as obras na chave.
 --   taf_resumo_robo_gerar      Diretoria ou gestor com todas as obras: cria a chave do robô (a anterior para de valer).
 --   taf_resumo_previa          qualquer chave pessoal: as obras da prévia e, com p_enviar, reserva o teste para o próprio e-mail.
---   taf_resumo_obra            robô, ou chave pessoal com acesso à obra: o resumo de uma obra.
---   taf_resumo_montar          só o robô: reserva os envios do dia e devolve, por destinatário, as obras dele.
+--   taf_resumo_obra            robô, ou chave pessoal com acesso à obra: o resumo de uma obra (planejador só com acesso ao planejador).
+--   taf_resumo_montar          só o robô: reserva os envios do dia e devolve, por destinatário, as obras dele
+--                              (até 100; quem não recebeu da última vez vai primeiro).
 --   taf_resumo_registrar       robô, ou a própria pessoa no envio de teste: grava se o e-mail saiu.
 -- O resumo de cada obra sai numa chamada à parte (taf_resumo_obra) porque o Supabase corta em poucos segundos a chamada
 -- feita com a chave publicável; uma obra por chamada fica dentro do limite mesmo com muitas obras.
 --
 -- Precisa de: supabase/schema.sql (_taf_ok), fonte/ciclo/sql 01 a 04, fonte/erp/sql/01_erp.sql e 02_rastro.sql.
 -- Não muda nenhuma tabela nem função que já existe. Só cria objetos taf_resumo_* e _taf_resumo_*.
--- Tudo idempotente: pode rodar de novo.
+-- Tudo idempotente: pode rodar de novo (a versão antiga de _taf_resumo_obra, com um parâmetro só, é trocada pela nova).
 
 -- ===================================================================== tabelas
 create table if not exists public.taf_resumo_dest (
@@ -166,13 +172,28 @@ language sql stable security definer set search_path = public as $$
     'frequencia', d.frequencia, 'ativo', d.ativo, 'meu', d.pessoa is not null and d.pessoa = p_quem, 'tem_dono', d.pessoa is not null,
     'cadastrado_por', d.cadastrado_por, 'cadastrado_em', d.cadastrado_em, 'atualizado_por', d.atualizado_por, 'atualizado_em', d.atualizado_em,
     'ultimo', (select jsonb_build_object('quando', e.quando, 'dia', e.dia, 'estado', e.estado, 'em', e.atualizado_em, 'erro', e.erro)
-                 from public.taf_resumo_envio e where e.dest = d.id order by e.id desc limit 1)) $$;
+                 from public.taf_resumo_envio e where e.dest = d.id order by e.id desc limit 1),
+    -- o último e-mail do horário (não o de teste) não saiu: a tela avisa
+    'falhou', d.ativo and coalesce((select e.estado = 'erro' or (e.estado = 'reservado' and e.atualizado_em < now() - interval '30 minutes')
+                                     from public.taf_resumo_envio e where e.dest = d.id and e.quando <> 'teste' order by e.id desc limit 1), false)) $$;
 
 -- ===================================================================== o resumo de uma obra
+-- Uma luz da Situação do Ciclo (produção ou plano) com o motivo de quem deu a cor: os indicadores (P2, P8...) que estão
+-- na mesma cor da luz, em ordem. Assim o motivo nunca contradiz a cor (ex.: plano VERMELHO por P8, com P6 VERDE).
+create or replace function public._taf_resumo_luz(p_luz jsonb, p_ind text[]) returns jsonb
+language sql immutable set search_path = public as $$
+  select jsonb_build_object('cor', p_luz ->> 'cor',
+    'motivo', (select string_agg(p_luz #>> array[i, 'motivo'], '; ' order by k) from unnest(p_ind) with ordinality u(i, k)
+                where p_luz #>> array[i, 'cor'] = p_luz ->> 'cor'),
+    'de', (select coalesce(jsonb_agg(i order by k), '[]'::jsonb) from unnest(p_ind) with ordinality u(i, k)
+            where p_luz #>> array[i, 'cor'] = p_luz ->> 'cor')) $$;
+
 -- Planejador: luzes e frase da Situação do Ciclo, PPC da última semana fechada e da atual, semana publicada ou não,
 -- atrasadas (mesmo critério da Situação) e as mais críticas (EVENTOs e marcos em risco), restrições vencidas e as que
 -- vencem em 7 dias, dias úteis sem apontamento. ERP: licitado, meta, comprometido e realizado (_taf_erp_valores).
-create or replace function public._taf_resumo_obra(p_obra text) returns jsonb
+-- p_ciclo = false: quem pede não abre esta obra no planejador; a parte do planejador nem é calculada.
+drop function if exists public._taf_resumo_obra(text);
+create or replace function public._taf_resumo_obra(p_obra text, p_ciclo boolean default true) returns jsonb
 language plpgsql stable security definer set search_path = public as $$
 declare v_hoje date := public._taf_ciclo_hoje(); v_seg date := public._taf_ciclo_segunda(public._taf_ciclo_hoje());
         v_o public.taf_ciclo_obra; v_e public.taf_erp_obra; v_s public.taf_ciclo_semana;
@@ -184,7 +205,9 @@ begin
   if v_o.obra is null and v_e.codigo is null then raise exception 'OBRA INVALIDA'; end if;
 
   if v_o.obra is not null then
-    if not exists (select 1 from public.taf_ciclo_ativ a where a.obra = p_obra) then
+    if not coalesce(p_ciclo, false) then
+      v_ciclo := jsonb_build_object('sem_acesso', true);
+    elsif not exists (select 1 from public.taf_ciclo_ativ a where a.obra = p_obra) then
       v_ciclo := jsonb_build_object('cronograma', false);
     else
       begin
@@ -197,9 +220,8 @@ begin
         v_ciclo := jsonb_build_object(
           'cronograma', true,
           'luzes', jsonb_build_object(
-             'producao', jsonb_build_object('cor', v_sit #>> '{luzes,producao,cor}', 'motivo', v_sit #>> '{luzes,producao,P2,motivo}'),
-             'plano', jsonb_build_object('cor', v_sit #>> '{luzes,plano,cor}', 'motivo', v_sit #>> '{luzes,plano,P6,motivo}',
-                                         'semana_seguinte', v_sit #>> '{luzes,plano,P8,motivo}')),
+             'producao', public._taf_resumo_luz(v_sit #> '{luzes,producao}', array['P2', 'P3', 'P4']),
+             'plano', public._taf_resumo_luz(v_sit #> '{luzes,plano}', array['P6', 'P8', 'P10'])),
           'frase', v_sit ->> 'frase',
           'ultima_fechada', case when v_ref is not null and jsonb_typeof(v_ref) = 'object' then jsonb_build_object(
              'seg', v_ref -> 'seg', 'ensaio', v_ref -> 'ensaio', 'ppc', v_ref #> '{resumo,ppc}',
@@ -319,10 +341,16 @@ begin
     select * into v_d from public.taf_resumo_dest where id = p_id for update;
     if v_d.id is null then raise exception 'DESTINATARIO NAO EXISTE'; end if;
     if not public._taf_resumo_cobre(a.obras, v_d.obras) then raise exception 'SEM ACESSO A ESTE DESTINATARIO'; end if;
+    -- cadastro com dono ("É o meu e-mail"): só o dono ou a Diretoria mexem
+    if v_d.pessoa is not null and v_d.pessoa <> a.nome and a.papel <> 'diretoria' then
+      raise exception 'SO O DONO OU A DIRETORIA MEXE NESTE DESTINATARIO'; end if;
     if not v_d.ativo and (select count(*) from public.taf_resumo_dest where ativo) >= 100 then raise exception 'LIMITE DE 100 DESTINATARIOS'; end if;
     begin
       update public.taf_resumo_dest set nome = v_nome, email = v_email, obras = v_obras, frequencia = p_frequencia, ativo = true,
-             pessoa = case when p_meu then a.nome when pessoa = a.nome then null else pessoa end,
+             pessoa = case when p_meu then a.nome
+                           when v_d.pessoa = a.nome then null           -- o dono desmarcou "É o meu e-mail"
+                           when v_email <> lower(v_d.email) then null   -- outra pessoa trocou o e-mail: deixa de ser do dono
+                           else v_d.pessoa end,
              atualizado_por = a.nome, atualizado_em = now()
        where id = p_id returning * into v_d;
     exception when unique_violation then raise exception 'ESTE E-MAIL JA RECEBE O RESUMO %', upper(p_frequencia);
@@ -339,6 +367,8 @@ begin
   select * into v_d from public.taf_resumo_dest where id = p_id for update;
   if v_d.id is null then raise exception 'DESTINATARIO NAO EXISTE'; end if;
   if not public._taf_resumo_cobre(a.obras, v_d.obras) then raise exception 'SEM ACESSO A ESTE DESTINATARIO'; end if;
+  if v_d.pessoa is not null and v_d.pessoa <> a.nome and a.papel <> 'diretoria' then
+    raise exception 'SO O DONO OU A DIRETORIA MEXE NESTE DESTINATARIO'; end if;
   if v_d.ativo then
     update public.taf_resumo_dest set ativo = false, atualizado_por = a.nome, atualizado_em = now() where id = p_id returning * into v_d;
   end if;
@@ -366,10 +396,11 @@ end $$;
 -- ===================================================================== entrada: prévia, resumo da obra, envio
 -- Prévia: as obras de quem pede (ou as de um destinatário que a pessoa pode ver, cortadas pelas obras da chave).
 -- p_enviar: reserva o envio de teste para os e-mails marcados como da pessoa (até 3 e-mails; 5 testes por dia).
+-- Cada envio de teste leva só as obras da chave que também estão no cadastro daquele e-mail (o mesmo que ele recebe no horário).
 create or replace function public.taf_resumo_previa(p_chave text, p_destinatario bigint default null, p_enviar boolean default false)
 returns jsonb language plpgsql volatile security definer set search_path = public as $$
 declare a record; v_d public.taf_resumo_dest; v_obras text[]; v_hoje date := public._taf_ciclo_hoje(); v_m record;
-        v_env jsonb := '[]'::jsonb; v_id bigint; v_gestor boolean;
+        v_env jsonb := '[]'::jsonb; v_id bigint; v_gestor boolean; v_om text[];
 begin
   if public._taf_resumo_e_robo(p_chave) then raise exception 'A CHAVE DO ROBO NAO FAZ PREVIA'; end if;
   select * into a from public._taf_resumo_pessoal(p_chave);
@@ -389,10 +420,13 @@ begin
     if (select count(*) from public.taf_resumo_envio e where e.quando = 'teste' and e.dia = v_hoje and e.pedido_por = a.nome) >= 5 then
       raise exception 'LIMITE DE 5 ENVIOS DE TESTE POR DIA'; end if;
     for v_m in select * from public.taf_resumo_dest d where d.ativo and d.pessoa = a.nome order by d.id limit 3 loop
+      v_om := array(select x from unnest(v_obras) x where v_m.obras is null or x = any(v_m.obras) order by x);
+      if cardinality(v_om) = 0 then continue; end if;
       insert into public.taf_resumo_envio (dest, quando, dia, pedido_por, email, obras)
-      values (v_m.id, 'teste', v_hoje, a.nome, v_m.email, v_obras) returning id into v_id;
-      v_env := v_env || jsonb_build_object('envio', v_id, 'destinatario', v_m.id, 'nome', v_m.nome, 'email', v_m.email);
+      values (v_m.id, 'teste', v_hoje, a.nome, v_m.email, v_om) returning id into v_id;
+      v_env := v_env || jsonb_build_object('envio', v_id, 'destinatario', v_m.id, 'nome', v_m.nome, 'email', v_m.email, 'obras', to_jsonb(v_om));
     end loop;
+    if jsonb_array_length(v_env) = 0 then raise exception 'NENHUMA OBRA DO SEU CADASTRO NA SUA CHAVE'; end if;
   end if;
   return jsonb_build_object('hoje', v_hoje, 'quem', a.nome, 'papel', a.papel, 'obras', to_jsonb(v_obras),
     'meus', (select coalesce(jsonb_agg(jsonb_build_object('destinatario', d.id, 'email', public._taf_resumo_mascara(d.email),
@@ -401,24 +435,34 @@ begin
     'envios', case when p_enviar then v_env end);
 end $$;
 
+-- Chave pessoal: a obra tem de estar na chave (regra do ERP) e a parte do planejador segue a regra do planejador
+-- (_taf_ciclo_ator: a chave do site, que no ERP abre a 342, só vê o planejador da obra de que é o engenheiro).
 create or replace function public.taf_resumo_obra(p_chave text, p_obra text)
 returns jsonb language plpgsql stable security definer set search_path = public as $$
-declare a record;
+declare a record; v_ciclo boolean := true;
 begin
   if not (coalesce(p_obra, '') = any(public._taf_resumo_todas())) then raise exception 'OBRA INVALIDA'; end if;
   if not public._taf_resumo_e_robo(p_chave) then
     select * into a from public._taf_resumo_pessoal(p_chave);
     if not (p_obra = any(a.obras)) then raise exception 'SEM ACESSO A OBRA'; end if;
+    if exists (select 1 from public.taf_ciclo_obra o where o.obra = p_obra) then
+      begin
+        perform public._taf_ciclo_ator(p_chave, p_obra, null);
+      exception when others then v_ciclo := false;   -- recusa do planejador: sem a parte dele, sem dizer por quê
+      end;
+    end if;
   end if;
-  return public._taf_resumo_obra(p_obra);
+  return public._taf_resumo_obra(p_obra, v_ciclo);
 end $$;
 
--- Robô: reserva os envios de hoje (diario) ou da semana (semanal) que ainda não saíram, até p_limite (1 a 50),
--- e devolve, por destinatário, o envio (e a tentativa), o nome, o e-mail e as obras dele. Reservado há menos de 10 minutos é de
--- outra execução em andamento e fica de fora; erro é tentado de novo até 3 vezes.
+-- Robô: reserva os envios de hoje (diario) ou da semana (semanal) que ainda não saíram, até p_limite (1 a 100; o cadastro
+-- tem no máximo 100 ativos, então numa execução cabem todos), e devolve, por destinatário, o envio (e a tentativa), o nome,
+-- o e-mail e as obras dele. Reservado há menos de 10 minutos é de outra execução em andamento e fica de fora; erro é
+-- tentado de novo até 3 vezes (a repescagem do agendador, mais tarde no mesmo dia, pega o que ficou).
+-- Ordem: quem não recebeu da última vez vai primeiro (assim, se faltar tempo, não são sempre os mesmos que ficam sem).
 create or replace function public.taf_resumo_montar(p_chave text, p_quando text, p_limite int default 20)
 returns jsonb language plpgsql volatile security definer set search_path = public as $$
-declare v_hoje date := public._taf_ciclo_hoje(); v_dia date; v_freq text; v_lim int := least(greatest(coalesce(p_limite, 20), 1), 50);
+declare v_hoje date := public._taf_ciclo_hoje(); v_dia date; v_freq text; v_lim int := least(greatest(coalesce(p_limite, 20), 1), 100);
         v_todas text[] := public._taf_resumo_todas(); v_d public.taf_resumo_dest; v_e public.taf_resumo_envio; v_obras text[];
         v_env jsonb := '[]'::jsonb; v_n int := 0; v_rest int := 0; v_desist int := 0; v_sem int := 0; v_ja int := 0; v_id bigint; v_t int;
 begin
@@ -427,7 +471,10 @@ begin
   v_dia := case when p_quando = 'semanal' then public._taf_ciclo_segunda(v_hoje) else v_hoje end;
   v_freq := case when p_quando = 'semanal' then 'semanal' else 'diaria' end;
   perform pg_advisory_xact_lock(hashtext('taf_resumo_montar'));
-  for v_d in select * from public.taf_resumo_dest d where d.ativo and d.frequencia = v_freq order by d.id loop
+  for v_d in select d.* from public.taf_resumo_dest d
+               left join lateral (select max(e.dia) as ult from public.taf_resumo_envio e
+                                   where e.dest = d.id and e.quando = p_quando and e.estado = 'enviado') u on true
+              where d.ativo and d.frequencia = v_freq order by u.ult nulls first, d.id loop
     v_obras := case when v_d.obras is null then v_todas else array(select x from unnest(v_d.obras) x where x = any(v_todas) order by x) end;
     if cardinality(v_obras) = 0 then v_sem := v_sem + 1; continue; end if;
     select * into v_e from public.taf_resumo_envio e where e.dest = v_d.id and e.quando = p_quando and e.dia = v_dia;
@@ -499,7 +546,8 @@ end $$;
 --   drop function if exists public.taf_resumo_destinatarios(text), public.taf_resumo_destinatario_salvar(text, bigint, text, text, jsonb, text, boolean),
 --     public.taf_resumo_destinatario_desativar(text, bigint), public.taf_resumo_robo_gerar(text), public.taf_resumo_previa(text, bigint, boolean),
 --     public.taf_resumo_obra(text, text), public.taf_resumo_montar(text, text, int), public.taf_resumo_registrar(text, jsonb),
---     public._taf_resumo_obra(text), public._taf_resumo_dest_json(public.taf_resumo_dest, text), public._taf_resumo_uteis_entre(text, date, date),
+--     public._taf_resumo_obra(text, boolean), public._taf_resumo_luz(jsonb, text[]),
+--     public._taf_resumo_dest_json(public.taf_resumo_dest, text), public._taf_resumo_uteis_entre(text, date, date),
 --     public._taf_resumo_pessoal(text), public._taf_resumo_e_robo(text), public._taf_resumo_gestor(text), public._taf_resumo_mascara(text),
 --     public._taf_resumo_cobre(text[], text[]), public._taf_resumo_todas();
 --   drop table if exists public.taf_resumo_envio, public.taf_resumo_dest_hist, public.taf_resumo_robo;

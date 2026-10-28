@@ -78,6 +78,7 @@ values ('999', 'o9991', 'oc', '{"num":"OC-9001","item":"1.1","valor":3000,"statu
 -- chaves de teste (só o hash)
 insert into public.taf_ciclo_chave (hash, nome, pessoa, papel, obras, ativo) values
   (encode(extensions.digest('teste08-dir', 'sha256'), 'hex'), 'teste', 'Diretor Teste', 'diretoria', array['998', '999'], true),
+  (encode(extensions.digest('teste08-dir2', 'sha256'), 'hex'), 'teste', 'Diretora Dois', 'diretoria', array['998', '999'], true),
   (encode(extensions.digest('teste08-ges', 'sha256'), 'hex'), 'teste', 'Gestor Teste', 'gestor', array['999'], true),
   (encode(extensions.digest('teste08-eng', 'sha256'), 'hex'), 'teste', 'Engenheiro 999', 'engenheiro', array['999'], true),
   (encode(extensions.digest('teste08-lei', 'sha256'), 'hex'), 'leitura de teste', null, 'leitura', array['999'], true);
@@ -97,7 +98,7 @@ grant all on t08 to anon;
 set local role anon;
 
 do $t$
-declare r jsonb; e text; v_dir bigint; v_ges bigint; v_rob text; v_rob2 text; m jsonb; x jsonb; i int;
+declare r jsonb; e text; v_dir bigint; v_ges bigint; v_d2 bigint; v_rob text; v_rob2 text; m jsonb; x jsonb; i int;
 begin
   -- 1. tabelas e funções internas fechadas
   perform pg_temp.confere(pg_temp.erro('select * from public.taf_resumo_dest') ~ 'permission denied', '1a anon le a tabela de destinatarios');
@@ -234,6 +235,8 @@ begin
   r := public.taf_resumo_destinatarios('teste08-dir');
   perform pg_temp.confere((select z.d #>> '{ultimo,estado}' from jsonb_array_elements(r -> 'destinatarios') z(d) where (z.d ->> 'id')::bigint = v_dir) = 'enviado'
                           and (select z.d #>> '{ultimo,erro}' from jsonb_array_elements(r -> 'destinatarios') z(d) where (z.d ->> 'id')::bigint = v_ges) = 'falha de teste', '10j ultimo envio na lista');
+  perform pg_temp.confere((select (z.d ->> 'falhou')::boolean from jsonb_array_elements(r -> 'destinatarios') z(d) where (z.d ->> 'id')::bigint = v_ges)
+                          and not (select (z.d ->> 'falhou')::boolean from jsonb_array_elements(r -> 'destinatarios') z(d) where (z.d ->> 'id')::bigint = v_dir), '10j2 a lista avisa quem ficou sem receber');
   -- semanal: só quem é semanal, dia = segunda da semana
   m := public.taf_resumo_montar(v_rob, 'semanal');
   perform pg_temp.confere(jsonb_array_length(m -> 'envios') = 1 and m ->> 'dia' = '2026-10-26' and m #> '{envios,0,obras}' = '["999"]'::jsonb, '10k semanal: ' || m::text);
@@ -272,6 +275,54 @@ begin
   v_rob2 := public.taf_resumo_robo_gerar('teste08-dir') ->> 'chave';
   perform pg_temp.confere(pg_temp.erro(format('select public.taf_resumo_montar(%L, ''diario'')', v_rob)) = 'CHAVE DO ROBO INVALIDA', '13a chave antiga do robo ainda vale');
   perform pg_temp.confere(public.taf_resumo_montar(v_rob2, 'diario') ? 'envios', '13b chave nova vale');
+  insert into t08 values ('robo', v_rob2);
+
+  -- 15. cadastro com dono ("É o meu e-mail"): só o dono ou a Diretoria mexem; trocar o e-mail tira o dono
+  r := public.taf_resumo_destinatario_salvar('teste08-dir2', null, 'Diretora Dois', 'diretora.dois@example.com', '["999"]', 'diaria', true);
+  v_d2 := (r ->> 'id')::bigint;
+  perform pg_temp.confere((r ->> 'meu')::boolean and (r ->> 'tem_dono')::boolean, '15a cadastro com dono: ' || r::text);
+  perform pg_temp.confere(pg_temp.erro(format($$select public.taf_resumo_destinatario_salvar('teste08-ges', %s, 'Diretora Dois', 'outro.endereco@example.net', '["999"]', 'diaria', false)$$, v_d2))
+                          = 'SO O DONO OU A DIRETORIA MEXE NESTE DESTINATARIO', '15b gestor trocou o e-mail do cadastro de outra pessoa');
+  perform pg_temp.confere(pg_temp.erro(format($$select public.taf_resumo_destinatario_salvar('teste08-ges', %s, 'Diretora Dois', 'diretora.dois@example.com', '["999"]', 'semanal', false)$$, v_d2))
+                          = 'SO O DONO OU A DIRETORIA MEXE NESTE DESTINATARIO', '15c gestor mexeu no cadastro de outra pessoa sem trocar o e-mail');
+  perform pg_temp.confere(pg_temp.erro(format('select public.taf_resumo_destinatario_desativar(''teste08-ges'', %s)', v_d2))
+                          = 'SO O DONO OU A DIRETORIA MEXE NESTE DESTINATARIO', '15d gestor desativou o cadastro de outra pessoa');
+  -- o envio de teste leva só as obras da chave que estão no cadastro (a 998 fica de fora)
+  r := public.taf_resumo_previa('teste08-dir2', null, true);
+  perform pg_temp.confere(r -> 'obras' = '["998","999"]'::jsonb and jsonb_array_length(r -> 'envios') = 1
+                          and r #> '{envios,0,obras}' = '["999"]'::jsonb and r #>> '{envios,0,email}' = 'diretora.dois@example.com', '15e teste so com as obras do cadastro: ' || r::text);
+  -- a Diretoria muda as obras sem trocar o e-mail: a dona continua
+  r := public.taf_resumo_destinatario_salvar('teste08-dir', v_d2, 'Diretora Dois', 'Diretora.Dois@example.com', '["998","999"]', 'diaria', false);
+  perform pg_temp.confere((r ->> 'tem_dono')::boolean and not (r ->> 'meu')::boolean and r ->> 'atualizado_por' = 'Diretor Teste', '15f Diretoria editou sem trocar o e-mail: ' || r::text);
+  perform pg_temp.confere(public.taf_resumo_previa('teste08-dir2', null, true) #> '{envios,0,obras}' = '["998","999"]'::jsonb, '15g teste com as obras novas do cadastro');
+  -- a Diretoria troca o e-mail: o cadastro fica sem dono e o "Mandar agora para mim" da dona não vai para o endereço novo
+  r := public.taf_resumo_destinatario_salvar('teste08-dir', v_d2, 'Diretora Dois', 'outro.endereco@example.net', '["998","999"]', 'diaria', false);
+  perform pg_temp.confere(not (r ->> 'tem_dono')::boolean and r ->> 'email' = 'outro.endereco@example.net', '15h trocar o e-mail tirou a dona: ' || r::text);
+  perform pg_temp.confere(pg_temp.erro('select public.taf_resumo_previa(''teste08-dir2'', null, true)') = 'SEU E-MAIL NAO ESTA NA LISTA', '15i mandar para mim foi para o endereco trocado');
+  -- o próprio dono troca o próprio e-mail e continua dono; a lista da dona não mostra mais o cadastro como dela
+  r := public.taf_resumo_destinatario_salvar('teste08-ges', v_ges, 'Gestor Teste', 'gestor.novo@example.com', '["999"]', 'diaria', true);
+  perform pg_temp.confere((r ->> 'meu')::boolean and r ->> 'email' = 'gestor.novo@example.com', '15j o dono troca o proprio e-mail: ' || r::text);
+  perform pg_temp.confere(not (select (z.d ->> 'meu')::boolean from jsonb_array_elements(public.taf_resumo_destinatarios('teste08-dir2') -> 'destinatarios') z(d)
+                                where (z.d ->> 'id')::bigint = v_d2), '15k a dona perdeu o cadastro');
+  -- cadastro sem obra da chave: o teste não sai
+  r := public.taf_resumo_destinatario_salvar('teste08-dir2', null, 'Diretora Dois', 'diretora.dois@example.com', '["998"]', 'semanal', true);
+  perform pg_temp.confere(pg_temp.erro($$select public.taf_resumo_destinatario_salvar('teste08-dir2', null, 'X Y', 'x.y@example.com', '["998"]', 'diaria', true)$$) is null, '15l cadastro so da 998');
+  perform pg_temp.confere(jsonb_array_length(public.taf_resumo_previa('teste08-dir2', null, true) -> 'envios') = 2, '15m dois e-mails da dona');
+
+  -- 16. ordem do robô: quem não recebeu da última vez vai primeiro (dia seguinte, quinta 29/10)
+  perform set_config('taf.agora', '2026-10-29 09:00:00-03', true);
+  m := public.taf_resumo_montar(v_rob2, 'diario', 2);
+  perform pg_temp.confere(m ->> 'dia' = '2026-10-29' and jsonb_array_length(m -> 'envios') = 2
+                          and (m #>> '{envios,0,destinatario}')::bigint = v_ges
+                          and not exists (select 1 from jsonb_array_elements(m -> 'envios') z(e) where (z.e ->> 'destinatario')::bigint = v_dir), '16a quem recebeu ontem vai depois: ' || m::text);
+  -- até 100 por execução (o cadastro tem no máximo 100 ativos): cabem todos de uma vez
+  for i in 1 .. 55 loop
+    perform public.taf_resumo_destinatario_salvar('teste08-dir', null, 'Lote ' || i, 'lote' || i || '@example.com', '["999"]', 'diaria');
+  end loop;
+  m := public.taf_resumo_montar(v_rob2, 'diario', 100);
+  perform pg_temp.confere(jsonb_array_length(m -> 'envios') > 55 and (m ->> 'restantes')::int = 0
+                          and (m -> 'envios' -> -1 ->> 'destinatario')::bigint = v_dir, '16b ate 100 numa execucao, quem recebeu ontem por ultimo: ' || jsonb_array_length(m -> 'envios'));
+  perform set_config('taf.agora', '2026-10-28 09:00:00-03', true);
 
   raise notice '08 OK: cadastro, robô, resumo da obra 999 (planejador e ERP), envios, limite e prévia conferidos';
 end $t$;
@@ -284,5 +335,49 @@ do $t$ begin
   if (select count(*) from public.taf_resumo_dest_hist) < 2 then raise exception 'FALHOU 14b: mudanca sem historico'; end if;
   raise notice '08 OK: destinatário não se apaga e a mudança fica no histórico';
 end $t$;
+
+-- 17. o motivo de cada luz é o do indicador que deu a cor: todas as restrições resolvidas (P6 VERDE) e a semana de 26/10
+--     sem compromisso (P8 VERMELHO). Antes o motivo do plano vinha sempre do P6.
+update public.taf_ciclo_demanda set situacao = 'resolvida', resolvida_em = '2026-10-27', resolvida_por = 'Engenheiro 999' where obra = '999' and situacao = 'aberta';
+update public.taf_ciclo_comp set cancelado_em = '2026-10-26 08:00-03', cancel_motivo = 'teste do resumo' where obra = '999' and seg = '2026-10-26';
+do $t$ declare r jsonb; s jsonb; v_esp text; begin
+  r := public._taf_resumo_obra('999');
+  s := public._taf_ciclo_situacao('999', null, 'leitura') -> 'luzes';
+  if s #>> '{plano,P6,cor}' <> 'VERDE' or s #>> '{plano,P8,cor}' <> 'VERMELHO' then raise exception 'FALHOU 17a: cenario nao montou: %', s -> 'plano'; end if;
+  if r #>> '{ciclo,luzes,plano,cor}' <> 'VERMELHO' or r #>> '{ciclo,luzes,plano,motivo}' <> 'sem compromisso para a semana de 26/10'
+     or r #> '{ciclo,luzes,plano,de}' <> '["P8"]'::jsonb then raise exception 'FALHOU 17b: motivo do plano: %', r #> '{ciclo,luzes,plano}'; end if;
+  select string_agg(s #>> array['producao', i, 'motivo'], '; ' order by k) into v_esp from unnest(array['P2', 'P3', 'P4']) with ordinality u(i, k)
+   where s #>> array['producao', i, 'cor'] = s #>> '{producao,cor}';
+  if r #>> '{ciclo,luzes,producao,cor}' is distinct from s #>> '{producao,cor}' or r #>> '{ciclo,luzes,producao,motivo}' is distinct from v_esp then
+    raise exception 'FALHOU 17c: motivo da producao: % (esperado %)', r #> '{ciclo,luzes,producao}', v_esp; end if;
+  raise notice '08 OK: o motivo de cada luz vem do indicador que deu a cor';
+end $t$;
+
+-- 18. chave do site (no ERP abre a 342): a parte do planejador segue a regra do planejador (só o engenheiro da obra)
+insert into public.taf_ciclo_obra (obra, nome, engenheiro, ep, base_rev, equipe, setores)
+values ('342', 'OBRA 342 (fictícia de teste)', 'Outro Engenheiro', '2026-09-07', 'FICTÍCIO', '{}', '{}');
+insert into public.taf_ciclo_area (obra, area, rotulo, dono, ordem) values ('342', 'TECNICA', 'Técnica', 'Outro Engenheiro', 1);
+insert into public.taf_ciclo_ativ (obra, id, ordem, topo, nome, fase, tipo, evento, contratual, cal, dur, hora_marco, b0, b1, ini_base, fim_base, pred, ini_real, fim_real, real_origem)
+values ('342', 'T1', 1, 1, 'Atividade interna da 342 (fictício)', '1 X', 'ativ', null, false, 'CORRIDOS', 5, null, 0, 5, '2026-09-07', '2026-09-11', '[]', null, null, null);
+insert into public.taf_ciclo_demanda (obra, num, area, oque, resp, prazo, nova_data, vezes, ativs, situacao, resolvida_em, resolvida_por, origem, criada_por, quem)
+values ('342', 1, 'TECNICA', 'Restrição interna da 342 (fictício)', 'Outro Engenheiro', '2026-10-20', null, 0, array['T1'], 'aberta', null, null, 'manual', 'Outro Engenheiro', 'Outro Engenheiro');
+set local role anon;
+do $t$ declare r jsonb; v_rob text := (select v from t08 where k = 'robo'); begin
+  perform pg_temp.confere(pg_temp.erro($$select public.taf_ciclo_situacao('teste08-pes', '342')$$) = 'SEM ACESSO A OBRA', '18a o planejador recusa a chave do site na 342');
+  r := public.taf_resumo_obra('teste08-pes', '342');
+  perform pg_temp.confere(r -> 'ciclo' = '{"sem_acesso": true}'::jsonb and r::text !~ 'interna da 342', '18b o resumo nao mostra o planejador da 342: ' || r::text);
+  r := public.taf_resumo_obra(v_rob, '342');
+  perform pg_temp.confere((r #>> '{ciclo,restricoes,vencidas}')::int = 1 and r::text ~ 'Restrição interna da 342', '18c o robo ve o planejador da 342');
+  perform pg_temp.confere(public.taf_resumo_obra('teste08-dir', '999') #>> '{ciclo,cronograma}' = 'true', '18d chave pessoal do planejador continua vendo');
+end $t$;
+reset role;
+update public.taf_ciclo_obra set engenheiro = 'Pessoa Teste 342' where obra = '342';
+set local role anon;
+do $t$ declare r jsonb; begin
+  r := public.taf_resumo_obra('teste08-pes', '342');
+  perform pg_temp.confere((r #>> '{ciclo,atrasadas,total}')::int = 1 and r::text ~ 'Restrição interna da 342', '18e o engenheiro da 342 ve o planejador dela: ' || (r -> 'ciclo')::text);
+  raise notice '08 OK: dono do cadastro, obras do teste, ordem do robô, motivo das luzes e planejador da chave do site';
+end $t$;
+reset role;
 
 rollback;
