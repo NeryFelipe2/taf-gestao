@@ -27,5 +27,15 @@
       "source": "/erp",
       "destination": "/erp.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/resumo?quando=diario",
+      "schedule": "0 10 * * 1-5"
+    },
+    {
+      "path": "/api/resumo?quando=semanal",
+      "schedule": "30 10 * * 1"
+    }
   ]
 }

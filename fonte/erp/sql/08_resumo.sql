@@ -414,13 +414,13 @@ begin
 end $$;
 
 -- Robô: reserva os envios de hoje (diario) ou da semana (semanal) que ainda não saíram, até p_limite (1 a 50),
--- e devolve, por destinatário, o envio, o nome, o e-mail e as obras dele. Reservado há menos de 10 minutos é de
+-- e devolve, por destinatário, o envio (e a tentativa), o nome, o e-mail e as obras dele. Reservado há menos de 10 minutos é de
 -- outra execução em andamento e fica de fora; erro é tentado de novo até 3 vezes.
 create or replace function public.taf_resumo_montar(p_chave text, p_quando text, p_limite int default 20)
 returns jsonb language plpgsql volatile security definer set search_path = public as $$
 declare v_hoje date := public._taf_ciclo_hoje(); v_dia date; v_freq text; v_lim int := least(greatest(coalesce(p_limite, 20), 1), 50);
         v_todas text[] := public._taf_resumo_todas(); v_d public.taf_resumo_dest; v_e public.taf_resumo_envio; v_obras text[];
-        v_env jsonb := '[]'::jsonb; v_n int := 0; v_rest int := 0; v_desist int := 0; v_sem int := 0; v_ja int := 0; v_id bigint;
+        v_env jsonb := '[]'::jsonb; v_n int := 0; v_rest int := 0; v_desist int := 0; v_sem int := 0; v_ja int := 0; v_id bigint; v_t int;
 begin
   if not public._taf_resumo_e_robo(p_chave) then raise exception 'CHAVE DO ROBO INVALIDA'; end if;
   if coalesce(p_quando, '') not in ('diario', 'semanal') then raise exception 'QUANDO INVALIDO'; end if;
@@ -437,14 +437,15 @@ begin
       if v_e.tentativas >= 3 then v_desist := v_desist + 1; continue; end if;
       if v_n >= v_lim then v_rest := v_rest + 1; continue; end if;
       update public.taf_resumo_envio set estado = 'reservado', tentativas = tentativas + 1, email = v_d.email, obras = v_obras,
-             erro = null, atualizado_em = now() where id = v_e.id;
+             erro = null, atualizado_em = now() where id = v_e.id returning tentativas into v_t;
       v_id := v_e.id;
     else
       if v_n >= v_lim then v_rest := v_rest + 1; continue; end if;
       insert into public.taf_resumo_envio (dest, quando, dia, pedido_por, email, obras)
-      values (v_d.id, p_quando, v_dia, 'robô', v_d.email, v_obras) returning id into v_id;
+      values (v_d.id, p_quando, v_dia, 'robô', v_d.email, v_obras) returning id, tentativas into v_id, v_t;
     end if;
-    v_env := v_env || jsonb_build_object('envio', v_id, 'destinatario', v_d.id, 'nome', v_d.nome, 'email', v_d.email, 'obras', to_jsonb(v_obras));
+    v_env := v_env || jsonb_build_object('envio', v_id, 'tentativa', v_t, 'destinatario', v_d.id, 'nome', v_d.nome, 'email', v_d.email,
+                                         'obras', to_jsonb(v_obras));
     v_n := v_n + 1;
   end loop;
   return jsonb_build_object('hoje', v_hoje, 'dia', v_dia, 'quando', p_quando, 'envios', v_env,

@@ -222,7 +222,8 @@ begin
   r := public.taf_resumo_registrar(v_rob, jsonb_build_array(jsonb_build_object('envio', (m #>> '{envios,0,envio}')::bigint, 'ok', false)));
   perform pg_temp.confere((r ->> 'ignorados')::int = 1, '10g envio ja registrado nao muda');
   r := public.taf_resumo_montar(v_rob, 'diario');
-  perform pg_temp.confere(jsonb_array_length(r -> 'envios') = 1 and (r #>> '{envios,0,envio}') = (m #>> '{envios,1,envio}') and (r ->> 'ja_enviados')::int = 1, '10h so o que deu erro sai de novo: ' || r::text);
+  perform pg_temp.confere(jsonb_array_length(r -> 'envios') = 1 and (r #>> '{envios,0,envio}') = (m #>> '{envios,1,envio}') and (r ->> 'ja_enviados')::int = 1
+                          and m #>> '{envios,1,tentativa}' = '1' and r #>> '{envios,0,tentativa}' = '2', '10h so o que deu erro sai de novo: ' || r::text);
   for i in 1 .. 2 loop
     perform public.taf_resumo_registrar(v_rob, jsonb_build_array(jsonb_build_object('envio', (m #>> '{envios,1,envio}')::bigint, 'ok', false, 'erro', 'falha de teste')));
     r := public.taf_resumo_montar(v_rob, 'diario');
