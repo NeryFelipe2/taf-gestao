@@ -46,9 +46,9 @@ Como o endpoint funciona (`public/api/leitura.js`): só aceita `POST` com a chav
 Tarefas editadas no site (taf_tarefa_edicao) ficam por cima e não são apagadas por uma nova leitura.
 
 ## Resumo automático para o diretor (e-mail no horário)
-O site manda sozinho, por e-mail, o resumo de cada obra: diário em dia útil às 7h de Brasília e semanal na segunda às 7h30 (os `crons` de `public/vercel.json`, em UTC). Quem recebe é cadastrado na tela do ERP: **Gestão e administração > Resumo para o diretor** (só chave pessoal de Diretoria ou gestor). Lá também ficam "Ver prévia", "Copiar para WhatsApp" e "Mandar agora para mim".
+O site manda sozinho, por e-mail, o resumo de cada obra: diário em dia útil às 7h de Brasília e semanal na segunda às 7h30 (os `crons` de `public/vercel.json`, em UTC). Duas horas depois roda a repescagem (`&repescagem=1`), que manda só o que não saiu. No plano Hobby da Vercel cada agendamento roda uma vez por dia e pode sair em qualquer minuto da hora marcada. Quem recebe é cadastrado na tela do ERP: **Gestão e administração > Resumo para o diretor** (só chave pessoal de Diretoria ou gestor). Lá também ficam "Ver prévia", "Copiar para WhatsApp" e "Mandar agora para mim".
 
-Endpoint `public/api/resumo.js` (irmão do `/api/leitura`): `GET ?quando=diario|semanal` só com `Authorization: Bearer <CRON_SECRET>` (o agendador da Vercel manda sozinho); `POST` com a chave pessoal em `x-chave` para a prévia e o teste. O texto junta o planejador e o ERP pelo banco (`fonte/erp/sql/08_resumo.sql`, rascunho até o sim do Felipe). E-mail pela API da Resend, só `fetch`.
+Endpoint `public/api/resumo.js` (irmão do `/api/leitura`): `GET ?quando=diario|semanal` só com `Authorization: Bearer <CRON_SECRET>` (o agendador da Vercel manda sozinho); `POST` com a chave pessoal em `x-chave` para a prévia e o teste. O texto junta o planejador e o ERP pelo banco (`fonte/erp/sql/08_resumo.sql`, rascunho até o sim do Felipe). E-mail pela API da Resend, só `fetch`, todos de uma vez pelo envio em lote (`/emails/batch`). O texto do e-mail fica em `public/api/_resumo_email.js` (o `_` faz a Vercel não publicar o arquivo como endpoint).
 
 Para ligar (Vercel > Settings > Environment Variables, Production, e novo Deploy), além de `TAF_SUPABASE_URL` e `TAF_SUPABASE_KEY`:
 - `CRON_SECRET`: um texto sorteado de 16 caracteres ou mais.

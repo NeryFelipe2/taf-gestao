@@ -122,7 +122,7 @@ test('Ver prévia: chama o /api/resumo do site com a chave no cabeçalho, mostra
   const h = run(api, 'viewResumo()');
   assert.match(h, /<pre id="rd-texto"[^>]*>Resumo TAF\n&lt;b&gt;OBRA 999&lt;\/b&gt;: VERMELHO<\/pre>/);
   assert.match(h, /Copiar para WhatsApp/);
-  assert.match(h, /"Mandar agora para mim" vai para diretor\.teste@example\.com\./);
+  assert.match(h, /"Mandar agora para mim" vai para diretor\.teste@example\.com, com as obras do cadastro de cada e-mail\./);
   // de um destinatário
   await api.ACOES['rd-previa']({ dataset: { id: '7' } });
   assert.deepEqual(chamadas[1].corpo, { acao: 'previa', destinatario: 7 });
@@ -183,6 +183,67 @@ test('cadastro: confere antes de gravar e manda as obras certas ao banco (null =
   assert.match(api.el('#rd-msg').textContent, /Marque pelo menos uma obra/);
 });
 
+/* cadastro com dono: só o dono ou a Diretoria mexem; os botões de cadastro seguem can('resumo'); quem ficou sem receber aparece */
+function destComDono(papel) {
+  const D = J(DEST);
+  D.papel = papel;
+  D.destinatarios.push({ id: 9, nome: 'Diretora <i>Dois</i>', email: 'diretora.dois@example.com', obras: ['999'], todas: false, frequencia: 'diaria', ativo: true,
+    meu: false, tem_dono: true, falhou: true, cadastrado_por: 'Diretora Dois', ultimo: { quando: 'diario', dia: '2026-10-28', estado: 'erro', erro: 'Resend respondeu 503' } });
+  return D;
+}
+const linha = (h, id) => (h.split('<tr>').find((x) => x.includes('data-id="' + id + '"')) || '');
+
+test('gestor: no e-mail de outra pessoa (com dono) só a prévia; Editar e Desativar não aparecem e não abrem', () => {
+  const api = carregaModoChave();
+  abre(api, obra999(), estado999(), 'gestao');
+  run(api, "CH.chave='chave-do-gestor';RD.carregado=true;RD.dados=" + JSON.stringify(destComDono('gestao')));
+  const h = run(api, 'viewResumo()');
+  const l9 = linha(h, 9);
+  assert.match(l9, /data-act="rd-previa" data-id="9"/);
+  assert.ok(!/rd-editar|rd-desativar/.test(l9), 'botão de mexer no e-mail de outra pessoa');
+  assert.match(l9, /e-mail de outra pessoa: só ela ou a Diretoria mexem/);
+  assert.match(linha(h, 7), /data-act="rd-editar" data-id="7"/, 'cadastro sem dono o gestor mexe');
+  api.limpaMsgs();
+  api.ACOES['rd-editar']({ dataset: { id: '9' } });
+  assert.ok(api.msgs().some((x) => /só ela ou a Diretoria mexem/.test(x)));
+  assert.ok(!/Editar destinatário/.test(api.el('#mbox').innerHTML || ''), 'abriu o formulário');
+});
+
+test('Diretoria: mexe no e-mail de outra pessoa e o formulário avisa que trocar o e-mail tira o dono', () => {
+  const api = carregaModoChave();
+  abre(api, obra999(), estado999(), 'diretoria');
+  run(api, "CH.chave='chave-de-teste';RD.carregado=true;RD.dados=" + JSON.stringify(destComDono('diretoria')));
+  const h = run(api, 'viewResumo()');
+  assert.match(linha(h, 9), /data-act="rd-editar" data-id="9"[\s\S]*data-act="rd-desativar" data-id="9"/);
+  api.ACOES['rd-editar']({ dataset: { id: '9' } });
+  assert.match(api.el('#mbox').innerHTML, /Editar destinatário[\s\S]*Se você trocar o e-mail, ele deixa de ser dela/);
+});
+
+test('quem ficou sem o último resumo aparece em aviso no alto da lista, escapado', () => {
+  const api = carregaModoChave();
+  abre(api, obra999(), estado999(), 'diretoria');
+  run(api, "CH.chave='chave-de-teste';RD.carregado=true;RD.dados=" + JSON.stringify(destComDono('diretoria')));
+  const h = run(api, 'viewResumo()');
+  assert.match(h, /<div class="alert"[\s\S]*1 pessoa ficou sem o último resumo[\s\S]*Diretora &lt;i&gt;Dois&lt;\/i&gt;\. O site tenta de novo na repescagem/);
+  assert.ok(h.indexOf('class="alert"') < h.indexOf('<table'), 'o aviso vem antes da tabela');
+  assert.match(linha(h, 9), /pill bad">ficou sem/);
+  run(api, 'RD.dados.destinatarios.forEach(d=>{d.falhou=false})');
+  assert.ok(!run(api, 'viewResumo()').includes('sem o último resumo'));
+});
+
+test("botões de cadastro seguem can('resumo'): papel sem cadastro não vê Novo, Editar nem Robô", () => {
+  const api = carregaModoChave();
+  abre(api, obra999(), estado999(), 'diretoria');
+  run(api, "CH.chave='chave-de-teste';RD.carregado=true;RD.dados=" + JSON.stringify(DEST));
+  assert.equal(run(api, "can('resumo')"), true);
+  assert.match(run(api, 'viewResumo()'), /Novo destinatário/);
+  run(api, "S.role='engenheiro'");
+  assert.equal(run(api, "can('resumo')"), false);
+  const h = run(api, 'viewResumo()');
+  assert.ok(!/Novo destinatário|rd-editar|rd-desativar|rd-reativar|Robô do envio/.test(h));
+  assert.match(h, /data-act="rd-previa" data-id="1"/, 'a prévia continua');
+});
+
 test('mensagens do banco viram texto de obra', () => {
   const api = carregaModoChave();
   const m = (t) => run(api, 'rdMsg(' + JSON.stringify(t) + ')');
@@ -190,4 +251,5 @@ test('mensagens do banco viram texto de obra', () => {
   assert.equal(m('ESTE E-MAIL JA RECEBE O RESUMO SEMANAL'), 'Este e-mail já recebe o resumo semanal.');
   assert.equal(m('SEM ACESSO A OBRA 998'), 'Sua chave não abre a obra 998.');
   assert.equal(m('ESCOLHA AS OBRAS: SUA CHAVE NAO TEM TODAS'), 'Sua chave não tem todas as obras: marque as obras.');
+  assert.equal(m('SO O DONO OU A DIRETORIA MEXE NESTE DESTINATARIO'), 'Este e-mail é de outra pessoa da lista: só ela ou a Diretoria mexem.');
 });

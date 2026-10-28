@@ -2,7 +2,9 @@
    Só existe no ERP com a chave do site (MODO_CH). Fica em Gestão e administração, depois de Administração.
    Cadastro e chave do robô: direto no banco (taf_resumo_*, fonte/erp/sql/08_resumo.sql); o banco só aceita chave pessoal de Diretoria ou gestor.
    Prévia e envio de teste: pelo /api/resumo do site, que monta o mesmo texto do e-mail (com a chave pessoal de quem está na tela).
-   Nada aqui guarda e-mail ou chave no aparelho. Todo texto que vem do banco passa por esc(). */
+   Nada aqui guarda e-mail ou chave no aparelho. Todo texto que vem do banco passa por esc().
+   Os botões de cadastro (Novo, Editar, Desativar, Reativar, Robô) só aparecem para can('resumo'); o banco confere de novo.
+   Cadastro com dono ("É o meu e-mail" de outra pessoa): só o dono ou a Diretoria mexem (regra do banco). */
 CAN.resumo=['gestao','diretoria'];
 const RD={carregado:false,carregando:false,erro:'',semCadastro:false,dados:null,previa:null,previaDe:'',previaErro:'',ocupado:'',meus:null};
 const RD_API='/api/resumo';
@@ -22,6 +24,7 @@ function rdMsg(e){const m=String(e&&e.message||e);let x;
   if(/ESCOLHA AS OBRAS/.test(m))return 'Marque pelo menos uma obra.';
   if(x=m.match(/SEM ACESSO A OBRA (\S+)/))return 'Sua chave não abre a obra '+x[1]+'.';
   if(/SEM ACESSO A ESTE DESTINATARIO/.test(m))return 'Sua chave não mexe neste destinatário.';
+  if(/SO O DONO OU A DIRETORIA/.test(m))return 'Este e-mail é de outra pessoa da lista: só ela ou a Diretoria mexem.';
   if(/LIMITE DE 100/.test(m))return 'Limite de 100 destinatários ativos.';
   if(/SO QUEM TEM TODAS AS OBRAS/.test(m))return 'Só quem tem todas as obras na chave gera a chave do robô.';
   if(/DESTINATARIO NAO EXISTE/.test(m))return 'Este destinatário não existe mais. Atualize a tela.';
@@ -42,20 +45,24 @@ async function rdApi(corpo){let r,j=null;
   return j}
 
 const rdDest=id=>((RD.dados&&RD.dados.destinatarios)||[]).find(d=>String(d.id)===String(id));
+const rdCad=()=>!!RD.dados&&can('resumo');
+const rdMexe=d=>rdCad()&&(!d.tem_dono||d.meu||RD.dados.papel==='diretoria');
 const rdObras=d=>d.todas?'Todas':(d.obras||[]).map(esc).join(', ');
 function rdUltimo(u){if(!u)return '<span class="sub">ainda não saiu</span>';
   const p=u.estado==='enviado'?'<span class="pill ok">enviado</span>':u.estado==='erro'?`<span class="pill bad" title="${esc(u.erro||'')}">não saiu</span>`:'<span class="pill warn">mandando</span>';
   return `${p} <span class="mono">${esc(fdata(String(u.dia||'').slice(0,10)))}</span>${u.quando==='teste'?' <span class="sub">teste</span>':''}${u.estado==='erro'&&u.erro?`<div class="sub">${esc(u.erro)}</div>`:''}`}
 
+function rdFalhas(D){const F=D.filter(d=>d.ativo&&d.falhou);if(!F.length)return '';
+  return `<div class="alert" style="margin:0 0 10px"><div class="g" style="color:var(--warn)">!</div><div><b>${F.length===1?'1 pessoa ficou':F.length+' pessoas ficaram'} sem o último resumo</b><p>${F.map(d=>esc(d.nome)).join(', ')}. O site tenta de novo na repescagem (9h; na segunda, 9h30 o semanal) e no próximo envio, com quem ficou sem na frente da fila. O motivo está em "Último envio".</p></div></div>`}
 function rdLista(){const D=RD.dados.destinatarios||[];
   if(!D.length)return '<div class="sub" style="margin:8px 4px">Ninguém cadastrado ainda. Sem destinatário, o e-mail do horário não sai.</div>';
   /* os botões ficam na primeira coluna: no celular aparecem sem rolar a tabela para o lado */
-  return `<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>E-mail</th><th>Obras</th><th>Frequência</th><th>Situação</th><th>Último envio</th></tr></thead><tbody>${D.map(d=>`<tr>
+  return `${rdFalhas(D)}<div class="tw"><table class="tbl"><thead><tr><th>Nome</th><th>E-mail</th><th>Obras</th><th>Frequência</th><th>Situação</th><th>Último envio</th></tr></thead><tbody>${D.map(d=>`<tr>
     <td style="min-width:190px"><b>${esc(d.nome)}</b>${d.meu?' <span class="pill info">seu e-mail</span>':''}<div class="sub">cadastrado por ${esc(d.cadastrado_por)}</div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${d.ativo?`<button class="btn sm" data-act="rd-editar" data-id="${esc(d.id)}">Editar</button><button class="btn sm" data-act="rd-previa" data-id="${esc(d.id)}">Prévia</button><button class="btn sm" data-act="rd-desativar" data-id="${esc(d.id)}">Desativar</button>`
-      :`<button class="btn sm" data-act="rd-reativar" data-id="${esc(d.id)}">Reativar</button>`}</div></td>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${d.ativo?`${rdMexe(d)?`<button class="btn sm" data-act="rd-editar" data-id="${esc(d.id)}">Editar</button>`:''}<button class="btn sm" data-act="rd-previa" data-id="${esc(d.id)}">Prévia</button>${rdMexe(d)?`<button class="btn sm" data-act="rd-desativar" data-id="${esc(d.id)}">Desativar</button>`:''}`
+      :rdMexe(d)?`<button class="btn sm" data-act="rd-reativar" data-id="${esc(d.id)}">Reativar</button>`:''}</div>${rdCad()&&!rdMexe(d)?'<div class="sub">e-mail de outra pessoa: só ela ou a Diretoria mexem</div>':''}</td>
     <td class="mono">${esc(d.email)}</td><td>${rdObras(d)}</td><td>${esc(RD_FREQ[d.frequencia]||d.frequencia)}</td>
-    <td>${d.ativo?'<span class="pill ok">ativo</span>':'<span class="pill mute">desativado</span>'}</td><td>${rdUltimo(d.ultimo)}</td></tr>`).join('')}</tbody></table></div>`}
+    <td>${d.ativo?'<span class="pill ok">ativo</span>':'<span class="pill mute">desativado</span>'}${d.ativo&&d.falhou?' <span class="pill bad">ficou sem</span>':''}</td><td>${rdUltimo(d.ultimo)}</td></tr>`).join('')}</tbody></table></div>`}
 
 function rdRobo(){const r=RD.dados.robo;
   return `<div class="card" style="margin-top:14px"><div class="in"><div class="panel-t">Robô do envio</div>
@@ -80,16 +87,16 @@ function viewResumo(){
   /* quem não cadastra (engenheiro, leitura) não tem e-mail ligado à chave: fica com a prévia e o "Copiar para WhatsApp" */
   const mandar=!RD.semCadastro?`<button class="btn" data-act="rd-mandar" ${RD.ocupado?'disabled':''}>Mandar agora para mim</button>`:'';
   const cad=RD.carregando&&!RD.carregado?'<div class="sub" style="margin:8px 4px">Carregando a lista.</div>'
-    :RD.dados?rdLista()+`<div style="margin-top:8px"><button class="btn sm dark" data-act="rd-novo">Novo destinatário</button></div>`
+    :RD.dados?rdLista()+(rdCad()?`<div style="margin-top:8px"><button class="btn sm dark" data-act="rd-novo">Novo destinatário</button></div>`:'')
     :`<div class="sub" style="margin:8px 4px;${RD.semCadastro?'':'color:var(--bad)'}">${esc(RD.erro)}</div>`;
   return `<div class="head"><div><h1>Resumo para o diretor</h1><p class="lead">Todo dia útil às 7h o site manda por e-mail o resumo de cada obra: <b>PPC, atrasos, restrições, apontamento e custo x meta</b>. Na segunda às 7h30 sai o semanal. Aqui você escolhe quem recebe e confere o texto antes.</p></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="rd-atualizar">Atualizar</button></div></div>
   <div class="card"><div class="in"><div class="panel-t">O que vai sair</div>
-    <div class="sub">A prévia usa as obras da sua chave pessoal. Ver a prévia não manda nada.${meus.length?' "Mandar agora para mim" vai para '+meus.map(m=>esc(m.email)).join(', ')+'.':''}</div>
+    <div class="sub">A prévia usa as obras da sua chave pessoal. Ver a prévia não manda nada.${meus.length?' "Mandar agora para mim" vai para '+meus.map(m=>esc(m.email)).join(', ')+', com as obras do cadastro de cada e-mail.':''}</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn dark" data-act="rd-previa" ${RD.ocupado?'disabled':''}>Ver prévia</button>${mandar}</div>
     ${rdPrevia()}</div></div>
   <div class="card" style="margin-top:14px"><div class="in"><div class="panel-t">Quem recebe</div>${cad}</div></div>
-  ${RD.dados&&RD.dados.cobre_todas?rdRobo():''}`}
+  ${rdCad()&&RD.dados.cobre_todas?rdRobo():''}`}
 
 /* ---------- ações ---------- */
 ACOES['rd-atualizar']=()=>{RD.carregado=false;rdCarregar();render()};
@@ -116,12 +123,14 @@ function rdForm(d){const D=RD.dados||{},obras=D.obras||[],todas=d?d.todas:!!D.co
     ${D.cobre_todas?`<label ${RD_CHK}><input type="checkbox" id="rd-todas" style="width:auto" ${todas?'checked':''}> Todas as obras (entra também obra nova)</label>`:''}
     ${obras.map(o=>`<label ${RD_CHK}><input type="checkbox" class="rd-o" value="${esc(o.obra)}" style="width:auto" ${todas?'disabled':''} ${d&&!d.todas&&(d.obras||[]).includes(o.obra)?'checked':''}> ${esc(o.obra)} · ${esc(o.nome||'')}</label>`).join('')}
     <label ${RD_CHK} style="margin-top:12px"><input type="checkbox" id="rd-meu" style="width:auto" ${d&&d.meu?'checked':''}> É o meu e-mail (posso usar "Mandar agora para mim")</label>
+    ${d&&d.tem_dono&&!d.meu?'<div class="sub">Este e-mail é de outra pessoa da lista. Se você trocar o e-mail, ele deixa de ser dela.</div>':''}
     <div id="rd-msg" class="sub" style="color:var(--bad)"></div>
     <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="rd-salvar" data-id="${d?esc(d.id):''}">Salvar</button></div>`)}
 document.addEventListener('change',e=>{const t=e.target;if(t&&t.id=== 'rd-todas')document.querySelectorAll('.rd-o').forEach(x=>{x.disabled=t.checked})});
-const rdPode=()=>{if(!RD.dados){toast(RD.erro||'Só a Diretoria ou o gestor cadastram.');return false}return true};
+const rdPode=d=>{if(!rdCad()){toast(RD.erro||'Só a Diretoria ou o gestor cadastram.');return false}
+  if(d&&!rdMexe(d)){toast('Este e-mail é de outra pessoa da lista: só ela ou a Diretoria mexem.');return false}return true};
 ACOES['rd-novo']=()=>{if(rdPode())rdForm(null)};
-ACOES['rd-editar']=el=>{const d=rdDest(el.dataset.id);if(d&&rdPode())rdForm(d)};
+ACOES['rd-editar']=el=>{const d=rdDest(el.dataset.id);if(d&&rdPode(d))rdForm(d)};
 async function rdGravar(id,campos,ok){
   try{await chRpc('taf_resumo_destinatario_salvar',{p_chave:CH.chave,p_id:id||null,...campos});toast(ok);closeModal();RD.carregado=false;await rdCarregar()}
   catch(e){const m=$('#rd-msg');if(m&&$('#modal').classList.contains('open'))m.textContent=rdMsg(e);else toast(rdMsg(e))}}
@@ -132,9 +141,9 @@ ACOES['rd-salvar']=el=>{const msg=t=>{const m=$('#rd-msg');if(m)m.textContent=t}
   if(!/^[a-z0-9._%+'-]+@[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}$/.test(email))return msg('E-mail fora do formato. Exemplo: nome@empresa.com.br');
   if(!todas&&!obras.length)return msg('Marque pelo menos uma obra.');
   rdGravar(el.dataset.id?+el.dataset.id:null,{p_nome:nome,p_email:email,p_obras:todas?null:obras,p_frequencia:freq,p_meu:!!($('#rd-meu')&&$('#rd-meu').checked)},'Salvo. '+nome+' recebe a partir do próximo envio.')};
-ACOES['rd-reativar']=el=>{const d=rdDest(el.dataset.id);if(!d||!rdPode())return;
+ACOES['rd-reativar']=el=>{const d=rdDest(el.dataset.id);if(!d||!rdPode(d))return;
   rdGravar(d.id,{p_nome:d.nome,p_email:d.email,p_obras:d.todas?null:d.obras,p_frequencia:d.frequencia,p_meu:!!d.meu},'Reativado.')};
-ACOES['rd-desativar']=el=>{const d=rdDest(el.dataset.id);if(!d||!rdPode())return;
+ACOES['rd-desativar']=el=>{const d=rdDest(el.dataset.id);if(!d||!rdPode(d))return;
   modal(`<h3>Desativar ${esc(d.nome)}</h3><div class="sub">Para de receber o resumo. Nada se apaga: dá para reativar depois.</div><div id="rd-msg" class="sub" style="color:var(--bad)"></div>
     <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="rd-desativar-ok" data-id="${esc(d.id)}">Desativar</button></div>`)};
 ACOES['rd-desativar-ok']=async el=>{
