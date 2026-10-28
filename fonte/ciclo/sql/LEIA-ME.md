@@ -7,6 +7,10 @@ Reverter tudo: 99_reverter.sql.
 Só cria objetos `taf_ciclo_*` (não mexe em tabelas da WCR nem em `taf_*` existentes).
 Depende de `_taf_ok` / `_taf_pessoa` (já existem no banco do site).
 
+**Se o `fonte/erp/sql/06_acessos.sql` (Acessos, rascunho) já estiver aplicado:** ele redefine `_taf_ciclo_pode` (o encarregado aponta o dia).
+Rodar o `02_funcoes.sql` de novo volta a versão daqui e o encarregado para de apontar sem aviso: logo depois, rode o 06 de novo
+(`psql -1 -v ON_ERROR_STOP=1 -f fonte/erp/sql/06_acessos.sql`; pode rodar de novo sem problema).
+
 A carga do cronograma (03_carga_342) e as chaves pessoais NÃO ficam no repositório (repo público):
 carga feita à mão no banco, chaves só como hash.
 
