@@ -503,6 +503,17 @@ describe('POST /api/assistente (Supabase e IA simulados)', () => {
   });
 });
 
+describe('conferirRelato (direto)', () => {
+  it('o trecho confere sem ligar para acento, maiúscula, pontuação e espaço; trecho inventado não confere', () => {
+    const rec = { porCid: { C1: { cid: 'C1', un: 'm', apont: [] } }, dias: ['2026-10-26'] };
+    const p = (trecho) => ({ apontamentos: [{ cid: 'C1', dia: '2026-10-26', situacao: 'andou', quantidade: 1, causa: null, obs: '', trecho, confianca: 'alta' }], nao_casou: [] });
+    const relato = 'Hoje: 4 ligações   feitas na Rua A!';
+    assert.equal(handler.conferirRelato(p('LIGACOES feitas na rua a'), rec, relato).propostas[0].trecho_confere, true);
+    assert.equal(handler.conferirRelato(p('6 ligações feitas'), rec, relato).propostas[0].trecho_confere, false);
+    assert.equal(handler.conferirRelato(p(''), rec, relato).propostas[0].trecho_confere, false);
+  });
+});
+
 describe('formato pedido à IA (json_schema)', () => {
   function confere(s, onde) {
     if (s.anyOf) { s.anyOf.forEach((x, i) => confere(x, onde + '.anyOf' + i)); return; }
