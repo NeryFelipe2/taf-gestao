@@ -36,6 +36,14 @@
     {
       "path": "/api/resumo?quando=semanal",
       "schedule": "30 10 * * 1"
+    },
+    {
+      "path": "/api/resumo?quando=diario&repescagem=1",
+      "schedule": "0 12 * * 1-5"
+    },
+    {
+      "path": "/api/resumo?quando=semanal&repescagem=1",
+      "schedule": "30 12 * * 1"
     }
   ]
 }

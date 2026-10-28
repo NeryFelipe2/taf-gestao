@@ -37,18 +37,30 @@ function resumo998() {
 }
 
 // Supabase e Resend simulados no mesmo fetch
+// Resend: /emails (um) e /emails/batch (lote, valida tudo antes: um endereço ruim recusa o lote inteiro com 422)
+// modoResend: ok | erro (tudo 422) | fora (rede) | lote-recusado (lote 422, um por um passa) | lote-5xx (lote 503)
 function criarMundo(chaves) {
-  const m = { chamadas: [], emails: [], registros: [], modoBanco: 'normal', modoResend: 'ok', envios: null, resendFalhaPara: null, previaErro: null, obraFalha: null };
+  const m = { chamadas: [], emails: [], lotes: 0, registros: [], modoBanco: 'normal', modoResend: 'ok', resendAtrasoMs: 0, envios: null,
+    resendFalhaPara: null, previaErro: null, obraFalha: null, obraRede: false, previaEnvios: null };
   const resp = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
   const erro = (msg) => resp({ code: 'P0001', message: msg }, 400);
+  const recusa = (to) => resp({ statusCode: 422, name: 'validation_error', message: 'Invalid `to` field: ' + to }, 422);
   m.fetch = async function (url, opts) {
     url = String(url);
     m.chamadas.push({ url, opts });
-    if (url === 'https://api.resend.com/emails') {
+    if (url === 'https://api.resend.com/emails' || url === 'https://api.resend.com/emails/batch') {
+      if (m.resendAtrasoMs) await new Promise((r) => setTimeout(r, m.resendAtrasoMs));
       if (m.modoResend === 'fora') throw Object.assign(new Error('rede caiu'), { name: 'TypeError' });
       const b = JSON.parse(opts.body);
+      if (url.endsWith('/batch')) {
+        m.lotes++;
+        if (m.modoResend === 'lote-5xx') return resp({ statusCode: 503, name: 'internal_server_error', message: 'x' }, 503);
+        const ruim = b.find((e) => m.resendFalhaPara && e.to.includes(m.resendFalhaPara));
+        if (m.modoResend === 'erro' || m.modoResend === 'lote-recusado' || ruim) return recusa((ruim || b[0]).to[0]);
+        return resp({ data: b.map((e) => { m.emails.push({ headers: opts.headers, corpo: e, lote: true }); return { id: 'id-falso-' + m.emails.length }; }) });
+      }
       m.emails.push({ headers: opts.headers, corpo: b });
-      if (m.modoResend === 'erro' || (m.resendFalhaPara && b.to.includes(m.resendFalhaPara))) return resp({ statusCode: 422, name: 'validation_error', message: 'Invalid `to` field: ' + b.to[0] }, 422);
+      if (m.modoResend === 'erro' || (m.resendFalhaPara && b.to.includes(m.resendFalhaPara))) return recusa(b.to[0]);
       return resp({ id: 'id-falso-' + m.emails.length });
     }
     if (m.modoBanco === 'fora') throw Object.assign(new Error('rede caiu'), { name: 'TypeError' });
@@ -68,6 +80,7 @@ function criarMundo(chaves) {
     }
     if (rota === 'taf_resumo_obra') {
       if (!robo && !pessoal) return erro(a.p_chave === chaves.geral ? 'USE SUA CHAVE PESSOAL' : 'CHAVE INVALIDA');
+      if (m.obraRede) throw Object.assign(new Error('rede caiu'), { name: 'TypeError' });
       if (m.obraFalha === a.p_obra) return resp({ message: 'canceling statement due to statement timeout' }, 500);
       return resp(a.p_obra === '999' ? resumo999() : a.p_obra === '998' ? resumo998() : null, a.p_obra === '999' || a.p_obra === '998' ? 200 : 400);
     }
@@ -77,7 +90,7 @@ function criarMundo(chaves) {
       if (!pessoal) return erro(a.p_chave === chaves.geral ? 'USE SUA CHAVE PESSOAL' : 'CHAVE INVALIDA');
       return resp({ hoje: '2026-10-28', quem: 'Diretor Teste', papel: 'diretoria', obras: a.p_destinatario ? ['999'] : ['998', '999'],
         meus: [{ destinatario: 1, email: 'd***@example.com', frequencia: 'diaria' }],
-        envios: a.p_enviar ? [{ envio: 101, destinatario: 1, nome: 'Diretor Teste', email: EMAIL_DIR }] : null });
+        envios: a.p_enviar ? (m.previaEnvios || [{ envio: 101, destinatario: 1, nome: 'Diretor Teste', email: EMAIL_DIR, obras: ['998', '999'] }]) : null });
     }
     if (rota === 'taf_resumo_registrar') {
       if (!robo && !pessoal) return erro('CHAVE INVALIDA');
@@ -87,6 +100,7 @@ function criarMundo(chaves) {
     return resp({ message: 'rota inesperada' }, 404);
   };
   m.rpc = (nome) => m.chamadas.filter((c) => c.url.endsWith('/rpc/' + nome)).map((c) => JSON.parse(c.opts.body));
+  m.resend = () => m.chamadas.filter((c) => c.url.startsWith('https://api.resend.com/'));
   m.nada = () => { assert.equal(m.chamadas.length, 0, 'não podia ter ido ao banco nem à Resend'); };
   return m;
 }
@@ -197,21 +211,24 @@ describe('/api/resumo (Supabase e Resend simulados)', () => {
       assert.deepEqual(mo[0], { p_chave: chaves.robo, p_quando: 'diario', p_limite: handler.CONFIG.maxEnvios });
       assert.deepEqual(mundo.rpc('taf_resumo_obra').map((x) => [x.p_chave === chaves.robo, x.p_obra]), [[true, '998'], [true, '999']]);
       assert.equal(mundo.emails.length, 2);
+      assert.deepEqual(mundo.resend().map((c) => c.url), ['https://api.resend.com/emails/batch'], 'os dois saem num pedido só (lote)');
       const reg = mundo.registros;
       assert.equal(reg.length, 1);
       assert.equal(reg[0].chave, chaves.robo);
       assert.deepEqual(reg[0].envios, [{ envio: 11, ok: true, id: 'id-falso-1', erro: null }, { envio: 12, ok: true, id: 'id-falso-2', erro: null }]);
     });
 
-    it('o e-mail sai do jeito certo para a Resend (remetente, destinatário, assunto, html, texto, chave só no cabeçalho)', async () => {
+    it('o e-mail sai do jeito certo para a Resend (lote; remetente, destinatário, assunto, html, texto, chave só no cabeçalho)', async () => {
       await chamar(handler, cron());
-      const c = mundo.chamadas.find((x) => x.url === 'https://api.resend.com/emails');
+      const c = mundo.resend()[0];
+      assert.equal(c.url, 'https://api.resend.com/emails/batch');
       assert.equal(c.opts.method, 'POST');
       assert.equal(c.opts.redirect, 'error');
       assert.equal(c.opts.headers.Authorization, 'Bearer ' + chaves.resend);
-      assert.equal(c.opts.headers['Idempotency-Key'], 'taf-resumo-11-1');
-      assert.equal(mundo.emails[1].headers['Idempotency-Key'], 'taf-resumo-12-2', 'a tentativa entra na chave de idempotência');
-      const b = JSON.parse(c.opts.body);
+      assert.match(c.opts.headers['Idempotency-Key'], /^taf-resumo-lote-[0-9a-f]{40}$/);
+      const lote = JSON.parse(c.opts.body);
+      assert.ok(Array.isArray(lote) && lote.length === 2, 'o lote é uma lista de e-mails');
+      const b = lote[0];
       assert.deepEqual(Object.keys(b).sort(), ['from', 'html', 'subject', 'text', 'to']);
       assert.equal(b.from, 'Resumo TAF <resumo@example.com>');
       assert.deepEqual(b.to, [EMAIL_DIR]);
@@ -237,7 +254,7 @@ describe('/api/resumo (Supabase e Resend simulados)', () => {
       assert.ok(b.html.includes('Projeto &lt;script&gt;alert(1)&lt;/script&gt; aprovado'));
       assert.ok(b.html.includes('href="https://taf-teste.vercel.app/ciclo?obra=999&amp;aba=sit"'));
       // o segundo destinatário recebe só a obra dele
-      const b2 = mundo.emails[1].corpo;
+      const b2 = lote[1];
       assert.deepEqual(b2.to, [EMAIL_OUTRO]);
       assert.ok(b2.text.includes('OBRA 999') && !b2.text.includes('OBRA 998'));
     });
@@ -270,30 +287,89 @@ describe('/api/resumo (Supabase e Resend simulados)', () => {
       assert.equal(r.json().enviados, 3);
     });
 
-    it('sem tempo: o primeiro sai, os outros voltam para o banco como erro (saem na próxima execução)', async () => {
+    it('12 destinatários com a Resend lenta (400 ms) e a pausa de verdade: saem todos, num pedido só', async () => {
+      handler.CONFIG.pausaMs = cfgOriginal.pausaMs;
+      mundo.resendAtrasoMs = 400;
+      mundo.envios = Array.from({ length: 12 }, (_, i) => ({ envio: 100 + i, tentativa: 1, destinatario: i + 1, nome: 'P' + i, email: 'p' + i + '@example.com', obras: ['999'] }));
+      const t0 = Date.now();
+      const r = await chamar(handler, cron());
+      assert.equal(r.statusCode, 200);
+      assert.deepEqual([r.json().destinatarios, r.json().enviados, r.json().falhas], [12, 12, 0]);
+      assert.equal(mundo.lotes, 1);
+      assert.ok(Date.now() - t0 < 3000, 'demorou ' + (Date.now() - t0) + ' ms');
+      assert.ok(mundo.registros[0].envios.every((x) => x.ok && /^id-falso-/.test(x.id)));
+    });
+
+    it('100 destinatários (o máximo do cadastro): dois lotes de 50 e ninguém fica para depois', async () => {
+      assert.equal(handler.CONFIG.maxEnvios, 100);
+      mundo.envios = Array.from({ length: 100 }, (_, i) => ({ envio: 1000 + i, tentativa: 1, destinatario: i + 1, nome: 'P' + i, email: 'p' + i + '@example.com', obras: ['999'] }));
+      const r = await chamar(handler, cron());
+      assert.equal(mundo.rpc('taf_resumo_montar')[0].p_limite, 100);
+      assert.equal(mundo.lotes, 2);
+      assert.deepEqual(mundo.resend().map((c) => JSON.parse(c.opts.body).length), [50, 50]);
+      assert.equal(r.json().enviados, 100);
+    });
+
+    it('a chave do lote muda com a tentativa (se a execução repetir, a Resend não manda o mesmo lote de novo)', async () => {
+      await chamar(handler, cron());
+      await chamar(handler, cron());
+      mundo.envios = [{ envio: 11, tentativa: 2, destinatario: 1, nome: 'D', email: EMAIL_DIR, obras: ['999'] }, { envio: 12, tentativa: 3, destinatario: 2, nome: 'O', email: EMAIL_OUTRO, obras: ['999'] }];
+      await chamar(handler, cron());
+      const k = mundo.resend().map((c) => c.opts.headers['Idempotency-Key']);
+      assert.equal(k[0], k[1], 'mesmos envios e tentativas: mesma chave');
+      assert.notEqual(k[1], k[2], 'tentativa nova: chave nova');
+    });
+
+    it('lote recusado e sem tempo: manda um por um, o primeiro sai, os outros voltam como erro (saem na repescagem)', async () => {
+      mundo.modoResend = 'lote-recusado';
       handler.CONFIG.pausaMs = 15; handler.CONFIG.orcamentoMs = 5;
       const r = await chamar(handler, cron());
       assert.equal(r.statusCode, 200);
       assert.equal(mundo.emails.length, 1);
-      assert.deepEqual(mundo.registros[0].envios[1], { envio: 12, ok: false, erro: 'sem tempo nesta execução' });
+      assert.deepEqual(mundo.registros[0].envios[1], { envio: 12, ok: false, id: null, erro: 'sem tempo nesta execução' });
     });
 
-    it('a Resend recusa um destinatário: o outro sai, o erro é registrado sem o e-mail e sem a mensagem da Resend', async () => {
+    it('a Resend recusa um destinatário: o lote cai, um por um o outro sai, o erro é registrado sem o e-mail e sem a mensagem da Resend', async () => {
       mundo.resendFalhaPara = EMAIL_OUTRO;
       const r = await chamar(handler, cron());
       assert.equal(r.statusCode, 200);
       assert.equal(r.json().enviados, 1);
       assert.equal(r.json().falhas, 1);
+      assert.deepEqual(mundo.resend().map((c) => c.url.replace('https://api.resend.com', '')), ['/emails/batch', '/emails', '/emails']);
+      assert.equal(mundo.resend()[1].opts.headers['Idempotency-Key'], 'taf-resumo-11-1');
+      assert.equal(mundo.resend()[2].opts.headers['Idempotency-Key'], 'taf-resumo-12-2', 'a tentativa entra na chave de idempotência');
       const e = mundo.registros[0].envios.find((x) => x.envio === 12);
       assert.deepEqual(e, { envio: 12, ok: false, id: null, erro: 'Resend respondeu 422 (validation_error)' });
     });
 
-    it('Resend fora do ar: registra erro e responde 200 com as falhas', async () => {
+    it('Resend fora do ar: registra erro, não insiste um por um e responde 200 com as falhas', async () => {
       mundo.modoResend = 'fora';
       const r = await chamar(handler, cron());
       assert.equal(r.statusCode, 200);
       assert.equal(r.json().falhas, 2);
+      assert.equal(mundo.resend().length, 1, 'pode ter saído: não repete agora');
       assert.ok(mundo.registros[0].envios.every((x) => !x.ok && /^Resend inacessível/.test(x.erro)));
+    });
+
+    it('Resend com erro dela (5xx) no lote: não insiste um por um; fica erro para a repescagem', async () => {
+      mundo.modoResend = 'lote-5xx';
+      const r = await chamar(handler, cron());
+      assert.equal(r.json().falhas, 2);
+      assert.equal(mundo.resend().length, 1);
+      assert.ok(mundo.registros[0].envios.every((x) => x.erro === 'Resend respondeu 503 (internal_server_error)'));
+    });
+
+    it('repescagem: ?repescagem=1 pede ao banco o mesmo dia (o banco só devolve o que não saiu); outro valor: 400', async () => {
+      let r = await chamar(handler, cron({ url: '/api/resumo?quando=diario&repescagem=1' }));
+      assert.equal(r.statusCode, 200, r.corpo);
+      assert.equal(r.json().repescagem, true);
+      assert.deepEqual(mundo.rpc('taf_resumo_montar')[0], { p_chave: chaves.robo, p_quando: 'diario', p_limite: 100 });
+      assert.ok(saida.some((l) => /diario \(repescagem\)/.test(l)));
+      for (const url of ['/api/resumo?quando=diario&repescagem=2', '/api/resumo?quando=semanal&repescagem=sim', '/api/resumo?quando=diario&repescagem=1&x=1']) {
+        r = await chamar(handler, cron({ url }));
+        assert.equal(r.statusCode, 400, url);
+      }
+      assert.equal(mundo.rpc('taf_resumo_montar').length, 1);
     });
 
     it('uma obra falha no banco: o e-mail sai com "sem dado" nela, sem derrubar o resto', async () => {
@@ -428,6 +504,41 @@ describe('/api/resumo (Supabase e Resend simulados)', () => {
       assert.deepEqual(mundo.registros[0].envios, [{ envio: 101, ok: true, id: 'id-falso-1', erro: null }]);
     });
 
+    it('mandar: cada teste leva só as obras do cadastro daquele e-mail (não todas as da chave)', async () => {
+      mundo.previaEnvios = [{ envio: 101, destinatario: 1, nome: 'Diretor Teste', email: EMAIL_DIR, obras: ['999'] }];
+      const r = await chamar(handler, tela({ acao: 'mandar' }));
+      assert.equal(r.statusCode, 200, r.corpo);
+      assert.deepEqual(mundo.rpc('taf_resumo_obra').map((x) => x.p_obra), ['999'], 'a 998 é da chave mas não do cadastro');
+      assert.ok(mundo.emails[0].corpo.text.includes('OBRA 999') && !mundo.emails[0].corpo.text.includes('OBRA 998'));
+    });
+
+    it('mandar e o banco cai ao ler as obras: 502 e o envio reservado volta ao banco como erro (não fica "mandando")', async () => {
+      mundo.obraRede = true;
+      const r = await chamar(handler, tela({ acao: 'mandar' }));
+      assert.equal(r.statusCode, 502);
+      assert.equal(mundo.emails.length, 0);
+      assert.equal(mundo.registros.length, 1);
+      assert.equal(mundo.registros[0].chave, chaves.pessoal);
+      assert.deepEqual(mundo.registros[0].envios, [{ envio: 101, ok: false, erro: 'não consegui ler as obras' }]);
+    });
+
+    it('envio de teste sem lista de obras: não manda e-mail vazio; volta ao banco como erro', async () => {
+      mundo.previaEnvios = [{ envio: 101, destinatario: 1, nome: 'Diretor Teste', email: EMAIL_DIR }];
+      const r = await chamar(handler, tela({ acao: 'mandar' }));
+      assert.equal(r.statusCode, 502);
+      assert.equal(mundo.emails.length, 0);
+      assert.equal(mundo.rpc('taf_resumo_obra').length, 0);
+      assert.deepEqual(mundo.registros[0].envios, [{ envio: 101, ok: false, id: null, erro: 'sem obra do cadastro na chave' }]);
+    });
+
+    it('mandar sem obra do cadastro na chave: 409 com o aviso', async () => {
+      mundo.previaErro = 'NENHUMA OBRA DO SEU CADASTRO NA SUA CHAVE';
+      const r = await chamar(handler, tela({ acao: 'mandar' }));
+      assert.equal(r.statusCode, 409);
+      assert.match(r.json().erro, /obras do cadastro do seu e-mail/);
+      assert.equal(mundo.emails.length, 0);
+    });
+
     it('mandar sem a Resend configurada: 500 antes de reservar no banco', async () => {
       delete process.env.RESEND_API_KEY;
       const r = await chamar(handler, tela({ acao: 'mandar' }));
@@ -512,6 +623,25 @@ describe('montarEmail (vazio não é zero, texto curto)', () => {
     assert.ok(m.texto.includes('linha 1 linha 2 - com travessão - e meia-risca'));
   });
 
+  it('a conclusão usa o motivo que o banco manda para a luz (o do indicador que deu a cor)', () => {
+    const r = resumo999();
+    r.ciclo.criticas = { total: 0, lista: [] };
+    r.ciclo.luzes = { producao: { cor: 'SEM BASE', motivo: 'efetivo em campo não é apontado na v1', de: ['P3'] },
+      plano: { cor: 'VERMELHO', motivo: 'sem compromisso para a semana de 26/10', de: ['P8'] } };
+    const m = montarEmail({ resumos: { '999': r }, obras: ['999'], quando: 'diario', hoje, base: '' });
+    assert.equal(m.texto.split('\n')[1], 'Pedem atenção: 999 VERMELHO (plano: sem compromisso para a semana de 26/10).');
+    assert.match(m.texto, /- Luzes: produção SEM BASE \(efetivo em campo não é apontado na v1\) · plano VERMELHO \(sem compromisso para a semana de 26\/10\)/);
+    assert.ok(!m.texto.includes('vencida(s)'), 'motivo de outro indicador');
+  });
+
+  it('obra sem acesso ao planejador com esta chave: diz isso, sem link do planejador, e o ERP continua', () => {
+    const r = resumo999(); r.ciclo = { sem_acesso: true };
+    const m = montarEmail({ resumos: { '999': r }, obras: ['999'], quando: 'previa', hoje, base: 'https://taf-teste.vercel.app' });
+    assert.match(m.texto, /OBRA 999 · DEMONSTRAÇÃO: SEM DADO\n- Planejador: sem acesso com esta chave \(o planejador desta obra é do engenheiro dela\)\n- Custo \(ERP\): licitado/);
+    assert.ok(!m.texto.includes('/ciclo?'), 'link do planejador para quem não abre o planejador');
+    assert.ok(m.texto.includes('/erp?obra=999'));
+  });
+
   it('lista vazia de obras', () => {
     assert.match(montarEmail({ resumos: {}, obras: [], quando: 'diario', hoje, base: '' }).texto, /Nenhuma obra na sua lista\./);
   });
@@ -524,19 +654,23 @@ describe('montarEmail (vazio não é zero, texto curto)', () => {
 
 describe('vercel.json: só os crons do resumo foram acrescentados', () => {
   const v = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'public', 'vercel.json'), 'utf8'));
-  it('diário em dia útil às 7h de Brasília (10h UTC) e semanal na segunda às 7h30 (10h30 UTC)', () => {
+  it('diário em dia útil às 7h de Brasília (10h UTC) e semanal na segunda às 7h30 (10h30 UTC); repescagem duas horas depois', () => {
     assert.deepEqual(v.crons, [
       { path: '/api/resumo?quando=diario', schedule: '0 10 * * 1-5' },
       { path: '/api/resumo?quando=semanal', schedule: '30 10 * * 1' },
+      { path: '/api/resumo?quando=diario&repescagem=1', schedule: '0 12 * * 1-5' },
+      { path: '/api/resumo?quando=semanal&repescagem=1', schedule: '30 12 * * 1' },
     ]);
+    // plano Hobby da Vercel: cada agendamento roda no máximo uma vez por dia (e em qualquer minuto da hora marcada)
+    for (const c of v.crons) assert.match(c.schedule, /^\d{1,2} \d{1,2} \* \* [0-9-]+$/);
   });
   it('o resto continua igual (cabeçalhos e rotas)', () => {
     assert.deepEqual(Object.keys(v), ['headers', 'rewrites', 'crons']);
     assert.deepEqual(v.rewrites.map((r) => r.source), ['/marko', '/ciclo', '/erp']);
     assert.deepEqual(v.headers[0].headers.map((h) => h.key), ['X-Robots-Tag', 'Cache-Control']);
   });
-  it('o endpoint não carrega chave, endereço do banco, token nem e-mail real', () => {
-    const t = fs.readFileSync(path.join(__dirname, '..', 'public', 'api', 'resumo.js'), 'utf8');
+  for (const arq of ['resumo.js', '_resumo_email.js']) it(arq + ' não carrega chave, endereço do banco, token nem e-mail real', () => {
+    const t = fs.readFileSync(path.join(__dirname, '..', 'public', 'api', arq), 'utf8');
     assert.ok(!/sb_(publishable|secret)_/.test(t));
     assert.ok(!/https:\/\/[a-z0-9]{12,}\.supabase\.co/.test(t));
     assert.ok(!/eyJ[A-Za-z0-9_-]{20,}/.test(t));
