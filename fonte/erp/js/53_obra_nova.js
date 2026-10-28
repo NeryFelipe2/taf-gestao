@@ -149,8 +149,8 @@ function modalObraNova(cod,semBase){
   if(semBase){const o=SB.obras.find(x=>x.codigo===cod);if(o){ON.nome=o.nome||'';ON.contratante=o.contratante||'';ON.criada=true;ON.passo=2}}
   obnPinta()}
 const obnPassos=['Dados da obra','Planilha do órgão','Prévia','Gravar'];
-function obnTopo(){const st=ON;return `<h3>${st.cod&&st.passo>1?'Nova obra '+esc(st.cod):'Nova obra'}</h3>
-  <div class="sub" aria-live="polite">${obnPassos.map((t,i)=>`<span class="pill ${i+1===st.passo?'info':i+1<st.passo?'ok':'mute'}">${i+1} ${t}</span>`).join(' ')}</div>`}
+function obnTopo(){const st=ON,at=st.grav?4:st.passo;return `<h3>${st.cod&&st.passo>1?'Nova obra '+esc(st.cod):'Nova obra'}</h3>
+  <div class="sub" aria-live="polite">${obnPassos.map((t,i)=>`<span class="pill ${i+1===at?'info':i+1<at?'ok':'mute'}">${i+1} ${t}</span>`).join(' ')}</div>`}
 const obnMsg=()=>ON.msg?`<div class="sub" role="alert" style="margin-top:10px;color:var(--bad)">${esc(ON.msg)}</div>`:'';
 function obnHtml1(){const st=ON;
   return `${obnTopo()}<div class="sub">Comece pelos dados da obra. Depois você sobe a planilha do órgão e confere a prévia. Nada é gravado antes do passo 4.</div>
@@ -162,16 +162,17 @@ function obnHtml1(){const st=ON;
 const obnColOpts=(cab,sel,c0)=>`<option value="">(não tem)</option>`+(cab||[]).map((c,k)=>`<option value="${k}" ${String(sel)===String(k)?'selected':''}>${obnLetra(k+(c0||0))} · ${esc(obnTxt(c).slice(0,40)||'(sem título)')}</option>`).join('');
 function obnFaltaCol(){const m=ON.map,f=OBN_CAMPOS.filter(([k,,o])=>o&&(m[k]==null||m[k]==='')).map(([,n])=>n.toLowerCase());
   if((m.pu==null||m.pu==='')&&(m.total==null||m.total===''))f.push('preço unitário ou preço total');return f}
-function obnHtml2(){const st=ON,a=st.abas[st.aba],cab=a?a.txt[st.hdr]||[]:[];
-  let h=`${obnTopo()}<div class="sub">Suba a planilha do órgão (.xlsx ou .csv). Escolha a aba e a linha do cabeçalho e ligue cada coluna. A tela já sugere pelos nomes de sempre (ITEM, CÓDIGO, DESCRIÇÃO, UND, QUANT, P.UNIT, TOTAL, EVENTO). Linha sem quantidade e sem preço unitário vira grupo.</div>
-   <label for="on-arq">Planilha do órgão</label><input id="on-arq" type="file" accept=".xlsx,.xlsm,.xls,.csv,.txt">
-   ${st.lendo?'<div class="sub">Lendo a planilha…</div>':st.arq?`<div class="sub">Arquivo: <b>${esc(st.arq)}</b> · ${st.abas.length} ${st.abas.length===1?'aba':'abas'}</div>`:''}`;
+/* o campo do arquivo fica fora do bloco que redesenha (#on-p2box): o navegador continua mostrando o arquivo escolhido */
+function obnHtml2(){return `${obnTopo()}<div class="sub">Suba a planilha do órgão (.xlsx ou .csv). Escolha a aba e a linha do cabeçalho e ligue cada coluna. A tela já sugere pelos nomes de sempre (ITEM, CÓDIGO, DESCRIÇÃO, UND, QUANT, P.UNIT, TOTAL, EVENTO). Linha sem quantidade e sem preço unitário vira grupo.</div>
+   <label for="on-arq">Planilha do órgão</label><input id="on-arq" type="file" accept=".xlsx,.xlsm,.xls,.csv,.txt"><div id="on-p2box">${obnCorpo2()}</div>`}
+function obnCorpo2(){const st=ON,a=st.abas[st.aba],cab=a?a.txt[st.hdr]||[]:[];
+  let h=st.lendo?'<div class="sub" aria-live="polite">Lendo a planilha…</div>':st.arq?`<div class="sub" aria-live="polite">Arquivo: <b>${esc(st.arq)}</b> · ${st.abas.length} ${st.abas.length===1?'aba':'abas'}</div>`:'';
   if(a){const falta=obnFaltaCol();
-    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 12px">
+    h+=`<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 12px;align-items:end">
      <div><label for="on-aba">Aba</label><select id="on-aba">${st.abas.map((x,i)=>`<option value="${i}" ${i===st.aba?'selected':''}>${esc(x.nome)}</option>`).join('')}</select></div>
      <div><label for="on-hdr">Linha do cabeçalho</label><input id="on-hdr" type="number" inputmode="numeric" min="${a.r0}" max="${a.r0+Math.max(a.raw.length-1,0)}" value="${st.hdr+a.r0}"></div></div>
      <div class="panel-t" style="margin-top:14px">Colunas</div>
-     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 12px">${OBN_CAMPOS.map(([f,n,o])=>`<div><label for="on-c-${f}">${n}${o?' · obrigatório':f==='pu'||f==='total'?' · este ou o outro preço':' · se tiver'}</label><select id="on-c-${f}" data-on-col="${f}">${obnColOpts(cab,st.map[f],a.c0)}</select></div>`).join('')}</div>
+     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:0 12px;align-items:end">${OBN_CAMPOS.map(([f,n,o])=>`<div><label for="on-c-${f}">${n}${o?' · obrigatório':f==='pu'||f==='total'?' · este ou o outro preço':' · se tiver'}</label><select id="on-c-${f}" data-on-col="${f}">${obnColOpts(cab,st.map[f],a.c0)}</select></div>`).join('')}</div>
      ${falta.length?`<div class="sub" style="margin-top:8px"><span class="pill warn">falta ligar</span> ${esc(falta.join(', '))}</div>`:''}
      ${obnAmostra()}`}
   return h+`${obnMsg()}<div class="acts">${st.criada?'<button class="btn" data-act="fechar">Fechar</button>':'<button class="btn" data-act="on-voltar">Voltar</button>'}<button class="btn dark" data-act="on-p2" ${a&&!obnFaltaCol().length?'':'disabled'}>Ver prévia</button></div>`}
@@ -211,8 +212,9 @@ function obnHtml3(){const st=ON,L=st.L,A=L.avisos,av=[];
      :`<tr><td class="mono">${esc(x.codigo)}</td><td style="padding-left:${(x.nivel-1)*14+10}px">${esc(x.descricao.slice(0,90))}</td><td>${esc(x.unidade||'')}</td><td class="r">${x.qtd==null?'—':num(x.qtd)}</td><td class="r">${x.pu==null?'—':brl(x.pu)}</td><td class="r">${x.venda==null?'<span class="pill warn">sem preço</span>':brl(x.venda)}</td><td class="mono">${esc(x.evento||'—')}</td><td class="mono">${esc(x.pacote||'—')}</td></tr>`).join('')}
      ${L.linhas.length>200?`<tr><td colspan="8" class="sub">… mais ${L.linhas.length-200} linhas</td></tr>`:''}</tbody></table></div>
    ${obnMsg()}<div class="acts"><button class="btn" data-act="on-voltar" ${st.grav?'disabled':''}>Voltar</button><button class="btn dark" data-act="on-gravar" ${L.erros.length||st.grav?'disabled':''}>${st.grav?'Gravando…':'Gravar a obra '+esc(st.cod)}</button></div>`}
-function obnPinta(){if(!ON)return;const fid=document.activeElement&&document.activeElement.id;
-  modal(ON.passo===1?obnHtml1():ON.passo===2?obnHtml2():obnHtml3());if(ON.passo>1)$('#mbox').classList.add('wide');
+function obnPinta(){if(!ON)return;const fid=document.activeElement&&document.activeElement.id,box=document.getElementById('on-p2box');
+  if(ON.passo===2&&ON.p2vivo&&box&&$('#modal').classList.contains('open')&&$('#mbox').contains(box))box.innerHTML=obnCorpo2();
+  else{modal(ON.passo===1?obnHtml1():ON.passo===2?obnHtml2():obnHtml3());ON.p2vivo=ON.passo===2;if(ON.passo>1)$('#mbox').classList.add('wide')}
   if(fid&&/^on-/.test(fid)&&fid!=='on-arq'){const e=document.getElementById(fid);if(e&&e.focus)e.focus()}}
 
 /* passo 1: dados da obra */
