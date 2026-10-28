@@ -1,6 +1,8 @@
 -- Teste do 08_resumo.sql na OBRA 999 · DEMONSTRAÇÃO (fictícia). Roda numa transação e DESFAZ tudo no fim (rollback):
 -- nada fica gravado, nem as chaves de teste, nem a obra, nem os destinatários.
 -- Uso: num banco de teste com o 08 aplicado: psql -v ON_ERROR_STOP=1 -f fonte/erp/sql/08_teste_resumo.sql
+-- [integração] Só num banco de teste novo: no banco de verdade ele falha (as obras e as chaves de verdade mudam as contas) e precisa
+-- da chave geral de teste, que não pode existir no banco real.
 -- Se alguma regra falhar, para com "FALHOU: ..." e a transação é desfeita. Se tudo passar, mostra "08 OK" e desfaz.
 -- Os e-mails são do domínio example.com (reservado para exemplo); as chaves são textos de teste.
 -- Relógio do teste: quarta 28/10/2026 às 9h de Brasília (taf.agora). Toda data abaixo é inventada.
@@ -377,6 +379,47 @@ do $t$ declare r jsonb; begin
   r := public.taf_resumo_obra('teste08-pes', '342');
   perform pg_temp.confere((r #>> '{ciclo,atrasadas,total}')::int = 1 and r::text ~ 'Restrição interna da 342', '18e o engenheiro da 342 ve o planejador dela: ' || (r -> 'ciclo')::text);
   raise notice '08 OK: dono do cadastro, obras do teste, ordem do robô, motivo das luzes e planejador da chave do site';
+end $t$;
+reset role;
+
+-- 19. [integração] a obra 342 entrou no planejador (passo 18) sem estar na chave de nenhuma Diretoria (como obra importada depois,
+--     criada pelo gestor ou pela chave geral). A Diretoria com todas as obras (regra do 06) continua cobrindo todas no resumo:
+--     vê e desativa os cadastros "todas as obras" e gera a chave do robô. Antes ela perdia tudo isso até criar uma chave nova.
+--     E a meta parcial: a 998 ganha dois itens, um só com meta. O resumo diz quantos itens têm meta e quanto do licitado é deles.
+insert into public.taf_erp_item (obra, codigo, descricao, unidade, qtd, pacote, evento, venda, meta, teto, meta_unit)
+values ('998', '1.1', 'Placa de obra (fictício)', 'vb', 1, 'CANT', null, 20000, null, null, null),
+       ('998', '2.2', 'Tubos (fictício)', 'vb', 1, 'HIDR', null, 150000, 120000, 130000, 120000);
+set local role anon;
+do $t$ declare r jsonb; v_id bigint; v_rid text; begin
+  perform pg_temp.confere(pg_temp.erro($$select public.taf_ciclo_situacao('teste08-dir', '342')$$) = 'SEM ACESSO A OBRA', '19 cenario: a 342 nao esta na chave da Diretoria');
+  r := public.taf_resumo_destinatarios('teste08-dir');
+  perform pg_temp.confere((r ->> 'cobre_todas')::boolean and r -> 'robo' <> 'null'::jsonb
+                          and exists (select 1 from jsonb_array_elements(r -> 'obras') o where o ->> 'obra' = '342'), '19a a Diretoria com todas continua cobrindo todas: ' || (r - 'destinatarios')::text);
+  select (z.d ->> 'id')::bigint into v_id from jsonb_array_elements(r -> 'destinatarios') z(d) where (z.d ->> 'todas')::boolean and z.d ->> 'email' = 'diretor.teste@example.com';
+  perform pg_temp.confere(v_id is not null, '19b o cadastro "todas as obras" da Diretoria aparece');
+  perform pg_temp.confere(not (public.taf_resumo_destinatario_desativar('teste08-dir', v_id) ->> 'ativo')::boolean, '19c a Diretoria desativa o cadastro "todas"');
+  perform pg_temp.confere(public.taf_resumo_robo_gerar('teste08-dir') ->> 'chave' ~ '^robo-', '19d a Diretoria gera a chave do robo');
+  perform pg_temp.confere(not (public.taf_resumo_destinatarios('teste08-ges') ->> 'cobre_todas')::boolean, '19e o gestor so com a 999 continua sem todas');
+  perform pg_temp.confere(pg_temp.erro('select public.taf_resumo_robo_gerar(''teste08-ges'')') = 'SO QUEM TEM TODAS AS OBRAS GERA A CHAVE DO ROBO', '19f o gestor nao gera o robo');
+  -- meta parcial: 1 de 2 itens com meta
+  r := public.taf_resumo_obra('teste08-dir', '998') -> 'erp';
+  perform pg_temp.confere((r ->> 'itens')::int = 2 and (r ->> 'itens_com_meta')::int = 1 and (r ->> 'licitado')::numeric = 170000
+                          and (r ->> 'meta')::numeric = 120000 and (r ->> 'licitado_com_meta')::numeric = 150000, '19g meta parcial: ' || r::text);
+  r := public.taf_resumo_obra('teste08-dir', '999') -> 'erp';
+  perform pg_temp.confere((r ->> 'itens_com_meta')::int = 9 and (r ->> 'licitado_com_meta')::numeric = 109000
+                          and (r ->> 'comprometido_com_meta')::numeric = 6000 and (r ->> 'realizado_com_meta')::numeric = 8700, '19h meta completa: ' || r::text);
+  -- [integração] com o 06 aplicado: o gestor não desativa a chave do robô pela tela Acessos (lista vazia cabia em qualquer escopo);
+  -- a Diretoria com todas desativa e o Resumo passa a mostrar que não há robô
+  if to_regprocedure('public.taf_acesso_desativar(text, text, text, text)') is not null then
+    r := public.taf_acesso_listar('teste08-dir');
+    select z.c ->> 'id' into v_rid from jsonb_array_elements(r -> 'chaves') z(c) where (z.c ->> 'robo')::boolean and (z.c ->> 'ativo')::boolean;
+    perform pg_temp.confere(v_rid is not null and (select z.c ->> 'criado_por' from jsonb_array_elements(r -> 'chaves') z(c) where z.c ->> 'id' = v_rid) = 'Diretor Teste',
+                            '19i o robo aparece marcado na lista de Acessos, com quem criou: ' || coalesce(v_rid, 'sem id'));
+    perform pg_temp.confere(pg_temp.erro(format('select public.taf_acesso_desativar(%L, %L, %L, null)', 'teste08-ges', v_rid, 'x')) like 'SEM PERMISSAO: CHAVE DO ROBO DO RESUMO%', '19j o gestor nao desativa o robo');
+    perform pg_temp.confere((public.taf_acesso_desativar('teste08-dir', v_rid, 'teste', null) ->> 'ok')::boolean, '19k a Diretoria com todas desativa o robo');
+    perform pg_temp.confere(public.taf_resumo_destinatarios('teste08-dir') -> 'robo' = 'null'::jsonb, '19l o Resumo mostra que nao ha robo');
+  end if;
+  raise notice '08 OK: Diretoria com todas as obras no resumo e meta parcial';
 end $t$;
 reset role;
 

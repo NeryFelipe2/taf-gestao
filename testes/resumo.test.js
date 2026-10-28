@@ -642,6 +642,27 @@ describe('montarEmail (vazio não é zero, texto curto)', () => {
     assert.ok(m.texto.includes('/erp?obra=999'));
   });
 
+  it('integração (média): meta em parte dos itens não sai como a meta da obra inteira, e o % só compara os itens com meta', () => {
+    const r = resumo999();
+    r.erp = { itens: 4, licitado: 200000, meta: 120000, comprometido: 30000, realizado: 0, pedidos: 1, notas: 0,
+      itens_com_meta: 1, licitado_com_meta: 150000, comprometido_com_meta: 0, realizado_com_meta: 0 };
+    let m = montarEmail({ resumos: { '999': r }, obras: ['999'], quando: 'previa', hoje, base: '' });
+    assert.match(m.texto, /- Custo \(ERP\): licitado R\$ 200\.000 · meta definida em 1 de 4 itens \(R\$ 120\.000 para R\$ 150\.000 licitados\) · comprometido R\$ 30\.000/);
+    assert.match(m.texto, /nos itens com meta, comprometido mais realizado: 0% da meta deles/);
+    assert.ok(!/· meta R\$ 120\.000/.test(m.texto), 'a meta parcial não aparece como meta da obra');
+    assert.ok(!/25% da meta/.test(m.texto), 'o gasto de item sem meta não entra no % da meta');
+    /* nenhum item com meta: sem dado, nunca zero */
+    r.erp = { itens: 4, licitado: 200000, meta: null, comprometido: 30000, realizado: 0, pedidos: 1, notas: 0, itens_com_meta: 0,
+      licitado_com_meta: null, comprometido_com_meta: null, realizado_com_meta: null };
+    m = montarEmail({ resumos: { '999': r }, obras: ['999'], quando: 'previa', hoje, base: '' });
+    assert.match(m.texto, /licitado R\$ 200\.000 · meta sem dado \(nenhum item com meta\) · comprometido R\$ 30\.000/);
+    assert.ok(!/% da meta/.test(m.texto));
+    /* todos os itens com meta: como antes */
+    r.erp = { ...resumo999().erp, itens_com_meta: 9, licitado_com_meta: 109000, comprometido_com_meta: 6000, realizado_com_meta: 8700 };
+    m = montarEmail({ resumos: { '999': r }, obras: ['999'], quando: 'previa', hoje, base: '' });
+    assert.match(m.texto, /licitado R\$ 109\.000 · meta R\$ 78\.000 · comprometido R\$ 6\.000 · realizado R\$ 8\.700 · comprometido mais realizado: 19% da meta/);
+  });
+
   it('lista vazia de obras', () => {
     assert.match(montarEmail({ resumos: {}, obras: [], quando: 'diario', hoje, base: '' }).texto, /Nenhuma obra na sua lista\./);
   });

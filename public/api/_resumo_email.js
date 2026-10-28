@@ -82,9 +82,19 @@ function linhaErp(e) {
   if (!n(e.itens)) return 'sem dado (obra sem itens no ERP)';
   const comp = n(e.pedidos) ? reais(e.comprometido) : 'sem pedido lançado';
   const real = n(e.notas) ? reais(e.realizado) : 'sem nota lançada';
-  let s = 'licitado ' + reais(e.licitado) + ' · meta ' + reais(e.meta) + ' · comprometido ' + comp + ' · realizado ' + real;
-  const meta = n(e.meta), usado = (n(e.comprometido) ?? 0) + (n(e.realizado) ?? 0);
-  if (meta && meta > 0 && (n(e.pedidos) || n(e.notas))) s += ' · comprometido mais realizado: ' + Math.round((usado / meta) * 100) + '% da meta';
+  // [integração] meta parcial: a soma da meta só conta os itens com meta. Vazio não é zero: o e-mail diz em quantos itens a meta
+  // está definida e quanto do licitado eles somam, e o "% da meta" só compara o gasto desses itens com a meta deles.
+  const ni = n(e.itens), nm = n(e.itens_com_meta), parcial = nm !== null && ni !== null && nm < ni;
+  let txtMeta = 'meta ' + reais(e.meta);
+  if (parcial) txtMeta = nm === 0 ? 'meta sem dado (nenhum item com meta)'
+    : 'meta definida em ' + nm + ' de ' + ni + ' itens (' + reais(e.meta) + ' para ' + reais(e.licitado_com_meta) + ' licitados)';
+  let s = 'licitado ' + reais(e.licitado) + ' · ' + txtMeta + ' · comprometido ' + comp + ' · realizado ' + real;
+  const meta = n(e.meta);
+  const usado = parcial ? (n(e.comprometido_com_meta) ?? 0) + (n(e.realizado_com_meta) ?? 0) : (n(e.comprometido) ?? 0) + (n(e.realizado) ?? 0);
+  if (meta && meta > 0 && (n(e.pedidos) || n(e.notas)) && (!parcial || n(e.comprometido_com_meta) !== null)) {
+    s += parcial ? ' · nos itens com meta, comprometido mais realizado: ' + Math.round((usado / meta) * 100) + '% da meta deles'
+      : ' · comprometido mais realizado: ' + Math.round((usado / meta) * 100) + '% da meta';
+  }
   return s;
 }
 

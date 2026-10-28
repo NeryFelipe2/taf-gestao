@@ -1,5 +1,6 @@
 -- 08_resumo.sql · RESUMO AUTOMÁTICO PARA O DIRETOR (item 5): e-mail no horário com o BI de cada obra.
 -- RASCUNHO. NÃO APLICADO. Só aplicar no banco com o sim do Felipe, depois de testar.
+-- Fora do horário de uso, o arquivo inteiro de uma vez: psql -1 -v ON_ERROR_STOP=1 -f 08_resumo.sql
 -- Teste na obra 999 (fictícia): fonte/erp/sql/08_teste_resumo.sql (roda numa transação e desfaz tudo no fim).
 --
 -- O que faz
@@ -22,8 +23,9 @@
 -- Funções de entrada (as únicas chamáveis pela API):
 --   taf_resumo_destinatarios, taf_resumo_destinatario_salvar, taf_resumo_destinatario_desativar
 --        só chave pessoal de Diretoria ou gestor (com a chave geral do site não: ninguém manda e-mail para qualquer endereço).
---        Só cadastra as obras da própria chave; "todas" só quem tem todas as obras na chave.
---   taf_resumo_robo_gerar      Diretoria ou gestor com todas as obras: cria a chave do robô (a anterior para de valer).
+--        Só cadastra as obras da própria chave; "todas" só quem tem todas as obras na chave, ou a Diretoria com todas as obras
+--        (a regra do 06: tem todas as obras que alguma Diretoria ativa tem), que cobre também obra nova ainda fora das chaves.
+--   taf_resumo_robo_gerar      Diretoria com todas as obras, ou gestor com todas na chave: cria a chave do robô (a anterior para de valer).
 --   taf_resumo_previa          qualquer chave pessoal: as obras da prévia e, com p_enviar, reserva o teste para o próprio e-mail.
 --   taf_resumo_obra            robô, ou chave pessoal com acesso à obra: o resumo de uma obra (planejador só com acesso ao planejador).
 --   taf_resumo_montar          só o robô: reserva os envios do dia e devolve, por destinatário, as obras dele
@@ -122,6 +124,16 @@ create or replace function public._taf_resumo_cobre(p_ator text[], p_obras text[
 language sql stable security definer set search_path = public as $$
   select p_ator is null or coalesce(p_obras, public._taf_resumo_todas()) <@ p_ator $$;
 
+-- [integração] Diretoria com todas as obras, a mesma regra do 06 (Acessos): a chave tem todas as obras que alguma Diretoria ativa
+-- tem. Ela cobre todas as obras do sistema, inclusive obra que entrou depois e ainda não está em chave de Diretoria nenhuma
+-- (importada, criada pelo gestor ou pela chave geral). Antes "todas" era ter na chave todas as obras do sistema: uma obra nova
+-- tirava da Diretoria os cadastros "todas as obras" e a chave do robô, sem ninguém mais poder mexer neles.
+create or replace function public._taf_resumo_dir_todas(p_obras text[]) returns boolean
+language sql stable security definer set search_path = public as $$
+  select p_obras is not null and cardinality(p_obras) > 0
+     and coalesce((select array_agg(distinct u.x) from public.taf_ciclo_chave c cross join lateral unnest(c.obras) as u(x)
+                    where c.papel = 'diretoria' and c.ativo), '{}') <@ p_obras $$;
+
 -- f***@dominio: para mostrar na tela de quem não cadastrou.
 create or replace function public._taf_resumo_mascara(p_email text) returns text
 language sql immutable as $$
@@ -136,7 +148,9 @@ begin
   select * into a from public._taf_erp_ator(p_chave, null, null);    -- levanta CHAVE INVALIDA
   if not a.fixo then raise exception 'USE SUA CHAVE PESSOAL'; end if;
   if a.leitura or a.papel not in ('gestao', 'diretoria') then raise exception 'SO DIRETORIA OU GESTOR'; end if;
-  nome := a.nome; papel := a.papel; obras := a.obras;
+  nome := a.nome; papel := a.papel;
+  -- [integração] Diretoria com todas as obras cobre todas (null), como em Acessos; gestor e Diretoria limitada: as da chave
+  obras := case when a.papel = 'diretoria' and public._taf_resumo_dir_todas(a.obras) then null else a.obras end;
 end $$;
 
 -- É a chave do robô? (ativa nas duas tabelas e de leitura)
@@ -199,6 +213,7 @@ declare v_hoje date := public._taf_ciclo_hoje(); v_seg date := public._taf_ciclo
         v_o public.taf_ciclo_obra; v_e public.taf_erp_obra; v_s public.taf_ciclo_semana;
         v_sit jsonb; v_r jsonb; v_pz jsonb; v_ciclo jsonb; v_erp jsonb; v_ult date; v_ref jsonb;
         v_ni int; v_lic numeric; v_meta numeric; v_comp numeric; v_real numeric; v_noc int; v_nnf int;
+        v_nm int; v_lic_m numeric; v_comp_m numeric; v_real_m numeric;
 begin
   select * into v_o from public.taf_ciclo_obra where obra = p_obra;
   select * into v_e from public.taf_erp_obra where codigo = p_obra;
@@ -271,14 +286,20 @@ begin
   end if;
 
   if v_e.codigo is not null then
-    select count(*)::int, sum(x.venda), sum(x.meta), sum(x.comprometido), sum(x.realizado)
-      into v_ni, v_lic, v_meta, v_comp, v_real from public._taf_erp_valores(p_obra) x;
+    -- [integração] meta parcial: a soma da meta só conta os itens que têm meta. Vazio não é zero: o e-mail precisa saber
+    -- quantos itens têm meta e quanto do licitado (e do gasto) está nesses itens, senão a meta parcial parece a da obra inteira.
+    select count(*)::int, sum(x.venda), sum(x.meta), sum(x.comprometido), sum(x.realizado),
+           count(x.meta)::int, sum(x.venda) filter (where x.meta is not null),
+           sum(x.comprometido) filter (where x.meta is not null), sum(x.realizado) filter (where x.meta is not null)
+      into v_ni, v_lic, v_meta, v_comp, v_real, v_nm, v_lic_m, v_comp_m, v_real_m from public._taf_erp_valores(p_obra) x;
     select count(*) filter (where d.tipo = 'oc' and coalesce(d.dados ->> 'status', '') not in ('cancelada', 'reprovada'))::int,
            count(*) filter (where d.tipo = 'nf')::int
       into v_noc, v_nnf from public.taf_erp_doc d where d.obra = p_obra;
     v_erp := jsonb_build_object('itens', v_ni,
       'licitado', case when v_ni > 0 then round(v_lic, 2) end, 'meta', case when v_ni > 0 then round(v_meta, 2) end,
       'comprometido', case when v_ni > 0 then round(v_comp, 2) end, 'realizado', case when v_ni > 0 then round(v_real, 2) end,
+      'itens_com_meta', v_nm, 'licitado_com_meta', case when v_nm > 0 then round(v_lic_m, 2) end,
+      'comprometido_com_meta', case when v_nm > 0 then round(v_comp_m, 2) end, 'realizado_com_meta', case when v_nm > 0 then round(v_real_m, 2) end,
       'pedidos', v_noc, 'notas', v_nnf);
   end if;
 
@@ -383,6 +404,13 @@ begin
   select * into a from public._taf_resumo_gestor(p_chave);
   if not public._taf_resumo_cobre(a.obras, null) then raise exception 'SO QUEM TEM TODAS AS OBRAS GERA A CHAVE DO ROBO'; end if;
   perform pg_advisory_xact_lock(hashtext('taf_resumo_robo'));
+  -- [integração] com o 06 aplicado, a troca do robô fica no registro de Acessos (a lista mostra quem criou e quem desativou)
+  if to_regclass('public.taf_acesso_log') is not null then
+    execute $q$insert into public.taf_acesso_log (acao, chave_id, nome, pessoa, papel, obras, motivo, quem, quem_papel, verificado)
+      select 'desativar', public._taf_acesso_id(c.hash), c.nome, c.pessoa, c.papel, c.obras, 'robô do resumo trocado na tela Resumo para o diretor', $1, $2, true
+        from public.taf_ciclo_chave c join public.taf_resumo_robo r on r.hash = c.hash where r.ativo and c.ativo$q$
+      using a.nome, case a.papel when 'gestao' then 'gestor' else a.papel end;
+  end if;
   update public.taf_ciclo_chave set ativo = false where hash in (select r.hash from public.taf_resumo_robo r where r.ativo);
   update public.taf_resumo_robo set ativo = false, desativado_em = now() where ativo;
   v_k := 'robo-' || encode(extensions.gen_random_bytes(24), 'hex');
@@ -390,6 +418,11 @@ begin
   insert into public.taf_ciclo_chave (hash, nome, pessoa, papel, obras, ativo)
   values (v_h, 'Robô do resumo do diretor', null, 'leitura', '{}', true);
   insert into public.taf_resumo_robo (hash, criado_por) values (v_h, a.nome);
+  if to_regclass('public.taf_acesso_log') is not null then
+    execute $q$insert into public.taf_acesso_log (acao, chave_id, nome, pessoa, papel, obras, motivo, quem, quem_papel, verificado)
+      values ('criar', public._taf_acesso_id($1), 'Robô do resumo do diretor', null, 'leitura', '{}', 'robô do resumo (e-mail do horário)', $2, $3, true)$q$
+      using v_h, a.nome, case a.papel when 'gestao' then 'gestor' else a.papel end;
+  end if;
   return jsonb_build_object('chave', v_k, 'criado_em', now(), 'criado_por', a.nome);
 end $$;
 
@@ -549,7 +582,7 @@ end $$;
 --     public._taf_resumo_obra(text, boolean), public._taf_resumo_luz(jsonb, text[]),
 --     public._taf_resumo_dest_json(public.taf_resumo_dest, text), public._taf_resumo_uteis_entre(text, date, date),
 --     public._taf_resumo_pessoal(text), public._taf_resumo_e_robo(text), public._taf_resumo_gestor(text), public._taf_resumo_mascara(text),
---     public._taf_resumo_cobre(text[], text[]), public._taf_resumo_todas();
+--     public._taf_resumo_cobre(text[], text[]), public._taf_resumo_dir_todas(text[]), public._taf_resumo_todas();
 --   drop table if exists public.taf_resumo_envio, public.taf_resumo_dest_hist, public.taf_resumo_robo;
 --   drop table if exists public.taf_resumo_dest;   -- leva junto o gatilho
 --   drop function if exists public._taf_resumo_dest_trg();
