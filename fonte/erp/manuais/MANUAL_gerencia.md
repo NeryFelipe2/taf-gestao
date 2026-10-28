@@ -14,4 +14,4 @@
 ## Regras
 - Ninguém aprova a própria solicitação. Suplente só vale dentro do período cadastrado.
 - Acesso temporário, suplência e horário valem na interface; no banco vale o papel em Usuários.
-- O assistente tem limite de uso por chave por dia (padrão 30, somando relato e pergunta). Chave só de leitura não usa o assistente.
+- O assistente tem limite de uso por chave por dia (padrão 30, somando relato e pergunta). Conta cada vez que o pedido chega à IA, mesmo se ela falhar. Chave só de leitura não usa o assistente.

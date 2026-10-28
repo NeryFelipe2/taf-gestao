@@ -164,5 +164,14 @@ describe('telas: ligação e regras do código', () => {
   it('as duas montagens juntam o módulo da IA', () => {
     assert.match(ler('fonte/marko.py'), /ciclo-ia\.js/);
     assert.match(ler('fonte/ciclo.py'), /ciclo-ia\.js/);
+  });  it('a Ajuda do engenheiro fala do relato e do "Perguntar ao assistente", com o limite certo (relato e pergunta somados)', () => {
+    const m = ler('fonte/erp/manuais/MANUAL_engenheiro.md');
+    assert.match(m, /\*\*Relato do WhatsApp com a IA\*\*/);
+    assert.match(m, /\*\*Perguntar ao assistente\*\* \(Ciclo da obra → Situação/);
+    assert.match(m, /30 usos, somando relato e pergunta/);
+    assert.ok(!/30 leituras/.test(m), 'o limite não é só de leitura do relato');
+    const regras = /## Regras que bloqueiam\n([\s\S]*?)\n## /.exec(m)[1];
+    assert.ok(!/\n\s*\n/.test(regras.trim()), 'linha em branco no meio da lista de regras');
+    assert.ok(!/[—–]/.test(m), 'sem travessão');
   });
 });
