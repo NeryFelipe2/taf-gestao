@@ -1,13 +1,18 @@
 /* embed.js · as telas do ciclo, do engenheiro e do ERP dentro do Centro de Gestão.
    Dentro do Centro (?embed=1): sem cabeçalho próprio, links entre telas viram navegação do Centro (obra e contexto vão junto), tema e comandos vêm do Centro.
-   Fora do Centro: /ciclo e /erp abrem o Centro já na tela certa (?solo=1 mantém a tela sozinha). O /marko continua sendo a visão do engenheiro. */
+   Fora do Centro: /ciclo e /erp abrem o Centro já na tela certa (?solo=1 mantém a tela sozinha). O /marko continua sendo a visão do engenheiro.
+   [integração] Só vai para o Centro quem tem a chave geral do site guardada neste aparelho e não veio de um link do /marko ou do
+   /ciclo (?de=marko, ?de=ciclo): o Centro só aceita a chave geral. Quem só tem a chave pessoal (engenheiro, encarregado, gestor,
+   leitura, sócio) fica na própria tela, que tem a entrada dela. */
 (function () {
   var W = window, D = document, Q = new URLSearchParams(W.location.search), P = W.location.pathname.replace(/\/$/, '');
   var EMB = Q.get('embed') === '1' && W.parent !== W;
   var ouv = [];
   W.TAF_EMB = { ativo: EMB, on: function (f) { ouv.push(f); } };
   if (!EMB) {
-    if ((P === '/ciclo' || P === '/erp') && Q.get('solo') !== '1' && !/[?&]solo=1/.test(W.location.search)) {
+    var geral = false; try { geral = !!W.localStorage.getItem('taf-chave'); } catch (e) {}
+    var de = Q.get('de');
+    if ((P === '/ciclo' || P === '/erp') && Q.get('solo') !== '1' && !/[?&]solo=1/.test(W.location.search) && geral && de !== 'marko' && de !== 'ciclo') {
       var o = Q.get('obra');
       W.location.replace('/?' + (o ? 'obra=' + encodeURIComponent(o) + '&' : '') + 'ir=' + encodeURIComponent(P + W.location.search));
     }

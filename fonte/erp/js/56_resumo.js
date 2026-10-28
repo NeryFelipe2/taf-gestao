@@ -160,4 +160,9 @@ ACOES['rd-robo-ok']=async()=>{let r;
     <div class="acts"><button class="btn" data-act="rd-chave-copiar">Copiar chave</button><button class="btn dark" data-act="rd-chave-fechar">Pronto</button></div>`);
   r=null;RD.carregado=false;rdCarregar()};
 ACOES['rd-chave-copiar']=()=>{const i=$('#rd-chave');if(!i)return;try{navigator.clipboard.writeText(i.value).then(()=>toast('Chave copiada.'),()=>{i.select();toast('Selecionada: use Ctrl+C.')})}catch(e){i.select();toast('Selecionada: use Ctrl+C.')}};
-ACOES['rd-chave-fechar']=()=>{const i=$('#rd-chave');if(i)i.value='';closeModal()};
+ACOES['rd-chave-fechar']=()=>{const i=$('#rd-chave');if(i)i.value='';const b=$('#mbox');if(b)b.innerHTML='';closeModal()};
+/* [integração] com a chave do robô na tela, Esc e clique fora não fecham (só "Pronto", que tira a chave da página), como em Acessos:
+   a chave antiga já parou de valer e ninguém perde a nova sem copiar */
+const rdChaveAberta=()=>!!document.getElementById('rd-chave');
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&rdChaveAberta()){e.stopPropagation();toast('Copie a chave e use o botão "Pronto".')}},true);
+document.addEventListener('click',e=>{if(e.target&&e.target.id==='modal'&&rdChaveAberta()){e.stopPropagation();toast('Copie a chave e use o botão "Pronto".')}},true);

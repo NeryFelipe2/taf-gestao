@@ -13,10 +13,10 @@ const AC_FAZ={
   diretoria:'Vê tudo, aprova acima da alçada e cria qualquer acesso.',
   gestor:'Gestão da carteira: decide e cobra demandas, dá de acordo e reabre semana. Cria acesso de engenheiro, encarregado e leitura nas obras dele.',
   engenheiro:'Prepara, monta, publica, aponta e fecha a semana no planejador. Solicita compra no ERP.',
-  encarregado:'Só aponta o dia no planejador (andou, parado, entregue). Não monta, não publica e não fecha a semana.',
+  encarregado:'No planejador só aponta o dia (andou, parado, entregue): não monta, não publica e não fecha a semana. No ERP entra como encarregado: vê o Orçamento (licitado, meta e teto), Pessoas e ponto e Frota, e lança ponto, frota, apontamento de campo, restrição e tarefa.',
   leitura:'Só consulta. Não grava nada.'};
 /* onde cada papel entra (com a chave pessoal). O Centro (/) continua entrando com a chave geral do site. */
-const AC_ENTRADA={engenheiro:[['/marko','tela do engenheiro: planejar e apontar']],encarregado:[['/marko','tela da obra: apontar o dia']],
+const AC_ENTRADA={engenheiro:[['/marko','tela do engenheiro: planejar e apontar'],['/erp','ERP: propor meta e solicitar compra']],encarregado:[['/marko','tela da obra: apontar o dia'],['/erp','ERP: campo, ponto e frota (vê o orçamento da obra)']],
   gestor:[['/erp','ERP'],['/ciclo','planejador, visão da gestão'],['/','Centro de Gestão (entra com a chave geral do site; o ERP dentro dele usa esta chave)']],
   diretoria:[['/erp','ERP'],['/ciclo','planejador, visão da gestão'],['/','Centro de Gestão (entra com a chave geral do site; o ERP dentro dele usa esta chave)']],
   leitura:[['/erp','ERP, só leitura'],['/ciclo','planejador, só leitura']]};
@@ -28,6 +28,8 @@ const acVisivel=()=>MODO_CH&&(isRole('diretoria','gestao')||S.role==='admin')&&!
 const AC_MSG=[
   [/Could not find the function|PGRST202|taf_acesso_\w+ does not exist|function public\.taf_acesso/i,()=>'O banco ainda não tem a tela de acessos. Falta aplicar o 06_acessos.sql (só com o sim do Felipe).'],
   [/^SEM PERMISSAO: SO A DIRETORIA E O GESTOR CUIDAM DOS ACESSOS/,()=>'Só a Diretoria e o gestor cuidam dos acessos, com a chave pessoal.'],
+  [/^SEM PERMISSAO: CHAVE DO ROBO DO RESUMO/,()=>'É a chave do robô do resumo (e-mail do horário). Só a Diretoria com todas as obras desativa; para trocar, use Resumo para o diretor.'],
+  [/^SEM PERMISSAO: CHAVE SEM OBRA/,()=>'Chave sem obra: só a Diretoria com todas as obras desativa.'],
   [/^A CHAVE GERAL NAO CRIA ACESSO/,()=>'Já existe chave de Diretoria: a chave geral do site não cria mais acessos. Entre com a sua chave pessoal.'],
   [/^A CHAVE GERAL NAO DESATIVA ACESSO/,()=>'Com a chave geral do site não se desativa acesso. Entre com a sua chave pessoal.'],
   [/^NA PARTIDA A CHAVE GERAL/,()=>'Com a chave geral do site só dá para criar a primeira chave de Diretoria.'],
@@ -65,20 +67,20 @@ const acArgs=o=>({p_chave:CH.chave,p_quem:CH.quem||null,...o});
 async function acCarregar(){AC.pend=1;
   try{AC.dados=await chRpc('taf_acesso_listar',acArgs({}));AC.erro=''}catch(e){AC.erro=acMsg(e)}
   AC.pend=0;if(S.view==='acessos')render()}
-ACOES['ac-atualizar']=()=>{AC.dados=null;AC.erro='';render()};
-ACOES['ac-desativadas']=()=>{S.tab.acdes=S.tab.acdes?0:1;render()};
+ACOES['acs-atualizar']=()=>{AC.dados=null;AC.erro='';render()};
+ACOES['acs-desativadas']=()=>{S.tab.acdes=S.tab.acdes?0:1;render()};
 
 /* ---------- tela ---------- */
 const acData=s=>s?fdata(String(s).slice(0,10)):'—';
 const acPapelPill=p=>`<span class="pill ${p==='diretoria'?'bad':p==='gestor'?'warn':p==='leitura'?'mute':'info'}">${esc(AC_PAPEL[p]||p)}</span>`;
 const acLinks=(p,curto)=>(AC_ENTRADA[p]||[]).filter(x=>!curto||x[0]!=='/').map(([u,t])=>curto?`<span class="mono">${esc(u)}</span>`:`<li><span class="mono">${esc(acOrigem()+u)}</span> · ${esc(t)}</li>`).join(curto?' ':'');
 /* por que não tem botão de desativar, em poucas palavras (a frase inteira fica no title) */
-const acBloqCurto=b=>/PROPRIA/.test(b)?'É a sua chave.':/ULTIMA/.test(b)?'Última chave de Diretoria.':/SEM OUTRA DIRETORIA/.test(b)?'Única Diretoria com todas as obras.':/OBRA FORA/.test(b)?'Tem obra fora da sua chave.':/SEM PERMISSAO/.test(b)?'Só a Diretoria desativa.':acMsg(b);
+const acBloqCurto=b=>/ROBO DO RESUMO/.test(b)?'Robô do resumo: só a Diretoria com todas.':/CHAVE SEM OBRA/.test(b)?'Chave sem obra: só a Diretoria com todas.':/PROPRIA/.test(b)?'É a sua chave.':/ULTIMA/.test(b)?'Última chave de Diretoria.':/SEM OUTRA DIRETORIA/.test(b)?'Única Diretoria com todas as obras.':/OBRA FORA/.test(b)?'Tem obra fora da sua chave.':/SEM PERMISSAO/.test(b)?'Só a Diretoria desativa.':acMsg(b);
 function acLinha(c){
   const des=!c.ativo,av=(c.avisos||[]);
-  const acao=des?'':c.bloqueio?`<span class="sub" style="font-size:12px" title="${esc(acMsg(c.bloqueio))}">${esc(acBloqCurto(c.bloqueio))}</span>`:`<button class="btn sm no" data-act="ac-desativar" data-id="${esc(c.id)}">Desativar</button>`;
+  const acao=des?'':c.bloqueio?`<span class="sub" style="font-size:12px" title="${esc(acMsg(c.bloqueio))}">${esc(acBloqCurto(c.bloqueio))}</span>`:`<button class="btn sm no" data-act="acs-desativar" data-id="${esc(c.id)}">Desativar</button>`;
   return `<div class="ac-i${des?' ac-des':''}" data-ac="${esc(c.id)}">
-    <div class="ac-nome"><b>${esc(c.nome)}</b>${c.sua?' <span class="pill ok">você</span>':''}<div class="mut" style="font-size:12.5px">${c.pessoa?esc(c.pessoa):'sem pessoa (só leitura)'}</div></div>
+    <div class="ac-nome"><b>${esc(c.nome)}</b>${c.sua?' <span class="pill ok">você</span>':''}${c.robo?' <span class="pill info">robô do resumo</span>':''}<div class="mut" style="font-size:12.5px">${c.robo?'manda o e-mail do horário; desativar para o envio (troque em Resumo para o diretor)':c.pessoa?esc(c.pessoa):'sem pessoa (só leitura)'}</div></div>
     <div data-r="Papel">${acPapelPill(c.papel)}</div>
     <div data-r="Obras"><span class="mono">${(c.obras||[]).map(esc).join(', ')}</span>${+c.outras_obras>0?`<div class="mut" style="font-size:12px" title="A chave tem mais ${+c.outras_obras} ${+c.outras_obras===1?'obra':'obras'} que não estão na sua. Só quem cuida delas vê quais são.">+${+c.outras_obras} ${+c.outras_obras===1?'obra':'obras'} fora da sua chave</div>`:''}</div>
     <div data-r="Situação">${des?`<span class="pill mute">desativada</span><div class="mut" style="font-size:12px">${esc(acData(c.desativado_em))}${c.desativado_por?' · '+esc(c.desativado_por):''}</div>`:'<span class="pill ok">ativa</span>'}</div>
@@ -94,18 +96,18 @@ function viewAcessos(){
   if(!acVisivel())return head+`</div><div class="sub">Só a Diretoria e o gestor cuidam dos acessos, com a chave pessoal.</div>`;
   if(!AC.dados&&!AC.pend&&!AC.erro)acCarregar();
   const D=AC.dados,pode=(D&&D.pode_criar)||[];
-  const botoes=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="ac-atualizar">Atualizar</button>${pode.length?`<button class="btn dark" data-act="ac-novo">${D.partida&&D.ator.tipo==='geral'?'Criar a primeira chave de Diretoria':'Criar acesso'}</button>`:''}</div></div>`;
+  const botoes=`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-act="acs-atualizar">Atualizar</button>${pode.length?`<button class="btn dark" data-act="acs-novo">${D.partida&&D.ator.tipo==='geral'?'Criar a primeira chave de Diretoria':'Criar acesso'}</button>`:''}</div></div>`;
   if(AC.erro)return head+botoes+`<div class="card" style="margin-top:12px"><div class="in"><div class="neg">${esc(AC.erro)}</div></div></div>`;
   if(!D)return head+botoes+'<div class="sub" style="padding:18px">Carregando…</div>';
   const a=D.ator||{},geral=a.tipo==='geral';
   const quem=`<div class="note" style="margin-top:4px"><b>${esc(a.nome||'sem nome')} · ${geral?'chave geral do site':esc(AC_PAPEL[a.papel]||a.papel)+' · chave pessoal'}</b>${pode.length?'Você cria: '+pode.map(p=>esc((AC_PAPEL[p]||p).toLowerCase())).join(', ')+'.':'Você não cria acesso.'}</div>`;
   if(geral){
-    const txt=D.partida?`<div class="panel-t">Partida</div><p class="sub" style="margin:4px 0 10px">Ainda não existe chave de Diretoria. Crie a primeira agora, em nome de quem vai cuidar dos acessos. Com ela, a Diretoria cria as outras (gestor, engenheiro, encarregado). <b>Depois disso a chave geral do site não cria mais nenhuma.</b></p><button class="btn dark" data-act="ac-novo">Criar a primeira chave de Diretoria</button>`
+    const txt=D.partida?`<div class="panel-t">Partida</div><p class="sub" style="margin:4px 0 10px">Ainda não existe chave de Diretoria. Crie a primeira agora, em nome de quem vai cuidar dos acessos. Com ela, a Diretoria cria as outras (gestor, engenheiro, encarregado). <b>Depois disso a chave geral do site não cria mais nenhuma.</b></p><button class="btn dark" data-act="acs-novo">Criar a primeira chave de Diretoria</button>`
       :`<div class="panel-t">Entre com a sua chave pessoal</div><p class="sub" style="margin:4px 0 0">Você entrou com a chave geral do site. A lista de acessos, criar e desativar ficam só com a chave pessoal de Diretoria ou de gestor. Peça a sua para a Diretoria.</p>`;
     return head+botoes+quem+`<div class="card" style="margin-top:12px"><div class="in">${txt}</div></div>`}
   const L=D.chaves||[],at=L.filter(c=>c.ativo),des=L.filter(c=>!c.ativo),ver=S.tab.acdes?L:at,nav=at.filter(c=>(c.avisos||[]).length).length;
   const frase=`${at.length} ${at.length===1?'chave ativa':'chaves ativas'}${des.length?' e '+des.length+' '+(des.length===1?'desativada':'desativadas'):''}.${nav?` ${nav} com aviso.`:''}`;
-  return head+botoes+quem+acEscopo(D)+`<p class="sub" style="margin:12px 0 0">${frase} ${des.length?`<button class="btn sm" data-act="ac-desativadas">${S.tab.acdes?'Esconder as desativadas':'Mostrar as desativadas'}</button>`:''}</p>
+  return head+botoes+quem+acEscopo(D)+`<p class="sub" style="margin:12px 0 0">${frase} ${des.length?`<button class="btn sm" data-act="acs-desativadas">${S.tab.acdes?'Esconder as desativadas':'Mostrar as desativadas'}</button>`:''}</p>
    <div class="ac-l" role="list">${ver.length?`<div class="ac-i ac-h" aria-hidden="true"><div>Nome e pessoa</div><div>Papel</div><div>Obras</div><div>Situação</div><div>Criada em</div><div>Entra por</div><div></div></div>`+ver.map(acLinha).join(''):'<div class="sub" style="padding:12px">Nenhuma chave pessoal ainda.</div>'}</div>
    <div class="sub" style="margin-top:12px">A chave só aparece uma vez, na hora de criar. Perdeu? Desative e crie outra. Desativada para de funcionar na hora, em todos os aparelhos.</div>`}
 
@@ -134,7 +136,7 @@ function acCss(){if(typeof document==='undefined'||!document.head||document.getE
 /* nenhuma obra vem marcada (o padrão é o mínimo), a não ser quando só existe uma */
 function acObrasHtml(O){const um=O.length===1;
   return O.map(o=>`<label><input type="checkbox" class="ac-ob" value="${esc(o.codigo)}" ${um?'checked':''}><span><b class="mono">${esc(o.codigo)}</b> · ${esc(o.nome||'')}<br><span class="mut" style="font-size:12px">${o.planejador?(o.engenheiro?'engenheiro no planejador: '+esc(o.engenheiro):'no planejador'):'sem cronograma no planejador'}</span></span></label>`).join('')}
-ACOES['ac-novo']=()=>{const D=AC.dados;if(!D||!(D.pode_criar||[]).length)return toast('Você não cria acesso.');
+ACOES['acs-novo']=()=>{const D=AC.dados;if(!D||!(D.pode_criar||[]).length)return toast('Você não cria acesso.');
   const P=D.pode_criar,ini=P.includes('engenheiro')?'engenheiro':P[0],O=D.obras||[];
   if(!O.length)return toast('Nenhuma obra no sistema para dar acesso.');
   modal(`<h3>${D.ator.tipo==='geral'?'Primeira chave de Diretoria':'Criar acesso'}</h3><div class="sub">A chave nasce no banco e aparece uma vez só, na próxima janela. Fica registrado quem criou.</div>
@@ -145,7 +147,7 @@ ACOES['ac-novo']=()=>{const D=AC.dados;if(!D||!(D.pode_criar||[]).length)return 
    <label for="ac-nome">Nome da chave (para achar na lista; vazio = o nome da pessoa)</label><input id="ac-nome" autocomplete="off" maxlength="60" placeholder="ex.: celular da obra">
    <label>Obras (marque só as que a pessoa precisa)</label><div class="ac-obs" id="ac-obs">${acObrasHtml(O)}</div>
    <div id="ac-msg" class="sub" style="margin-top:8px" role="alert"></div>
-   <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="ac-criar-ok">Criar e mostrar a chave</button></div>`);
+   <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn dark" data-act="acs-criar-ok">Criar e mostrar a chave</button></div>`);
   acCss();acPintaAviso()};
 const acObrasMarcadas=()=>[...document.querySelectorAll('.ac-ob:checked')].map(e=>e.value);
 /* o planejador só reconhece como do engenheiro o que está no nome do engenheiro da obra: avisa antes de criar */
@@ -153,13 +155,13 @@ function acPintaAviso(){const box=document.getElementById('ac-aviso');if(!box)re
   const f=document.getElementById('ac-faz');if(f)f.textContent=AC_FAZ[p]||'';
   if(p!=='engenheiro'){box.innerHTML='';return}
   const obs=(D.obras||[]).filter(o=>acObrasMarcadas().includes(o.codigo)&&o.planejador&&o.engenheiro&&o.engenheiro!==pes);
-  box.innerHTML=obs.map(o=>`<div class="sem amarelo" style="margin-top:8px"><span class="pill warn">nome</span><span>Obra ${esc(o.codigo)}: o engenheiro no planejador é <b>${esc(o.engenheiro)}</b>. ${pes?'Com outro nome, as demandas, as áreas e as tarefas do engenheiro não aparecem como desta pessoa.':'Use o mesmo nome.'} <button class="btn sm" data-act="ac-usar-nome" data-n="${esc(o.engenheiro)}">Usar ${esc(o.engenheiro)}</button></span></div>`).join('')}
-ACOES['ac-usar-nome']=el=>{const i=$('#ac-pessoa');if(i){i.value=el.dataset.n||'';acPintaAviso()}};
+  box.innerHTML=obs.map(o=>`<div class="sem amarelo" style="margin-top:8px"><span class="pill warn">nome</span><span>Obra ${esc(o.codigo)}: o engenheiro no planejador é <b>${esc(o.engenheiro)}</b>. ${pes?'Com outro nome, as demandas, as áreas e as tarefas do engenheiro não aparecem como desta pessoa.':'Use o mesmo nome.'} <button class="btn sm" data-act="acs-usar-nome" data-n="${esc(o.engenheiro)}">Usar ${esc(o.engenheiro)}</button></span></div>`).join('')}
+ACOES['acs-usar-nome']=el=>{const i=$('#ac-pessoa');if(i){i.value=el.dataset.n||'';acPintaAviso()}};
 document.addEventListener('input',e=>{if(e.target&&e.target.id==='ac-pessoa')acPintaAviso()});
 document.addEventListener('change',e=>{const t=e.target;if(!t)return;
   if(t.id==='ac-papel')acPintaAviso()
   else if(t.classList&&t.classList.contains('ac-ob'))acPintaAviso()});
-ACOES['ac-criar-ok']=async el=>{if(AC.criando)return;const msg=t=>{const m=$('#ac-msg');if(m){m.textContent=t;m.style.color='var(--bad)'}};
+ACOES['acs-criar-ok']=async el=>{if(AC.criando)return;const msg=t=>{const m=$('#ac-msg');if(m){m.textContent=t;m.style.color='var(--bad)'}};
   const papel=($('#ac-papel')||{}).value,pessoa=(($('#ac-pessoa')||{}).value||'').trim(),nome=(($('#ac-nome')||{}).value||'').trim(),obras=acObrasMarcadas();
   if(!papel)return msg('Escolha o papel.');if(!pessoa&&papel!=='leitura')return msg('Informe a pessoa.');if(!pessoa&&!nome)return msg('Informe o nome da chave.');
   if(!obras.length)return msg('Escolha ao menos uma obra.');
@@ -176,34 +178,34 @@ function acMostraChave(r){AC.ult={pessoa:r.pessoa||r.nome,papel:r.papel};
    <div class="sem amarelo" style="margin-top:12px"><span class="pill warn">atenção</span><span><b>Mande só por mensagem direta para ${esc(r.pessoa||r.nome)}.</b> Nunca em grupo, e-mail aberto ou print. Quem tiver a chave entra como essa pessoa.</span></div>
    <label for="ac-chave">Chave de ${esc(r.pessoa||r.nome)} · ${esc(AC_PAPEL[r.papel]||r.papel)} · obras ${(r.obras||[]).map(esc).join(', ')}</label>
    <textarea id="ac-chave" class="ac-chave" readonly rows="2" autocomplete="off" spellcheck="false" autocapitalize="off">${esc(r.chave)}</textarea>
-   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn dark" data-act="ac-copiar">Copiar a chave</button><button class="btn" data-act="ac-copiar-msg">Copiar mensagem pronta</button></div>
+   <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn dark" data-act="acs-copiar">Copiar a chave</button><button class="btn" data-act="acs-copiar-msg">Copiar mensagem pronta</button></div>
    <label>Onde entrar</label><ul style="margin:4px 0 0 18px;padding:0" class="sub">${acLinks(r.papel)}</ul>
    ${av.length?`<div style="margin-top:10px">${av.map(a=>`<div class="sem amarelo" style="margin-top:6px"><span class="pill warn">aviso</span><span>${esc(a)}</span></div>`).join('')}</div>`:''}
-   ${r.partida?'<div class="sem verde" style="margin-top:10px"><span class="pill ok">próximo passo</span><span>Saia e entre no ERP com esta chave. Com ela você cria as outras (gestor, engenheiro, encarregado). A chave geral do site não cria mais acesso.</span></div>':''}
-   <div class="acts"><button class="btn dark" data-act="ac-fechar-chave">Já mandei, fechar</button></div>`);
+   ${r.partida?'<div class="sem verde" style="margin-top:10px"><span class="pill ok">próximo passo</span><span>Use <b>Sair</b> (embaixo do seu nome, no menu) e entre no ERP com esta chave. Com ela você cria as outras (gestor, engenheiro, encarregado). A chave geral do site não cria mais acesso.</span></div>':''}
+   <div class="acts"><button class="btn dark" data-act="acs-fechar-chave">Já mandei, fechar</button></div>`);
   setTimeout(()=>{const i=$('#ac-chave');if(i&&i.select)i.select()},0)}
 const acChaveAberta=()=>!!document.getElementById('ac-chave');
 function acCopiar(txt,ok){
   const sel=()=>{const i=$('#ac-chave');if(i&&i.select){i.focus();i.select()}let f=false;try{f=document.execCommand&&document.execCommand('copy')}catch(e){}toast(f?ok:'Chave selecionada: segure e copie (no computador, Ctrl+C).')};
   try{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(()=>toast(ok),sel);else sel()}catch(e){sel()}}
-ACOES['ac-copiar']=()=>{const i=$('#ac-chave');if(i)acCopiar(i.value,'Chave copiada. Mande por mensagem direta.')};
-ACOES['ac-copiar-msg']=()=>{const i=$('#ac-chave'),u=AC.ult||{};if(!i)return;const L=(AC_ENTRADA[u.papel]||[]).filter(x=>x[0]!=='/'),o=acOrigem();
+ACOES['acs-copiar']=()=>{const i=$('#ac-chave');if(i)acCopiar(i.value,'Chave copiada. Mande por mensagem direta.')};
+ACOES['acs-copiar-msg']=()=>{const i=$('#ac-chave'),u=AC.ult||{};if(!i)return;const L=(AC_ENTRADA[u.papel]||[]).filter(x=>x[0]!=='/'),o=acOrigem();
   const t=`Olá, ${u.pessoa}. Este é o seu acesso ao sistema da TAF (${(AC_PAPEL[u.papel]||u.papel||'').toLowerCase()}).\nEntre em ${L.map(x=>o+x[0]).join(' ou ')} e digite a chave:\n${i.value}\nA chave é só sua: não mostre nem mande para ninguém. Tudo o que você lançar sai no seu nome.`;
   acCopiar(t,'Mensagem copiada. Mande por mensagem direta.')};
 function acFechaChave(){const i=$('#ac-chave');if(i)i.value='';$('#mbox').innerHTML='';AC.ult=null;closeModal();render()}
-ACOES['ac-fechar-chave']=acFechaChave;
+ACOES['acs-fechar-chave']=acFechaChave;
 /* com a chave na tela, Esc e clique fora não fecham (só o botão "Já mandei, fechar"): ninguém perde a chave sem querer */
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&acChaveAberta()){e.stopPropagation();toast('Copie a chave e use o botão "Já mandei, fechar".')}},true);
 document.addEventListener('click',e=>{if(e.target&&e.target.id==='modal'&&acChaveAberta()){e.stopPropagation();toast('Copie a chave e use o botão "Já mandei, fechar".')}},true);
 
 /* ---------- desativar ---------- */
-ACOES['ac-desativar']=el=>{const c=((AC.dados||{}).chaves||[]).find(x=>x.id===el.dataset.id);if(!c)return toast('Atualize a lista.');
+ACOES['acs-desativar']=el=>{const c=((AC.dados||{}).chaves||[]).find(x=>x.id===el.dataset.id);if(!c)return toast('Atualize a lista.');
   modal(`<h3>Desativar a chave ${esc(c.nome)}</h3><div class="sub">${esc(c.pessoa||'sem pessoa')} · ${esc(AC_PAPEL[c.papel]||c.papel)} · obras ${(c.obras||[]).map(esc).join(', ')}</div>
    <p class="sub" style="margin-top:10px">A chave para de funcionar na hora, em todos os aparelhos. O que a pessoa já lançou fica. Não dá para reativar: se precisar, crie outra.</p>
    <label for="ac-mot">Motivo (fica registrado)</label><input id="ac-mot" maxlength="300" placeholder="ex.: trocou de celular, saiu da obra">
    <div id="ac-msg" class="sub" style="margin-top:8px" role="alert"></div>
-   <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn no" data-act="ac-desativar-ok" data-id="${esc(c.id)}">Desativar</button></div>`)};
-ACOES['ac-desativar-ok']=async el=>{if(AC.desativando)return;AC.desativando=1;if(el)el.disabled=true;
+   <div class="acts"><button class="btn" data-act="fechar">Cancelar</button><button class="btn no" data-act="acs-desativar-ok" data-id="${esc(c.id)}">Desativar</button></div>`)};
+ACOES['acs-desativar-ok']=async el=>{if(AC.desativando)return;AC.desativando=1;if(el)el.disabled=true;
   try{await chRpc('taf_acesso_desativar',acArgs({p_id:el.dataset.id,p_motivo:(($('#ac-mot')||{}).value||'').trim()||null}));
     closeModal();toast('Chave desativada.');AC.dados=null;AC.erro='';render()}
   catch(e){const m=$('#ac-msg');if(m){m.textContent=acMsg(e);m.style.color='var(--bad)'}if(el)el.disabled=false}

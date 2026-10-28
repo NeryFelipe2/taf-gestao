@@ -27,8 +27,18 @@ async function sbSync(){
     else{toast('Não salvou: '+(e.message||e));try{await sbPull();render()}catch(_){}}}
   SB.busy=false;
 }
+/* [integração] O estado vem do banco, e o taf_erp_salvar grava qualquer JSON de estado (também com a chave geral do site).
+   A versão e o histórico da linha de base entram só no formato que a tela grava: versão inteira, texto, número da proposta,
+   sim/não. Assim um texto com HTML plantado no estado nunca vira código na tela de quem abre a obra. */
+const estInt=(v,d)=>{const n=Math.floor(Number(v));return Number.isFinite(n)&&n>=1&&n<1e6?n:d};
+function estadoLimpo(est){if(!est||typeof est!=='object'||Array.isArray(est))return est;const e={...est};
+  if('versao' in e)e.versao=estInt(e.versao,1);
+  if('hist' in e)e.hist=(Array.isArray(e.hist)?e.hist:[]).filter(h=>h&&typeof h==='object'&&!Array.isArray(h)).map(h=>{
+    const x={versao:estInt(h.versao,1),motivo:String(h.motivo==null?'':h.motivo).slice(0,2000),quando:String(h.quando==null?'':h.quando).slice(0,40),quem:String(h.quem==null?'':h.quem).slice(0,120)};
+    if(h.prop!=null&&/^\d{1,15}$/.test(String(h.prop)))x.prop=Number(h.prop);if(h.fora===true)x.fora=true;return x});
+  return e}
 function aplicaDocs(est,docs){
-  const t={...novoT(),...(est&&Object.keys(est).length?est:{})};const map=Object.fromEntries(DOCS.map(([k,tp])=>[tp,k]));
+  const t={...novoT(),...(est&&Object.keys(est).length?estadoLimpo(est):{})};const map=Object.fromEntries(DOCS.map(([k,tp])=>[tp,k]));
   DOCS.forEach(([k])=>t[k]=[]);SB.sync={};
   docs.forEach(r=>{if(!map[r.tipo])return;t[map[r.tipo]].push(r.dados);SB.sync[r.id]=JSON.stringify(r.dados)});
   const key=o=>parseInt(String(o.id||'').replace(/\D/g,'').slice(0,13))||0;

@@ -4,6 +4,9 @@
    Os dados fixos de cada obra (EAP, pacotes, metas, extrato, ficha) vêm do banco em gzip, nunca do código público. */
 const CH={chave:'',quem:'',fixo:false,leitura:false,ver:0,obras:[],T:{}};
 const CHK='taf-erp-chave',CHQ='taf-erp-quem',CHP='taf-erp-papel';
+/* [integração] marca do Sair (como o taf-ciclo-sem-site e o taf-marko-sem-site): depois de Sair, o ERP não entra sozinho com a chave
+   geral guardada pelo Centro, nem com a do Ciclo ou do Marko fora de um link deles. Sai quando a pessoa digita uma chave aqui. */
+const CHS='taf-erp-sem-site';
 const chLs=(k,v)=>{try{if(v===undefined)return localStorage.getItem(k);if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v)}catch(e){}return null};
 async function chRpc(fn,body){
   const r=await fetch(CFG.supabaseUrl+'/rest/v1/rpc/'+fn,{method:'POST',headers:{apikey:CFG.supabaseKey,Authorization:'Bearer '+CFG.supabaseKey,'Content-Type':'application/json'},body:JSON.stringify(body)});
@@ -51,7 +54,7 @@ async function chEntrar(k,q,doForm){
   const pp=chLs(CHP);const r=await chRpc('taf_erp_entrar',{p_chave:k,p_quem:q||null,p_papel:pp||null});
   CH.fixo=!!r.fixo;CH.leitura=!!r.leitura;CH.obras=r.obras||[];CH.quem=CH.fixo?(r.quem||q):q;
   if(!CH.quem){if(doForm)throw new Error('Informe seu nome.');chTela('Informe seu nome.');return}
-  CH.chave=k;chLs(CHK,k);if(q)chLs(CHQ,q);login().classList.remove('open');
+  CH.chave=k;chLs(CHK,k);if(q)chLs(CHQ,q);if(doForm)chLs(CHS,null);login().classList.remove('open');
   S.role=CH.fixo?r.papel:(pp&&ROLES[pp]&&!['admin','pendente'].includes(pp)?pp:r.papel);
   SB.perfil={nome:CH.quem,papel:S.role,fixo:CH.fixo,uid:(CH.fixo?'pessoa:':'nome:')+nomeNorm(CH.quem)};   /* uid: identidade do usuário (D4, ev_ctrl); a chave geral tem nome digitado, a pessoal tem nome fixo */
   const rs=$('#role');if(CH.fixo)rs.parentNode.style.display='none';else{rs.parentNode.style.display='';rs.value=S.role}
@@ -66,15 +69,15 @@ async function chEntrar(k,q,doForm){
 }
 $('#role').addEventListener('change',e=>{if(!MODO_CH||CH.fixo)return;chLs(CHP,e.target.value);if(SB.perfil)SB.perfil.papel=e.target.value});
 /* a chave vem de onde a pessoa chegou: link do /marko (?de=marko) ou do /ciclo (?de=ciclo) usa a chave daquela tela; senão a última do ERP, a do Ciclo, a do Marko, a do site */
-function chChaveInicial(){const de=new URLSearchParams(location.search).get('de'),site=chLs('taf-chave'),cc=chLs('taf-ciclo-chave')||(chLs('taf-ciclo-sem-site')==='1'?null:site),mk=chLs('taf-marko-chave')||site;
-  const ordem=de==='marko'?[mk,cc]:de==='ciclo'?[cc,mk]:[];const k=ordem.find(Boolean)||chLs(CHK)||cc||mk||site||'';
+function chChaveInicial(){const de=new URLSearchParams(location.search).get('de'),semSite=chLs(CHS)==='1',site=semSite?null:chLs('taf-chave'),cc=chLs('taf-ciclo-chave')||(chLs('taf-ciclo-sem-site')==='1'?null:site),mk=chLs('taf-marko-chave')||site;
+  const ordem=de==='marko'?[mk,cc]:de==='ciclo'?[cc,mk]:[];const k=ordem.find(Boolean)||chLs(CHK)||(semSite?'':cc||mk||site)||'';
   return [k,chLs(CHQ)||chLs('taf-quem')||'']}
 async function chBoot(){const [k,qq]=chChaveInicial();
   if(!k){chTela();$('#view').innerHTML='';return}
   try{await chEntrar(k,qq,false)}
   catch(e){if(semRede(e)||e.status>=500){telaAviso('Sem conexão','Não consegui falar com o banco. Tente de novo quando tiver sinal.','<button class="btn dark" onclick="location.reload()">Tentar de novo</button>');return}
     $('#view').innerHTML='';chTela(chMsg(e))}}
-function chSair(){chLs(CHK,null);location.reload()}
+function chSair(){chLs(CHK,null);chLs(CHS,'1');location.reload()}
 
 /* ---------- carregar a obra, ler o que mudou ---------- */
 const poolKey=()=>'taf-erp-pool-'+SB.obraId;
@@ -94,7 +97,7 @@ async function chCarregar(ob){
   render();chOutras();
 }
 /* estado das outras obras, só para ler (painel da carteira, RH, comparativo): nunca é gravado por aqui */
-function chTDe(est,docs){const t={...novoT(),...(est&&Object.keys(est).length?est:{})},map=Object.fromEntries(DOCS.map(([k,tp])=>[tp,k]));
+function chTDe(est,docs){const t={...novoT(),...(est&&Object.keys(est).length?estadoLimpo(est):{})},map=Object.fromEntries(DOCS.map(([k,tp])=>[tp,k]));
   DOCS.forEach(([k])=>t[k]=[]);(docs||[]).forEach(r=>{if(map[r.tipo])t[map[r.tipo]].push(r.dados)});return t}
 async function chOutras(){const atual=SB.obraId;
   for(const o of CH.obras){if(o.codigo===atual)continue;
@@ -103,7 +106,7 @@ async function chOutras(){const atual=SB.obraId;
 async function chRecarrega(){const r=await chRpc('taf_erp_ler',chArgs({p_base_sha:chShaGuardado(SB.obraId)}));aplicaDocs(r.estado,r.docs);CH.ver=r.versao}
 function chDelta(est,docs){const map=Object.fromEntries(DOCS.map(([k,tp])=>[tp,k]));
   (docs||[]).forEach(r=>{const k=map[r.tipo];if(!k)return;const a=S.t[k]||(S.t[k]=[]);const i=a.findIndex(o=>o.id===r.id);if(i>=0)a[i]=r.dados;else a.unshift(r.dados);SB.sync[r.id]=JSON.stringify(r.dados)});
-  if(est&&Object.keys(est).length)Object.assign(S.t,est);
+  if(est&&Object.keys(est).length)Object.assign(S.t,estadoLimpo(est));   /* [integração] versão e histórico só no formato da tela */
   if(S.D)prep();SB.estado=JSON.stringify(estadoObra())}
 async function chPull(){if(!SB.obraId)return;
   const v=await chRpc('taf_erp_versao',{p_chave:CH.chave,p_obra:SB.obraId});if(+v===+CH.ver)return;

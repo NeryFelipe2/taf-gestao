@@ -164,11 +164,11 @@ function metaAplicaUma(p,campos,conf){
     const nm=campos.includes('meta')?r2(+p.meta):null,nt=campos.includes('teto')?r2(+p.teto):null;
     S.t.baseOv[p.codigo]={meta_total:nm!=null?nm:i.meta_base,teto_total:nt!=null?nt:i.teto_total,status_cotacao:i.status_cotacao,meta_unit:nm!=null&&i.qtd?r2(nm/i.qtd*10000)/10000:mu0};
     if(nm!=null){if(S.t.metaOv&&S.t.metaOv[p.codigo]!=null){log('item_eap',p.codigo,'remanejamento',S.t.metaOv[p.codigo],'substituído pela meta aprovada',motivo);delete S.t.metaOv[p.codigo]}
-      log('item_eap',p.codigo,'meta_total',i.meta_total,nm,motivo);mud.push('meta '+brl(i.meta_total)+' → '+brl(nm))}
-    if(nt!=null){log('item_eap',p.codigo,'teto_total',i.teto_total,nt,motivo);mud.push('teto '+brl(i.teto_total)+' → '+brl(nt))}}
+      log('item_eap',p.codigo,'meta_total',i.meta_total,nm,motivo);mud.push('meta '+brlOu(i.meta_total,'sem meta')+' → '+brl(nm))}
+    if(nt!=null){log('item_eap',p.codigo,'teto_total',i.teto_total,nt,motivo);mud.push('teto '+brlOu(i.teto_total,'sem teto')+' → '+brl(nt))}}
   else{const pc=S.D.pacotes.find(x=>x.codigo===p.codigo);if(!pc)return {ok:false,motivo:'o pacote '+p.codigo+' não existe nesta obra'};
     S.t.basePac=S.t.basePac||{};const novo={meta:pc.meta,teto:pc.teto,fechar_ate:pc.fechar_ate};
-    campos.forEach(c=>{const nv=c==='fechar_ate'?String(p[c]).slice(0,10):r2(+p[c]);log('pacote',p.codigo,c,pc[c],nv,motivo);mud.push(c==='fechar_ate'?'fechar até '+fdata(pc[c])+' → '+fdata(nv):c+' '+brl(pc[c])+' → '+brl(nv));novo[c]=nv});
+    campos.forEach(c=>{const nv=c==='fechar_ate'?String(p[c]).slice(0,10):r2(+p[c]);log('pacote',p.codigo,c,pc[c],nv,motivo);mud.push(c==='fechar_ate'?'fechar até '+fdata(pc[c])+' → '+fdata(nv):c+' '+brlOu(pc[c],'sem '+c)+' → '+brl(nv));novo[c]=nv});
     S.t.basePac[p.codigo]={...(S.t.basePac[p.codigo]||{}),...novo}}
   S.t.versao=v;S.t.hist.push({versao:v,motivo:motivo+' · '+mud.join(', '),quando:new Date().toISOString(),quem:user(),prop:p.id});
   log('obra',S.D.obra.codigo,'linha_base','v'+(v-(S.t.frozen?1:0)),'v'+v+' · meta '+metaAlvoTxt(p)+' · nº '+p.id+(conf?' · aplicada mesmo assim na conferência':''),conf?conf.motivo:p.motivo);
@@ -339,7 +339,7 @@ function metaDecideModal(id,ap){const p=metaDaObra().find(x=>String(x.id)===Stri
    ${metaTabela(p,h,metaColunas(p,h,null))}
    <div class="sub" style="margin-top:8px">Motivo de ${esc(p.proposto_por)}: ${esc(p.motivo)}</div>
    <label for="md-m">${ap?'Observação (opcional)':'Motivo da recusa (obrigatório)'}</label><textarea id="md-m" rows="2" maxlength="500"></textarea><div id="md-msg" class="sub"></div>
-   ${ap?`<div class="sub" style="margin-top:8px">Ao aprovar, a meta entra na linha de base${S.t.frozen?' como versão v'+((S.t.versao||1)+1):''}, com histórico e auditoria.</div>`:''}
+   ${ap?`<div class="sub" style="margin-top:8px">Ao aprovar, a meta entra na linha de base${S.t.frozen?' como versão v'+((Number(S.t.versao)||1)+1):''}, com histórico e auditoria.</div>`:''}
    <div class="acts"><button class="btn" data-act="fechar">Voltar</button><button class="btn ${ap?'ok':'no'}" data-act="meta-decide-ok">${ap?'Aprovar':'Recusar'}</button></div>`)}
 async function metaDecideOk(){const x=MDX,B=metaBack();if(!x||!B)return;const m=String(($('#md-m')||{}).value||'').trim();
   if(!x.ap&&m.length<3){const e=$('#md-msg');if(e)e.innerHTML='<span class="neg">Escreva o motivo da recusa.</span>';return toast('Escreva o motivo da recusa')}
@@ -369,7 +369,7 @@ function metaConfModal(id,aplicar){const x=metaConflitoDe(id);if(!x)return toast
    <div class="alert" style="margin-top:10px"><div class="g" style="color:var(--warn)">!</div><div><b>${p.alvo==='pacote'?'O pacote':'O item'} mudou depois da aprovação</b><p>${esc(metaConfTxt(x.conflito))}. Pode ter sido um remanejamento, uma planilha ou um navegador com dados velhos que gravou por cima. Confira antes de decidir.</p></div></div>
    ${metaTabela(p,h,metaColunas(p,h,x))}
    ${rem&&aplicar?`<div class="sub neg" style="margin-top:8px">Este item tem remanejamento: a meta de hoje (${brl(S.t.metaOv[p.codigo])}) veio de um remanejamento. Aplicar a meta aprovada desfaz o remanejamento deste item; o outro item do remanejamento fica como está e o total da obra muda.</div>`:''}
-   <div class="sub" style="margin-top:8px">${aplicar?'A meta aprovada entra agora'+(S.t.frozen?' como versão v'+((S.t.versao||1)+1):'')+', por cima do valor de hoje, com histórico e auditoria.':'A meta aprovada não entra. Fica registrado no histórico da linha de base, sem versão nova. Para mudar a meta depois, faça uma proposta nova.'}</div>
+   <div class="sub" style="margin-top:8px">${aplicar?'A meta aprovada entra agora'+(S.t.frozen?' como versão v'+((Number(S.t.versao)||1)+1):'')+', por cima do valor de hoje, com histórico e auditoria.':'A meta aprovada não entra. Fica registrado no histórico da linha de base, sem versão nova. Para mudar a meta depois, faça uma proposta nova.'}</div>
    <label for="mc-m">Motivo (obrigatório)</label><textarea id="mc-m" rows="2" maxlength="500"></textarea><div id="mc-msg" class="sub"></div>
    <div class="acts"><button class="btn" data-act="fechar">Voltar</button><button class="btn ${aplicar?'ok':'no'}" data-act="meta-conf-ok">${aplicar?'Aplicar mesmo assim':'Não aplicar'}</button></div>`)}
 async function metaConfOk(){const x=MCX;if(!x)return;const m=String(($('#mc-m')||{}).value||'').trim();

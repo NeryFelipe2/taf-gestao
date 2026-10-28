@@ -2,6 +2,8 @@
 const $=s=>document.querySelector(s);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const brl=(v,c=false)=>{v=+v||0;return c&&Math.abs(v)>=1e6?'R$ '+(v/1e6).toFixed(2).replace('.',',')+' mi':c&&Math.abs(v)>=1e3?'R$ '+Math.round(v/1e3).toLocaleString('pt-BR')+' mil':v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'})};
+/* [integração] valor que pode estar vazio (meta e teto de obra nova): vazio não é zero */
+const brlOu=(v,vazio='—')=>v==null||v===''?vazio:brl(v);
 const num=v=>(+v||0).toLocaleString('pt-BR',{maximumFractionDigits:2});
 const r2=v=>Math.round((+v||0)*100)/100;
 const hojeISO=()=>new Date().toISOString().slice(0,10);

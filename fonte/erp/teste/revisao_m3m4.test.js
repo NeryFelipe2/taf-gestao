@@ -57,7 +57,10 @@ function foto(S, semCamposNovos) {
 
 /* telas que leem pedido e solicitação: o texto tem de sair igual (espaço em branco não conta) */
 /* ids de documento (o/s/n + Date.now() + sorteio) e espaço em branco não contam */
-const comp = h => String(h == null ? '' : h).replace(/[osn]\d{10,}[a-z0-9]*/g, '#id').replace(/\s+/g, ' ').replace(/> </g, '><').trim();
+/* [integração] item sem meta ou sem teto (vazio): o ERP novo escreve "sem meta" e "sem teto" (vazio não é zero), a partida escrevia R$ 0,00.
+   Só essa troca não conta na comparação. */
+const comp = h => String(h == null ? '' : h).replace(/[osn]\d{10,}[a-z0-9]*/g, '#id').replace(/<span class="mut">sem meta<\/span>/g, 'R$ 0,00')
+  .replace(/>sem (meta|teto)</g, '>R$ 0,00<').replace(/\s+/g, ' ').replace(/> </g, '><').trim();
 function telas(a, S) {
   const X = a.derive(), out = {};
   S.tab.compras = 'sols'; out.sols = comp(a.viewCompras(X)); S.tab.compras = 'ocs'; out.ocs = comp(a.viewCompras(X)); S.tab.compras = 'aprov'; out.aprov = comp(a.viewCompras(X));

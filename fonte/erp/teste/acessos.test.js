@@ -87,9 +87,9 @@ test('lista: nome, pessoa, papel, obras, situação, criada em e link de entrada
   assert.match(h, /data-r="Entra por"><span class="mono">\/marko<\/span>/, 'engenheiro e encarregado: /marko');
   assert.match(h, /data-r="Entra por"><span class="mono">\/erp<\/span> <span class="mono">\/ciclo<\/span>/, 'Diretoria: /erp e /ciclo');
   assert.match(h, /<span class="pill ok">você<\/span>/); assert.match(h, /É a sua chave\./, 'a própria chave não tem botão');
-  assert.equal((h.match(/data-act="ac-desativar"/g) || []).length, 2, 'só as que o banco deixa');
+  assert.equal((h.match(/data-act="acs-desativar"/g) || []).length, 2, 'só as que o banco deixa');
   assert.doesNotMatch(h, /Antiga/, 'desativadas escondidas por padrão');
-  run(api, "ACOES['ac-desativadas']()"); assert.match(v(), /Antiga[\s\S]*desativada[\s\S]*20\/10\/2026 · Diretor Demonstração/);
+  run(api, "ACOES['acs-desativadas']()"); assert.match(v(), /Antiga[\s\S]*desativada[\s\S]*20\/10\/2026 · Diretor Demonstração/);
   assert.match(h, /Criar acesso<\/button>/);
 });
 
@@ -99,17 +99,17 @@ test('partida: com a chave geral e sem Diretoria, só o botão da primeira chave
   run(api, 'viewAcessos()'); await espera();
   let h = String(run(api, 'viewAcessos()'));
   assert.match(h, /Ainda não existe chave de Diretoria/); assert.match(h, /Criar a primeira chave de Diretoria/); assert.doesNotMatch(h, /ac-i ac-h/);
-  run(api, "ACOES['ac-novo']()"); const m = String(api.dom['#mbox'].innerHTML);
+  run(api, "ACOES['acs-novo']()"); const m = String(api.dom['#mbox'].innerHTML);
   assert.match(m, /Primeira chave de Diretoria/); assert.equal((m.match(/<option /g) || []).length, 1); assert.match(m, /value="diretoria" selected/);
   run(api, "AC.dados=null;AC.erro=''"); B.resp.taf_acesso_listar = { ator: { tipo: 'geral', nome: 'Felipe', papel: 'chave geral' }, partida: false, pode_criar: [], obras: [], chaves: [] };
   run(api, 'viewAcessos()'); await espera(); h = String(run(api, 'viewAcessos()'));
-  assert.match(h, /Entre com a sua chave pessoal/); assert.doesNotMatch(h, /data-act="ac-novo"/);
+  assert.match(h, /Entre com a sua chave pessoal/); assert.doesNotMatch(h, /data-act="acs-novo"/);
 });
 
 test('criar: manda nome, pessoa, papel e obras; a chave aparece uma vez, com copiar, aviso de mensagem direta e link; nada fica guardado', async () => {
   const B = bancoFalso(); B.resp.taf_acesso_listar = LISTA_DIR; const api = carregaChave(B); entra(api, 'diretoria');
   run(api, 'viewAcessos()'); await espera();
-  run(api, "ACOES['ac-novo']()"); let m = String(api.dom['#mbox'].innerHTML);
+  run(api, "ACOES['acs-novo']()"); let m = String(api.dom['#mbox'].innerHTML);
   assert.equal((m.match(/<option /g) || []).length, 5); assert.match(m, /value="engenheiro" selected/, 'padrão: engenheiro');
   assert.match(m, /engenheiro no planejador: Engenheira Demonstração/); assert.match(m, /sem cronograma no planejador/);
   assert.doesNotMatch(m, /class="ac-ob"[^>]*checked/, 'revisão 2: nenhuma obra vem marcada (o padrão é o mínimo)');
@@ -124,7 +124,7 @@ test('criar: manda nome, pessoa, papel e obras; a chave aparece uma vez, com cop
   const gid = api.ctx.document.getElementById, box = { innerHTML: '' }, faz = { textContent: '' };
   api.ctx.document.getElementById = id => (id === 'ac-aviso' ? box : id === 'ac-faz' ? faz : id === 'ac-chave' ? null : gid(id));
   run(api, 'acPintaAviso()');
-  assert.match(box.innerHTML, /o engenheiro no planejador é <b>Engenheira Demonstração<\/b>/); assert.match(box.innerHTML, /data-act="ac-usar-nome" data-n="Engenheira Demonstração"/);
+  assert.match(box.innerHTML, /o engenheiro no planejador é <b>Engenheira Demonstração<\/b>/); assert.match(box.innerHTML, /data-act="acs-usar-nome" data-n="Engenheira Demonstração"/);
   assert.match(faz.textContent, /publica/);
   api.el('#ac-pessoa').value = 'Engenheira Demonstração'; run(api, 'acPintaAviso()'); assert.equal(box.innerHTML, '', 'nome igual: sem aviso');
   api.el('#ac-pessoa').value = 'Fulano Teste';
@@ -132,13 +132,13 @@ test('criar: manda nome, pessoa, papel e obras; a chave aparece uma vez, com cop
   B.resp.taf_acesso_criar = { ok: true, id: '1234567890', chave: CH_TXT, nome: 'Fulano Teste', pessoa: 'Fulano Teste', papel: 'engenheiro', obras: ['999'], partida: false,
     avisos: ['Obra 999: o engenheiro no planejador é Engenheira Demonstração e esta chave está em nome de Fulano Teste.'] };
   api.ctx.location.origin = 'https://site.exemplo';
-  await run(api, "ACOES['ac-criar-ok']({disabled:false})");
+  await run(api, "ACOES['acs-criar-ok']({disabled:false})");
   const c = B.chamadas.find(x => x.fn === 'taf_acesso_criar');
   assert.deepEqual(c.body, { p_chave: CHAVE_SITE, p_quem: 'Diretor Demonstração', p_nome: null, p_pessoa: 'Fulano Teste', p_papel: 'engenheiro', p_obras: ['999'] });
   m = String(api.dom['#mbox'].innerHTML);
   assert.equal(m.split(CH_TXT).length - 1, 1, 'a chave aparece uma vez');
   assert.match(m, /Chave criada: copie agora/); assert.match(m, /É a única vez que esta chave aparece/); assert.match(m, /Mande só por mensagem direta para Fulano Teste/);
-  assert.match(m, /data-act="ac-copiar"/); assert.match(m, /data-act="ac-copiar-msg"/); assert.match(m, /https:\/\/site\.exemplo\/marko/);
+  assert.match(m, /data-act="acs-copiar"/); assert.match(m, /data-act="acs-copiar-msg"/); assert.match(m, /https:\/\/site\.exemplo\/marko/);
   assert.match(m, /o engenheiro no planejador é Engenheira Demonstração/, 'aviso do nome também no resultado');
   /* nada guarda a chave: estado do ERP, AC, aparelho */
   assert.ok(!JSON.stringify(run(api, 'AC')).includes(CH_TXT)); assert.ok(!JSON.stringify(run(api, 'S.t')).includes(CH_TXT));
@@ -147,25 +147,25 @@ test('criar: manda nome, pessoa, papel e obras; a chave aparece uma vez, com cop
   /* mensagem pronta e copiar */
   let copiado = ''; api.ctx.navigator.clipboard = { writeText: t => { copiado = t; return Promise.resolve(); } };
   api.el('#ac-chave').value = CH_TXT; api.ctx.document.getElementById = id => (id === 'ac-chave' ? api.el('#ac-chave') : gid(id));
-  run(api, "ACOES['ac-copiar']()"); await espera(); assert.equal(copiado, CH_TXT);
-  run(api, "ACOES['ac-copiar-msg']()"); await espera();
-  assert.match(copiado, /^Olá, Fulano Teste\. Este é o seu acesso ao sistema da TAF \(engenheiro\)\.\nEntre em https:\/\/site\.exemplo\/marko e digite a chave:\nfulano-1a2b/);
+  run(api, "ACOES['acs-copiar']()"); await espera(); assert.equal(copiado, CH_TXT);
+  run(api, "ACOES['acs-copiar-msg']()"); await espera();
+  assert.match(copiado, /^Olá, Fulano Teste\. Este é o seu acesso ao sistema da TAF \(engenheiro\)\.\nEntre em https:\/\/site\.exemplo\/marko ou https:\/\/site\.exemplo\/erp e digite a chave:\nfulano-1a2b/);
   assert.match(copiado, /não mostre nem mande para ninguém/);
-  run(api, "ACOES['ac-fechar-chave']()"); assert.equal(api.el('#ac-chave').value, ''); assert.equal(api.dom['#mbox'].innerHTML, '');
+  run(api, "ACOES['acs-fechar-chave']()"); assert.equal(api.el('#ac-chave').value, ''); assert.equal(api.dom['#mbox'].innerHTML, '');
   assert.equal(run(api, 'AC.ult'), null);
 });
 
 test('criar: o formulário confere antes de mandar e mostra o recado do banco em português', async () => {
   const B = bancoFalso(); B.resp.taf_acesso_listar = LISTA_DIR; const api = carregaChave(B); entra(api, 'gestao');
-  run(api, 'viewAcessos()'); await espera(); run(api, "ACOES['ac-novo']()");
+  run(api, 'viewAcessos()'); await espera(); run(api, "ACOES['acs-novo']()");
   api.ctx.document.querySelectorAll = () => [];
   api.el('#ac-papel').value = 'engenheiro'; api.el('#ac-pessoa').value = 'Fulano Teste';
-  await run(api, "ACOES['ac-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'Escolha ao menos uma obra.');
+  await run(api, "ACOES['acs-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'Escolha ao menos uma obra.');
   api.el('#ac-pessoa').value = ''; api.ctx.document.querySelectorAll = s => (s === '.ac-ob:checked' ? [{ value: '999' }] : []);
-  await run(api, "ACOES['ac-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'Informe a pessoa.');
+  await run(api, "ACOES['acs-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'Informe a pessoa.');
   assert.ok(!B.chamadas.some(c => c.fn === 'taf_acesso_criar'), 'nada foi ao banco');
   api.el('#ac-pessoa').value = 'Fulano Teste'; B.resp.taf_acesso_criar = { erro: 'SEM ACESSO A OBRA 998: O GESTOR SO CRIA ACESSO NAS OBRAS DA PROPRIA CHAVE' };
-  await run(api, "ACOES['ac-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'A obra 998 não está na sua chave. Peça à Diretoria que tem todas as obras.');
+  await run(api, "ACOES['acs-criar-ok']({})"); assert.equal(api.el('#ac-msg').textContent, 'A obra 998 não está na sua chave. Peça à Diretoria que tem todas as obras.');
 });
 
 test('recados do banco viram frase de obra', () => {
@@ -195,15 +195,15 @@ test('recados do banco viram frase de obra', () => {
 test('desativar: confirma com motivo, manda o id curto e recarrega; recusa do banco aparece na janela', async () => {
   const B = bancoFalso(); B.resp.taf_acesso_listar = LISTA_DIR; const api = carregaChave(B); entra(api, 'diretoria');
   run(api, 'viewAcessos()'); await espera();
-  run(api, "ACOES['ac-desativar']({dataset:{id:'cccccccccc'}})"); const m = String(api.dom['#mbox'].innerHTML);
-  assert.match(m, /Desativar a chave Encarregado 999/); assert.match(m, /para de funcionar na hora/); assert.match(m, /data-act="ac-desativar-ok" data-id="cccccccccc"/);
+  run(api, "ACOES['acs-desativar']({dataset:{id:'cccccccccc'}})"); const m = String(api.dom['#mbox'].innerHTML);
+  assert.match(m, /Desativar a chave Encarregado 999/); assert.match(m, /para de funcionar na hora/); assert.match(m, /data-act="acs-desativar-ok" data-id="cccccccccc"/);
   api.el('#ac-mot').value = 'saiu da obra'; B.resp.taf_acesso_desativar = { ok: true, id: 'cccccccccc' };
-  await run(api, "ACOES['ac-desativar-ok']({dataset:{id:'cccccccccc'}})");
+  await run(api, "ACOES['acs-desativar-ok']({dataset:{id:'cccccccccc'}})");
   assert.deepEqual(B.chamadas.find(c => c.fn === 'taf_acesso_desativar').body, { p_chave: CHAVE_SITE, p_quem: 'Diretor Demonstração', p_id: 'cccccccccc', p_motivo: 'saiu da obra' });
   assert.ok(api.msgs().includes('Chave desativada.')); assert.equal(run(api, 'AC.dados'), null);
   run(api, 'viewAcessos()'); await espera();
   B.resp.taf_acesso_desativar = { erro: 'ULTIMA CHAVE DE DIRETORIA ATIVA: CRIE OUTRA ANTES DE DESATIVAR ESTA' };
-  await run(api, "ACOES['ac-desativar-ok']({dataset:{id:'bbbbbbbbbb'}})");
+  await run(api, "ACOES['acs-desativar-ok']({dataset:{id:'bbbbbbbbbb'}})");
   assert.equal(api.el('#ac-msg').textContent, 'É a última chave de Diretoria ativa. Crie outra antes de desativar esta.');
 });
 
@@ -220,7 +220,7 @@ test('revisão 2: Diretoria limitada vê o aviso das obras dela e as chaves só 
   assert.match(h, /Sua chave de Diretoria vale só nas obras <b class="mono">999<\/b>/);
   assert.match(h, /data-r="Obras"><span class="mono">999<\/span><div class="mut"[^>]*>\+1 obra fora da sua chave/);
   assert.match(h, /title="Esta chave tem obra que não está na sua\. Peça à Diretoria\.">Tem obra fora da sua chave\./);
-  assert.equal((h.match(/data-act="ac-desativar"/g) || []).length, 0);
+  assert.equal((h.match(/data-act="acs-desativar"/g) || []).length, 0);
   assert.doesNotMatch(h, /998/, 'a obra de fora não aparece');
   /* a Diretoria com todas as obras: obra nova sem Diretoria */
   run(api, "AC.dados=null;AC.erro=''");
