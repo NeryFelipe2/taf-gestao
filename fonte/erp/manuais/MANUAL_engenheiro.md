@@ -3,7 +3,7 @@
 
 ## Entrar
 - Use a sua **chave pessoal** (a Diretoria ou o gestor cria em Acessos e manda por mensagem direta). Entre em **/marko**; no ERP, **/erp**. Com a chave geral do site você entra como gestor e não planeja nem aponta.
-- O nome da chave tem de ser **igual ao do engenheiro da obra no planejador**. Nome diferente: as demandas, as áreas e as tarefas em seu nome não aparecem como suas.
+- A **pessoa** da sua chave tem de ter o **mesmo nome do engenheiro da obra no planejador**. Nome diferente: as demandas, as áreas e as tarefas em seu nome não aparecem como suas. (O "nome da chave" é só para achar na lista e não importa para isso.)
 
 ## Tarefas
 - **Dashboard** (Início): indicadores com meta, Curva S, funil de compras, estoque e pessoas. "Escolher o que mostrar" liga e desliga seções.
