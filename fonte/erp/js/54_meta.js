@@ -246,7 +246,7 @@ function metaSituacao(p){
   if(MP.falhas[p.id])return ['bad','aprovada · não entrou: '+MP.falhas[p.id]];
   const f=metaPlanoTela().find(x=>String(x.p.id)===String(p.id));
   if(f&&!f.campos.length)return ['mute','aprovada · superada por outra mais nova'];
-  if(f&&f.conflito)return ['bad','aprovada · precisa de conferência: '+(p.alvo==='pacote'?'o pacote':'o item')+' mudou depois da aprovação'];
+  if(f&&f.conflito)return ['bad','aprovada · precisa de conferência'];
   return ['info','aprovada · entra na linha de base quando Gestão, Diretoria ou Gerente abrir a obra']}
 
 /* valores de hoje do item ou do pacote (o que a tela mostra) */
@@ -421,7 +421,7 @@ function metaCartao(p){const h=metaHoje(p.alvo,p.codigo)||{},st=metaSituacao(p),
     :can('metaDecidir')?`<span class="sub">${esc(pd[1])}</span>`:'';
   const conf=x?`<div class="sub neg" style="margin-top:6px">Não entrou sozinha: ${esc(metaConfTxt(x.conflito))}.${can('metaDecidir')?' Confira e escolha.':' Gerente, Gestão ou Diretoria conferem.'}</div>`:'';
   return `<div class="card"><div class="in">
-   <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start"><div><b>${p.alvo==='pacote'?'Pacote':'Item'} <span class="mono">${esc(p.codigo)}</span></b><div class="mut" style="font-size:12px">${esc(String(h.nome||'').slice(0,80))}</div></div><span class="pill ${st[0]}">${esc(st[1])}</span></div>
+   <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:flex-start"><div><b>${p.alvo==='pacote'?'Pacote':'Item'} <span class="mono">${esc(p.codigo)}</span></b><div class="mut" style="font-size:12px">${esc(String(h.nome||'').slice(0,80))}</div></div><span class="pill ${st[0]}" style="white-space:normal;max-width:100%">${esc(st[1])}</span></div>
    ${metaTabela(p,h,metaColunas(p,h,x))}${conf}
    <div class="sub" style="margin-top:6px">Motivo: ${esc(p.motivo)}</div>
    <div class="sub">${p.origem==='direta'?'Mudança direta':'Proposta'} nº ${esc(p.id)} · ${metaQuemTxt(p)} · ${metaQuando(p.proposto_em)}</div>${dec}

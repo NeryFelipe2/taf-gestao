@@ -335,7 +335,7 @@ test('revisão (cenário do revisor): meta aprovada no 3.3, navegador velho rema
   /* a passada NÃO aplica: o estado continua o de G2 (o remanejamento ficou dos dois lados e o total não mudou) */
   assert.equal(await g('metaAplicarAprovadas')(), 0);
   assert.deepEqual(J(S.t.metaOv), { '3.3': 2500, '1.1': 9500 }); assert.equal(S.t.baseOv['3.3'], undefined); perto(totalMeta(S), t0, 'nada apareceu do nada');
-  assert.deepEqual(J(g('metaSituacao')(dp)), ['bad', 'aprovada · precisa de conferência: o item mudou depois da aprovação']);
+  assert.deepEqual(J(g('metaSituacao')(dp)), ['bad', 'aprovada · precisa de conferência']);
   /* quem confere: a diretora vê no contador, no sino e na aba; o engenheiro (quem propôs) só vê a situação */
   assert.equal(g('metaParaMim')().length, 1); assert.match(g('metaBadge')(), /badge hot">1</);
   const a = []; g('metaAlertas')(a); assert.ok(a.some(x => x[0] === 'bad' && /1 meta\(s\) aprovada\(s\) precisam de conferência/.test(x[1])), JSON.stringify(a));
