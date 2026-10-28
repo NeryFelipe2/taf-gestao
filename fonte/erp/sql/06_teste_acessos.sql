@@ -1,5 +1,6 @@
--- Teste do 06_acessos.sql na OBRA 999 · DEMONSTRAÇÃO e na 998 (fictícias). Roda numa transação e DESFAZ tudo no fim (rollback):
+-- Teste do 06_acessos.sql na OBRA 999 · DEMONSTRAÇÃO e na 998 (fictícias; a 998 só existe para testar "obra fora da chave do gestor"). Roda numa transação e DESFAZ tudo no fim (rollback):
 -- nada fica gravado, nem as obras, nem as chaves, nem o registro.
+-- Precisa da obra 999 sem semana montada no planejador (banco de teste novo).
 -- Uso: num banco que já tem o 06 (ou colando o 06 logo depois do "begin;"), rodar este arquivo inteiro de uma vez, por exemplo
 --   psql -v ON_ERROR_STOP=1 -f fonte/erp/sql/06_teste_acessos.sql
 -- Se uma regra falhar, para com "FALHOU: ..." e a transação é desfeita. Se tudo passar, mostra "06 OK" e desfaz.
@@ -11,10 +12,15 @@ begin;
 
 -- ---------- cenário (como dono do banco)
 insert into public.taf_erp_obra (codigo, nome, contratante) values ('999', 'OBRA 999 · DEMONSTRAÇÃO', 'Cliente fictício'),
-  ('998', 'OBRA 998 · DEMONSTRAÇÃO 2', 'Cliente fictício') on conflict (codigo) do nothing;
+  ('998', 'OBRA 998 · DEMONSTRAÇÃO (fictícia)', 'Cliente fictício') on conflict (codigo) do nothing;
 insert into public.taf_ciclo_obra (obra, nome, engenheiro, ep, base_rev, equipe)
 values ('999', 'OBRA 999 · DEMONSTRAÇÃO', 'Engenheira Demonstração', date '2026-09-01', 'teste 06', array['Engenheira Demonstração'])
 on conflict (obra) do nothing;
+do $$ begin
+  if exists (select 1 from public.taf_ciclo_comp where obra = '999') then
+    raise exception 'FALHOU: este teste precisa da obra 999 sem semana montada no planejador. Rode num banco de teste novo (novo_banco.sh e depois o 06_acessos.sql)';
+  end if;
+end $$;
 -- partida limpa: nenhuma chave de Diretoria ativa (o rollback devolve como estava)
 update public.taf_ciclo_chave set ativo = false where papel = 'diretoria' and ativo;
 

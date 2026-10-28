@@ -40,7 +40,7 @@ function entra(api, papel, extra = {}) {
 const espera = () => new Promise(r => setImmediate(r));
 
 const OBRAS = [{ codigo: '999', nome: 'OBRA 999 · DEMONSTRAÇÃO', engenheiro: 'Engenheira Demonstração', planejador: true, erp: true },
-  { codigo: '998', nome: 'OBRA 998 · DEMONSTRAÇÃO 2', engenheiro: null, planejador: false, erp: true }];
+  { codigo: '998', nome: 'OBRA 998 · DEMONSTRAÇÃO (fictícia)', engenheiro: null, planejador: false, erp: true }];
 const LISTA_DIR = {
   ator: { tipo: 'pessoal', nome: 'Diretor Demonstração', papel: 'diretoria', verificado: true, id: 'aaaaaaaaaa' }, partida: false,
   pode_criar: ['diretoria', 'gestor', 'engenheiro', 'encarregado', 'leitura'], obras: OBRAS,
@@ -248,7 +248,7 @@ test('06_acessos.sql: rascunho, idempotente, security definer com search_path, s
 });
 
 const DB = process.env.TAF_PGTEST_DB;
-test('06_teste_acessos.sql no Postgres local (só com TAF_PGTEST_DB)', { skip: !DB && 'defina TAF_PGTEST_DB=<banco local com o 06 aplicado> para rodar' }, () => {
+test('06_teste_acessos.sql no Postgres local (só com TAF_PGTEST_DB)', { skip: !DB && 'defina TAF_PGTEST_DB=<banco local novo, com o 06 aplicado> para rodar' }, () => {
   const sql = path.join(RAIZ, 'fonte', 'erp', 'sql', '06_teste_acessos.sql');
   const r = cp.spawnSync('psql', ['-h', process.env.TAF_PGTEST_HOST || '/opt/pgtest', '-p', process.env.TAF_PGTEST_PORT || '5433', '-U', 'postgres', '-d', DB, '-X', '-q', '-v', 'ON_ERROR_STOP=1', '-f', sql], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr); assert.match(r.stderr, /NOTICE:\s+06 OK/);

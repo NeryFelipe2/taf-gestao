@@ -27,7 +27,7 @@
 
 1. Backup: `create table public.taf_ciclo_chave_copia_0610 as select * from public.taf_ciclo_chave;`
 2. Rodar `06_acessos.sql` inteiro. Pode rodar de novo sem problema.
-3. Rodar `06_teste_acessos.sql` (precisa de uma chave geral de teste em `taf_chave`; ver o cabeçalho). Tem de terminar com `06 OK`.
+3. Rodar `06_teste_acessos.sql` num banco de teste novo (precisa de uma chave geral de teste em `taf_chave` e da obra 999 sem semana no planejador; ver o cabeçalho). Tem de terminar com `06 OK`. No banco de verdade ele também desfaz tudo, mas só roda se a obra 999 estiver sem semana.
 4. Montar e publicar o site (ERP com a tela Acessos; planejador aceitando o encarregado).
 
 Desfazer: fim do `06_acessos.sql`.

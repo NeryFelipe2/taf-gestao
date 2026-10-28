@@ -104,14 +104,14 @@ function viewAcessos(){
 /* estilo da lista: só variáveis do tema do ERP (vale no claro, no escuro e dentro do Centro); no celular cada chave vira um cartão */
 function acCss(){if(typeof document==='undefined'||!document.head||document.getElementById('ac-css'))return;const s=document.createElement('style');s.id='ac-css';
   s.textContent='.ac-l{display:flex;flex-direction:column;gap:6px;margin-top:10px}'+
-  '.ac-i{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.2fr) minmax(0,1.3fr) minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:9px 12px}'+
+  '.ac-i{display:grid;grid-template-columns:minmax(0,2fr) minmax(128px,1fr) minmax(0,.8fr) minmax(0,1.1fr) minmax(0,1.3fr) minmax(0,1fr) 130px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:9px 12px}'+
   '.ac-i.ac-h{background:var(--panel-2);border-color:transparent;font:500 10.5px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);padding:6px 12px}'+
-  '.ac-i.ac-des{background:var(--panel-2)}.ac-i.ac-des .ac-nome b{color:var(--ink-3)}.ac-act{justify-self:end}'+
+  '.ac-i.ac-des{background:var(--panel-2)}.ac-i.ac-des .ac-nome b{color:var(--ink-3)}.ac-act{justify-self:end;text-align:right}'+
   '.ac-av{grid-column:1/-1;display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--ink-2)}.ac-nome{min-width:0;overflow-wrap:anywhere}'+
-  '.ac-chave{font:600 17px var(--mono);letter-spacing:.03em;overflow-wrap:anywhere}'+
+  '.ac-chave{font:600 17px var(--mono);letter-spacing:.03em;resize:none;line-height:1.4;overflow:hidden}'+
   '.ac-obs{display:flex;flex-direction:column;gap:6px;max-height:240px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:8px 10px}'+
   '.ac-obs label{display:flex;gap:8px;align-items:flex-start;text-transform:none;font-family:inherit;letter-spacing:0;font-size:13px;color:var(--ink);margin:0}.ac-obs input{width:auto;margin-top:3px}'+
-  '@media (max-width:820px){.ac-i{grid-template-columns:1fr 1fr}.ac-i.ac-h{display:none}.ac-i .ac-nome,.ac-i .ac-act{grid-column:1/-1}.ac-act{justify-self:start}'+
+  '@media (max-width:820px){.ac-i{grid-template-columns:1fr 1fr}.ac-i.ac-h{display:none}.ac-i .ac-nome,.ac-i .ac-act{grid-column:1/-1}.ac-act{justify-self:start;text-align:left}'+
   '.ac-i [data-r]::before{content:attr(data-r);display:block;font:500 10px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-bottom:2px}}';
   document.head.appendChild(s)}
 
@@ -159,7 +159,7 @@ function acMostraChave(r){AC.ult={pessoa:r.pessoa||r.nome,papel:r.papel};
   modal(`<h3>Chave criada: copie agora</h3><div class="sub">É a única vez que esta chave aparece. Depois de fechar, nem você nem o sistema veem de novo. Perdeu? Desative e crie outra.</div>
    <div class="sem amarelo" style="margin-top:12px"><span class="pill warn">atenção</span><span><b>Mande só por mensagem direta para ${esc(r.pessoa||r.nome)}.</b> Nunca em grupo, e-mail aberto ou print. Quem tiver a chave entra como essa pessoa.</span></div>
    <label for="ac-chave">Chave de ${esc(r.pessoa||r.nome)} · ${esc(AC_PAPEL[r.papel]||r.papel)} · obras ${(r.obras||[]).map(esc).join(', ')}</label>
-   <input id="ac-chave" class="ac-chave" readonly value="${esc(r.chave)}" autocomplete="off" spellcheck="false">
+   <textarea id="ac-chave" class="ac-chave" readonly rows="2" autocomplete="off" spellcheck="false" autocapitalize="off">${esc(r.chave)}</textarea>
    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn dark" data-act="ac-copiar">Copiar a chave</button><button class="btn" data-act="ac-copiar-msg">Copiar mensagem pronta</button></div>
    <label>Onde entrar</label><ul style="margin:4px 0 0 18px;padding:0" class="sub">${acLinks(r.papel)}</ul>
    ${av.length?`<div style="margin-top:10px">${av.map(a=>`<div class="sem amarelo" style="margin-top:6px"><span class="pill warn">aviso</span><span>${esc(a)}</span></div>`).join('')}</div>`:''}
