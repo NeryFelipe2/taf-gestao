@@ -111,5 +111,5 @@ grant execute on function public.ia_whatsapp_receber(text, text, text, text, tex
 -- ===================================================================== desfazer (manual)
 -- drop function if exists public.ia_whatsapp_receber(text, text, text, text, text, timestamptz, jsonb);
 -- delete from ia.config where chave in ('whatsapp_segredo_banco', 'whatsapp_allowlist');
--- (As linhas de ia.fato com fonte = 'whatsapp' ficam; apagar só se o Felipe mandar. Sem a função o endpoint responde 200 à Meta
---  e registra no log "falta aplicar o 09_whatsapp_entrada.sql".)
+-- (As linhas de ia.fato com fonte = 'whatsapp' ficam; apagar só se o Felipe mandar. Sem a função o endpoint responde 503 e registra
+--  no log "falta aplicar o 09_whatsapp_entrada.sql"; a Meta ou a Bird reenvia e, com a função de volta, a mensagem entra sem duplicar.)

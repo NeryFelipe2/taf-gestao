@@ -24,19 +24,31 @@ function lote() {
   };
 }
 
+// modo (para todas as mensagens) ou modoPor[wa_id] (só para uma): normal | fora | corta | 5xx | sem-funcao | chave-recusada |
+// sem-segredo-no-banco | validacao | sem-id | 5xx-com-texto-de-validacao. Como a função do banco, o mesmo id de mensagem não grava duas vezes (repetido: true).
 function criarBanco(segredos) {
-  const b = { chamadas: [], modo: 'normal', gravados: [] };
+  const b = { chamadas: [], modo: 'normal', modoPor: {}, gravados: [], vistos: new Map() };
   const resp = (obj, status = 200) => new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json' } });
+  const erro = (msg) => resp({ code: 'P0001', message: msg }, 400);
   b.fetch = async function (url, opts) {
     url = String(url);
     b.chamadas.push({ url, opts });
-    if (b.modo === 'fora') throw Object.assign(new Error('rede caiu'), { name: 'TypeError' });
     if (url !== BASE + '/rest/v1/rpc/ia_whatsapp_receber') return resp({ message: 'rota inesperada' }, 404);
-    if (opts.headers.apikey !== ANON || opts.headers.Authorization !== 'Bearer ' + ANON) return resp({ message: 'Invalid API key' }, 401);
     const a = JSON.parse(opts.body);
-    if (b.modo === 'sem-funcao') return resp({ code: 'PGRST202', message: 'Could not find the function public.ia_whatsapp_receber in the schema cache' }, 404);
-    if (a.p_segredo !== segredos.banco) return resp({ code: 'P0001', message: 'SEGREDO INVALIDO' }, 400);
+    const modo = b.modoPor[a.p_wa_id] || b.modo;
+    if (modo === 'fora') throw Object.assign(new Error('rede caiu'), { name: 'TypeError' });
+    if (modo === 'corta') return { ok: true, status: 200, text: async () => { throw Object.assign(new Error('terminated'), { name: 'TypeError' }); } };   // a conexão cai no meio da resposta
+    if (modo === '5xx') return resp({ message: 'canceling statement due to statement timeout' }, 503);
+    if (modo === '5xx-com-texto-de-validacao') return resp({ message: 'NUMERO INVALIDO' }, 500);   // só 4xx conta como validação
+    if (modo === 'chave-recusada' || opts.headers.apikey !== ANON || opts.headers.Authorization !== 'Bearer ' + ANON) return resp({ message: 'Invalid API key' }, 401);
+    if (modo === 'sem-funcao') return resp({ code: 'PGRST202', message: 'Could not find the function public.ia_whatsapp_receber in the schema cache' }, 404);
+    if (modo === 'sem-segredo-no-banco') return erro('SEGREDO NAO CONFIGURADO');
+    if (a.p_segredo !== segredos.banco) return erro('SEGREDO INVALIDO');
+    if (modo === 'validacao') return erro('NUMERO INVALIDO');
+    if (modo === 'sem-id') return erro('MENSAGEM SEM ID');
+    if (b.vistos.has(a.p_wa_id)) return resp({ ok: true, fato_id: b.vistos.get(a.p_wa_id), liberado: true, repetido: true });
     b.gravados.push(a);
+    b.vistos.set(a.p_wa_id, b.gravados.length);
     return resp({ ok: true, fato_id: b.gravados.length, liberado: true, repetido: false });
   };
   b.rpc = () => b.chamadas.map((c) => JSON.parse(c.opts.body));
@@ -135,6 +147,21 @@ describe('/api/whatsapp (Meta Cloud API, Supabase simulado)', () => {
       banco.nada();
     });
 
+    it('a assinatura vale para os bytes que chegaram (acentos, emoji, escapes \\u e espaços), não para um JSON reescrito', async () => {
+      const bruto = '{ "object": "whatsapp_business_account", "entry": [ { "id": "0", "changes": [ { "field": "messages", "value": { "messaging_product": "whatsapp",\n'
+        + '  "contacts": [ { "profile": { "name": "Jo\\u00e3o" }, "wa_id": "' + NUMERO + '" } ],\n'
+        + '  "messages": [ { "from": "' + NUMERO + '", "id": "wamid.ACENTO", "timestamp": "1761825600", "type": "text", "text": { "body": "Medi\\u00e7\\u00e3o \\u2705 \u00e1\u00e9" } } ] } } ] } ] }';
+      assert.notEqual(JSON.stringify(JSON.parse(bruto)), bruto, 'o teste só vale se reescrever o JSON mudar os bytes');
+      const r = await chamar(handler, post(bruto));
+      assert.equal(r.statusCode, 200);
+      const [a] = banco.rpc();
+      assert.equal(a.p_texto, 'Medição ✅ áé');
+      assert.equal(a.p_nome, 'João');
+      const req = post(bruto);
+      req.stream = bruto + ' ';
+      assert.equal((await chamar(handler, req)).statusCode, 401);
+    });
+
     it('lote com 1 texto e 1 áudio: 200, a função do banco é chamada 2 vezes com o segredo do banco', async () => {
       const r = await chamar(handler, post(lote()));
       assert.equal(r.statusCode, 200);
@@ -161,14 +188,64 @@ describe('/api/whatsapp (Meta Cloud API, Supabase simulado)', () => {
       semSegredo(r);
     });
 
-    it('banco recusa, está fora do ar ou sem a função: ainda 200 (a Meta não reenvia), com a falha contada', async () => {
-      for (const modo of ['fora', 'sem-funcao']) {
+    // MUDANÇA DELIBERADA (reenvio em falha passageira). Antes este teste afirmava 200 quando o banco falhava, e a mensagem se perdia:
+    // a Meta só reenvia o que não recebe 200. Agora falha PASSAGEIRA (rede, resposta cortada, 5xx, chave do banco recusada, função do
+    // 09 ainda não aplicada, segredo ainda não configurado ou recusado no banco) responde 503 e a Meta reenvia o mesmo lote. Reenviar
+    // é seguro: a função do banco grava uma vez só por id de mensagem (hash md5('wa:'||id)), e o banco simulado aqui faz o mesmo.
+    it('falha passageira do banco (rede, resposta cortada, 5xx, chave recusada, sem a função, segredo não configurado ou recusado): 503 para a Meta reenviar', async () => {
+      for (const modo of ['fora', 'corta', '5xx', '5xx-com-texto-de-validacao', 'chave-recusada', 'sem-funcao', 'sem-segredo-no-banco']) {
+        banco.modo = modo;
+        const r = await chamar(handler, post(lote()));
+        assert.equal(r.statusCode, 503, modo);
+        assert.deepEqual(r.json(), { ok: false, erro: 'o banco não gravou agora; o provedor reenvia e a gravação não duplica', mensagens: 2, gravadas: 0, falhas: 2 }, modo);
+        semSegredo(r);
+      }
+      banco.modo = 'normal';
+      process.env.WHATSAPP_SEGREDO_BANCO = sorteio('errado-');   // o banco recusa o segredo (SEGREDO INVALIDO)
+      const r = await chamar(handler, post(lote()));
+      assert.equal(r.statusCode, 503);
+      assert.ok(saida.some((l) => /falta aplicar o 09_whatsapp_entrada\.sql/.test(l)), 'o log diz o que falta aplicar');
+      assert.ok(saida.some((l) => /segredo recusado pelo banco/.test(l)));
+      assert.ok(saida.some((l) => /segredo não configurado no banco/.test(l)));
+    });
+
+    // Falha PERMANENTE: o banco leu a mensagem e disse que não presta. Reenviar não muda nada, então conta e responde 200 (não fica
+    // reenviando para sempre). Isto continua como era; só ficou explícito que é a exceção.
+    it('recusa por validação do banco (NUMERO INVALIDO, MENSAGEM SEM ID): conta a falha e responde 200, reenviar não adiantaria', async () => {
+      for (const modo of ['validacao', 'sem-id']) {
         banco.modo = modo;
         const r = await chamar(handler, post(lote()));
         assert.equal(r.statusCode, 200, modo);
-        assert.deepEqual(r.json(), { ok: true, mensagens: 2, gravadas: 0, falhas: 2 });
+        assert.deepEqual(r.json(), { ok: true, mensagens: 2, gravadas: 0, falhas: 2 }, modo);
       }
-      assert.ok(saida.some((l) => /falta aplicar o 09_whatsapp_entrada\.sql/.test(l)));
+      assert.ok(saida.some((l) => /recusada pelo banco \(validação\)/.test(l)));
+    });
+
+    it('lote misto: uma gravada e uma falha passageira = 503; a Meta reenvia o lote e a já gravada volta repetida, sem duplicar', async () => {
+      banco.modoPor['wamid.T2'] = 'fora';
+      const r1 = await chamar(handler, post(lote()));
+      assert.equal(r1.statusCode, 503);
+      assert.deepEqual({ m: r1.json().mensagens, g: r1.json().gravadas, f: r1.json().falhas }, { m: 2, g: 1, f: 1 });
+      assert.equal(banco.gravados.length, 1);
+      banco.modoPor = {};   // o banco voltou
+      const r2 = await chamar(handler, post(lote()));   // o reenvio da Meta: o mesmo lote
+      assert.equal(r2.statusCode, 200);
+      assert.deepEqual(r2.json(), { ok: true, mensagens: 2, gravadas: 2, falhas: 0 });
+      assert.deepEqual(banco.gravados.map((g) => g.p_wa_id), ['wamid.T1', 'wamid.T2'], 'cada mensagem gravada uma vez só');
+    });
+
+    it('lote misto: uma gravada e uma recusada por validação = 200 com a falha contada', async () => {
+      banco.modoPor['wamid.T2'] = 'validacao';
+      const r = await chamar(handler, post(lote()));
+      assert.equal(r.statusCode, 200);
+      assert.deepEqual(r.json(), { ok: true, mensagens: 2, gravadas: 1, falhas: 1 });
+    });
+
+    it('uma falha passageira e uma permanente no mesmo lote: 503 (a passageira manda)', async () => {
+      banco.modoPor['wamid.T1'] = 'validacao';
+      banco.modoPor['wamid.T2'] = '5xx';
+      const r = await chamar(handler, post(lote()));
+      assert.equal(r.statusCode, 503);
     });
 
     it('status de entrega, lote vazio ou JSON que não é da Meta: 200 e nada vai ao banco', async () => {

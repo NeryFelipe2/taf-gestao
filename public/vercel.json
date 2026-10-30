@@ -8,6 +8,9 @@
     },
     "api/whatsapp.js": {
       "maxDuration": 10
+    },
+    "api/whatsapp-bird.js": {
+      "maxDuration": 10
     }
   },
   "headers": [

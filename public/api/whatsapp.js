@@ -12,8 +12,11 @@
 //   TAF_SUPABASE_URL, TAF_SUPABASE_KEY  as do /api/leitura
 // Cada mensagem de texto vira uma linha em ia.fato pela função do banco ia_whatsapp_receber (fonte/erp/sql/09_whatsapp_entrada.sql),
 // que confere o segredo e a lista de números liberados. Áudio, imagem e documento: só o tipo e o id da mídia; nada é baixado.
-// Nunca responde ao remetente, nunca envia mensagem, nunca chama a API da Meta. Com a assinatura certa responde 200 sempre
-// (a Meta reenvia o que não recebe 200); o que o banco recusou fica no log só como contagem. Número, nome e texto nunca vão para o log.
+// Nunca responde ao remetente, nunca envia mensagem, nunca chama a API da Meta. Com a assinatura certa responde 200 quando a mensagem
+// foi gravada ou quando o banco a recusou por validação (NUMERO INVALIDO, MENSAGEM SEM ID: reenviar não adianta, só conta). Falha
+// passageira do banco (rede, 5xx, segredo ou função ainda não configurados) responde 503: a Meta reenvia, e reenviar é seguro porque a
+// gravação é idempotente pelo hash md5('wa:'||id da mensagem). Número, nome e texto nunca vão para o log, só contagens.
+// O endpoint irmão da Bird (api/whatsapp-bird.js) usa gravar/gravarMensagens/lerBruto/cfgBanco daqui (exports no fim do arquivo).
 
 const crypto = require('crypto');
 
@@ -141,26 +144,57 @@ function extrairMensagens(payload) {
 }
 
 // ===================================================================== banco
-async function gravar(cfg, msg) {
-  let r;
+// Falha PERMANENTE: o banco leu a mensagem e disse que ela não presta (resposta 4xx do PostgREST com um destes textos, que vêm de
+// "raise exception" na função). Reenviar não muda nada: conta e responde 200. TODO o resto é passageiro e responde 503 para o
+// provedor reenviar: rede, tempo esgotado, 5xx, chave do banco recusada (401), função ainda não aplicada (404), 429, segredo ainda
+// não configurado ou recusado pelo banco. Reenviar é seguro: a gravação é idempotente pelo hash md5('wa:'||id da mensagem).
+const FALHA_PERMANENTE = /NUMERO INVALIDO|MENSAGEM SEM ID/;
+
+// Devolve { ok: true, fato_id, liberado, comando } ou { ok: false, erro, transitoria }. `rotulo` é só o começo da linha de log.
+async function gravar(cfg, msg, rotulo) {
+  const pre = rotulo || 'whatsapp';
+  let r, texto;
   try {
     r = await globalThis.fetch(cfg.base + '/rest/v1/rpc/ia_whatsapp_receber', {
       method: 'POST', redirect: 'error', signal: AbortSignal.timeout(TEMPO_BANCO_MS),
       headers: { apikey: cfg.anon, Authorization: 'Bearer ' + cfg.anon, 'Content-Type': 'application/json' },
       body: JSON.stringify({ p_segredo: cfg.segredo, p_de: msg.de, p_nome: msg.nome, p_texto: msg.texto, p_wa_id: msg.wa_id, p_quando: msg.quando, p_bruto: msg.bruto }),
     });
+    texto = await r.text();   // a conexão pode cair no meio da resposta: também é falha de rede
   } catch (e) {
-    console.error('whatsapp: banco inacessível (' + String(e && e.name).slice(0, 30) + ')');   // nunca o corpo, o número nem o texto
-    return { ok: false, erro: 'rede' };
+    console.error(pre + ': banco inacessível (' + String(e && e.name).slice(0, 30) + ')');   // nunca o corpo, o número nem o texto
+    return { ok: false, erro: 'rede', transitoria: true };
   }
   let j = null;
-  try { j = JSON.parse(await r.text()); } catch (e) { /* resposta não é JSON */ }
-  if (r.ok) return { ok: true, fato_id: j && j.fato_id != null ? j.fato_id : null, liberado: !!(j && j.liberado) };
+  try { j = JSON.parse(texto); } catch (e) { /* resposta não é JSON */ }
+  if (r.ok) return { ok: true, fato_id: j && j.fato_id != null ? j.fato_id : null, liberado: !!(j && j.liberado), comando: j && typeof j.comando === 'string' ? j.comando : null };
   const msgBanco = String((j && (j.message || j.error)) || '');
-  const motivo = /SEGREDO NAO CONFIGURADO/.test(msgBanco) ? 'segredo não configurado no banco' : /SEGREDO INVALIDO/.test(msgBanco) ? 'segredo recusado pelo banco'
+  const permanente = r.status >= 400 && r.status < 500 && FALHA_PERMANENTE.test(msgBanco);
+  const motivo = permanente ? 'mensagem recusada pelo banco (validação), não adianta reenviar'
+    : /SEGREDO NAO CONFIGURADO/.test(msgBanco) ? 'segredo não configurado no banco' : /SEGREDO INVALIDO/.test(msgBanco) ? 'segredo recusado pelo banco'
     : /Could not find the function/.test(msgBanco) ? 'falta aplicar o 09_whatsapp_entrada.sql' : 'banco respondeu ' + r.status;
-  console.error('whatsapp: ' + motivo);
-  return { ok: false, erro: motivo };
+  console.error(pre + ': ' + motivo);
+  return { ok: false, erro: motivo, transitoria: !permanente };
+}
+
+// Grava as mensagens (uma chamada ao banco por mensagem, juntas) e decide a resposta ao provedor: se alguma falhou por motivo
+// passageiro, lança 503 (o provedor reenvia o evento inteiro; as já gravadas voltam como repetidas, sem duplicar). Senão devolve
+// as contagens para o 200, com as recusadas por validação em `falhas`. Usada por este endpoint e pelo da Bird.
+async function gravarMensagens(cfg, msgs, rotulo) {
+  const pre = rotulo || 'whatsapp';
+  const resultados = await Promise.all(msgs.map((m) => gravar(cfg, m, pre)));
+  const gravadas = resultados.filter((r) => r.ok).length;
+  const liberadas = resultados.filter((r) => r.ok && r.liberado).length;
+  const comandos = resultados.filter((r) => r.ok && r.comando).length;
+  const passageiras = resultados.filter((r) => !r.ok && r.transitoria).length;
+  const falhas = msgs.length - gravadas;
+  if (msgs.length) {
+    console.error(pre + ': ' + msgs.length + ' mensagem(ns), ' + gravadas + ' gravada(s), ' + liberadas + ' de número liberado'
+      + (comandos ? ', ' + comandos + ' comando(s) de aprovação' : '')
+      + (falhas ? ', ' + falhas + ' falha(s)' + (passageiras ? ' (' + passageiras + ' para reenviar)' : '') : ''));
+  }
+  if (passageiras) throw new ErroHttp(503, 'o banco não gravou agora; o provedor reenvia e a gravação não duplica', { mensagens: msgs.length, gravadas, falhas });
+  return { mensagens: msgs.length, gravadas, falhas };
 }
 
 // ===================================================================== GET (verificação da Meta)
@@ -179,17 +213,14 @@ async function receber(req, res) {
   if (Number(cab(req, 'content-length')) > LIMITE_BYTES) throw GRANDE();
   const bruto = await lerBruto(req);
   if (bruto.length > LIMITE_BYTES) throw GRANDE();
-  conferirAssinatura(req, bruto);   // 503 sem o segredo, 401 se não bater; daqui em diante a Meta recebe 200
+  conferirAssinatura(req, bruto);   // 503 sem o segredo, 401 se não bater; daqui em diante 200, ou 503 se o banco falhar por motivo passageiro
   const cfg = cfgBanco();
   let payload = null;
   try { payload = JSON.parse(bruto.toString('utf8')); } catch (e) { /* assinado mas não é JSON: responde 200 e ignora */ }
   if (!objSimples(payload) || (payload.object && payload.object !== 'whatsapp_business_account')) return responder(res, 200, { ok: true, mensagens: 0, ignorado: true });
   const msgs = extrairMensagens(payload);
-  const resultados = await Promise.all(msgs.map((m) => gravar(cfg, m)));
-  const gravadas = resultados.filter((r) => r.ok).length;
-  const liberadas = resultados.filter((r) => r.ok && r.liberado).length;
-  if (msgs.length) console.error('whatsapp: ' + msgs.length + ' mensagem(ns), ' + gravadas + ' gravada(s), ' + liberadas + ' de número liberado');
-  return responder(res, 200, { ok: true, mensagens: msgs.length, gravadas, falhas: msgs.length - gravadas });
+  const r = await gravarMensagens(cfg, msgs, 'whatsapp');   // 503 se alguma falhou por motivo passageiro (a Meta reenvia)
+  return responder(res, 200, { ok: true, mensagens: r.mensagens, gravadas: r.gravadas, falhas: r.falhas });
 }
 
 async function handler(req, res) {
@@ -216,3 +247,11 @@ module.exports = handler;
 module.exports.config = { api: { bodyParser: false } };
 module.exports.extrairMensagens = extrairMensagens;
 module.exports.LIMITE_BYTES = LIMITE_BYTES;
+// para public/api/whatsapp-bird.js (só exportados; o comportamento destas funções é o daqui)
+module.exports.cfgBanco = cfgBanco;
+module.exports.gravar = gravar;
+module.exports.gravarMensagens = gravarMensagens;
+module.exports.lerBruto = lerBruto;
+module.exports.responder = responder;
+module.exports.ErroHttp = ErroHttp;
+module.exports.igual = igual;
