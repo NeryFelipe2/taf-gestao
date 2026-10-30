@@ -10,18 +10,30 @@
 //   WHATSAPP_APP_SECRET     "App Secret" do app da Meta: assina cada POST (sem ele, 503; assinatura errada, 401)
 //   WHATSAPP_SEGREDO_BANCO  segredo que o banco confere pelo SHA-256 em ia.config (chave whatsapp_segredo_banco)
 //   TAF_SUPABASE_URL, TAF_SUPABASE_KEY  as do /api/leitura
+//   HERMES_WEBHOOK_URL      (opcional) https://... do webhook do Hermes: recebe uma CÓPIA de cada entrega que traz mensagem (ver abaixo)
 // Cada mensagem de texto vira uma linha em ia.fato pela função do banco ia_whatsapp_receber (fonte/erp/sql/09_whatsapp_entrada.sql),
 // que confere o segredo e a lista de números liberados. Áudio, imagem e documento: só o tipo e o id da mídia; nada é baixado.
+// Toque em botão vira TEXTO igual ao id do botão ("ok 12", "nao 12"), como se tivesse sido digitado; rótulo, título e descrição não são
+// gravados, e bruto.botao = true. Dois formatos da Meta: mensagem interativa livre (type "interactive", interactive.type "button_reply"
+// ou "list_reply"; bruto.tipo = 'interactive') e botão de resposta rápida de MODELO (type "button", button.payload; bruto.tipo = 'button').
+// Outro tipo de interactive: só o tipo. Toque de modelo sem payload aproveitável: mensagem de tipo desconhecido (ver textoDoBotaoDeModelo).
 // Nunca responde ao remetente, nunca envia mensagem, nunca chama a API da Meta. Com a assinatura certa responde 200 quando a mensagem
 // foi gravada ou quando o banco a recusou por validação (NUMERO INVALIDO, MENSAGEM SEM ID: reenviar não adianta, só conta). Falha
 // passageira do banco (rede, 5xx, segredo ou função ainda não configurados) responde 503: a Meta reenvia, e reenviar é seguro porque a
 // gravação é idempotente pelo hash md5('wa:'||id da mensagem). Número, nome e texto nunca vão para o log, só contagens.
 // O endpoint irmão da Bird (api/whatsapp-bird.js) usa gravar/gravarMensagens/lerBruto/cfgBanco daqui (exports no fim do arquivo).
+// CÓPIA PARA O HERMES (só aqui, a Bird não encaminha): com HERMES_WEBHOOK_URL válida, depois de conferir a assinatura da Meta, a mesma
+// entrega vai por POST para essa URL, com os MESMOS bytes do corpo e o X-Hub-Signature-256 original (o Hermes confere com o mesmo App
+// Secret). Só entrega que traz mensagem (aviso de status não). Sai junto com a gravação no banco; a resposta à Meta espera os dois.
+// A falha da cópia (rede, tempo de 3 s, status fora de 2xx) vira uma linha de log sem URL, sem corpo e sem número, e NUNCA muda a
+// resposta à Meta: o status vem só do banco. Sem nova tentativa e sem seguir redirecionamento.
 
 const crypto = require('crypto');
 
 const LIMITE_BYTES = 256 * 1024;   // um lote da Meta tem poucos KB
 const TEMPO_BANCO_MS = 4000;       // por mensagem; a função tem 10 s (maxDuration em vercel.json)
+const CONFIG = { tempoHermesMs: 3000 };   // a cópia para o Hermes sai junto com o banco: o pior caso é o maior dos dois, não a soma
+const MAX_ID_BOTAO = 256;          // máximo do id de botão na documentação da Meta (o da linha de lista é 200)
 const MAX_MENSAGENS = 50;          // por POST
 const MAX_TEXTO = 8000;
 const PARAMS_PROIBIDOS = ['k', 'chave', 'key', 'token', 'apikey', 'api_key', 'senha', 'password', 'secret', 'segredo'];
@@ -113,6 +125,25 @@ function conferirAssinatura(req, bruto) {
 
 // ===================================================================== payload da Cloud API -> mensagens simples
 const texto = (v, max) => (typeof v === 'string' ? v.slice(0, max) : '');
+
+// Toque em botão de resposta rápida de MODELO de mensagem (documentação da Meta, "Button messages webhook reference"): type "button" com
+//   button: { payload, text }   (sem interactive). O payload é o texto definido no ENVIO do modelo ("ok 12"); o text é o rótulo do botão.
+// Sem payload (ausente, vazio ou que não é texto), o rótulo só vale se ele mesmo for o comando; senão null e a mensagem vira de tipo desconhecido.
+const COMANDO_NO_ROTULO = /^(ok|nao|não) \d+$/;
+function textoDoBotaoDeModelo(b) {
+  if (!objSimples(b)) return null;
+  if (typeof b.payload === 'string' && b.payload.trim()) return b.payload.slice(0, MAX_ID_BOTAO);
+  return typeof b.text === 'string' && COMANDO_NO_ROTULO.test(b.text) ? b.text : null;
+}
+
+// Id do botão ou da linha de lista que o usuário tocou (documentação da Meta, webhook de mensagens interativas):
+//   interactive: { type: 'button_reply', button_reply: { id, title } }   ou   { type: 'list_reply', list_reply: { id, title, description } }
+// Devolve só o id (nunca título nem descrição); null se não for resposta de botão/lista ou se vier sem id.
+function idDaResposta(it) {
+  if (!objSimples(it)) return null;
+  const r = it.type === 'button_reply' ? it.button_reply : it.type === 'list_reply' ? it.list_reply : null;
+  return objSimples(r) && typeof r.id === 'string' && r.id.trim() ? r.id.slice(0, MAX_ID_BOTAO) : null;
+}
 const quandoDe = (ts) => { const n = Number(ts); return Number.isFinite(n) && n > 0 ? new Date(n * 1000).toISOString() : new Date().toISOString(); };
 
 function extrairMensagens(payload) {
@@ -129,11 +160,17 @@ function extrairMensagens(payload) {
       }
       for (const m of v.messages) {
         if (!objSimples(m) || typeof m.id !== 'string' || !m.id || typeof m.from !== 'string' || !m.from) continue;
-        const tipo = TIPOS.includes(m.type) ? m.type : 'unknown';
+        let tipo = TIPOS.includes(m.type) ? m.type : 'unknown';
+        const botaoModelo = tipo === 'button' ? textoDoBotaoDeModelo(m.button) : null;
+        if (tipo === 'button' && botaoModelo === null) tipo = 'unknown';   // toque de modelo sem payload aproveitável: tipo desconhecido, sem texto
         const bruto = { tipo, timestamp: texto(String(m.timestamp || ''), 20) };
         if (objSimples(m.context) && typeof m.context.id === 'string') bruto.responde_a = m.context.id.slice(0, 200);
         let corpo = null;
         if (tipo === 'text') corpo = texto(objSimples(m.text) ? m.text.body : '', MAX_TEXTO);
+        else if (tipo === 'interactive') {
+          const id = idDaResposta(m.interactive);   // toque em botão ou lista: o id vira o texto ("ok 12"); os outros interactive ficam só com o tipo
+          if (id !== null) { corpo = id; bruto.botao = true; }
+        } else if (tipo === 'button') { corpo = botaoModelo; bruto.botao = true; }   // toque em botão de modelo: o payload vira o texto
         else if (objSimples(m[tipo]) && typeof m[tipo].id === 'string') bruto.midia = { tipo, id: m[tipo].id.slice(0, 200) };   // só o tipo e o id; nada é baixado
         out.push({ de: m.from.slice(0, 32), nome: nomes[m.from] || '', texto: corpo, wa_id: m.id.slice(0, 200), quando: quandoDe(m.timestamp), bruto });
         if (out.length >= MAX_MENSAGENS) return out;
@@ -197,6 +234,49 @@ async function gravarMensagens(cfg, msgs, rotulo) {
   return { mensagens: msgs.length, gravadas, falhas };
 }
 
+// ===================================================================== cópia para o Hermes (opcional)
+// URL da cópia. Sem a variável: nada. Com ela: https obrigatório (http só para 127.0.0.1/localhost, em teste), sem usuário/senha na
+// URL. Qualquer outra coisa é ignorada com um aviso que NÃO traz a URL (o caminho dela pode ser segredo).
+function urlHermes() {
+  const bruta = String(process.env.HERMES_WEBHOOK_URL || '').trim();
+  if (!bruta) return null;
+  let u = null;
+  try { u = new URL(bruta); } catch (e) { /* inválida: cai no aviso */ }
+  const ok = u && !u.username && !u.password && (u.protocol === 'https:' || (u.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(u.hostname)));
+  if (!ok) { console.error('whatsapp: HERMES_WEBHOOK_URL ignorada (precisa ser uma URL https), não encaminhei'); return null; }
+  return u.href;
+}
+
+// A entrega traz pelo menos uma mensagem (entry[].changes[].value.messages[])? Aviso de status (entregue, lido) não traz.
+function temMensagem(payload) {
+  for (const e of Array.isArray(payload.entry) ? payload.entry : []) {
+    if (!objSimples(e)) continue;
+    for (const c of Array.isArray(e.changes) ? e.changes : []) {
+      if (objSimples(c) && (!c.field || c.field === 'messages') && objSimples(c.value) && Array.isArray(c.value.messages) && c.value.messages.length) return true;
+    }
+  }
+  return false;
+}
+
+// Um POST para o Hermes com os MESMOS bytes do corpo e o X-Hub-Signature-256 como a Meta mandou. Nunca lança e nunca tenta de novo;
+// o único efeito de uma falha é uma linha de log (sem URL, sem corpo, sem número). Não segue redirecionamento: 3xx conta como falha.
+async function encaminhar(req, bruto) {
+  try {
+    const url = urlHermes();
+    if (!url) return;
+    const r = await globalThis.fetch(url, {
+      method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(CONFIG.tempoHermesMs),
+      headers: { 'Content-Type': 'application/json', 'X-Hub-Signature-256': cab(req, 'x-hub-signature-256') },
+      body: bruto,
+    });
+    try { await r.body.cancel(); } catch (e) { /* a resposta do Hermes não interessa */ }
+    if (r.status < 200 || r.status > 299) console.error('whatsapp: encaminhamento falhou (status ' + r.status + ')');
+    else console.error('whatsapp: encaminhado ao Hermes');
+  } catch (e) {
+    console.error('whatsapp: encaminhamento falhou (rede)');
+  }
+}
+
 // ===================================================================== GET (verificação da Meta)
 function verificar(req, res, url) {
   const esperado = cfgVerificacao();
@@ -219,7 +299,11 @@ async function receber(req, res) {
   try { payload = JSON.parse(bruto.toString('utf8')); } catch (e) { /* assinado mas não é JSON: responde 200 e ignora */ }
   if (!objSimples(payload) || (payload.object && payload.object !== 'whatsapp_business_account')) return responder(res, 200, { ok: true, mensagens: 0, ignorado: true });
   const msgs = extrairMensagens(payload);
-  const r = await gravarMensagens(cfg, msgs, 'whatsapp');   // 503 se alguma falhou por motivo passageiro (a Meta reenvia)
+  // Banco e cópia para o Hermes correm juntos (o pior caso é o maior dos dois tempos, bem abaixo dos 10 s da função) e a resposta só
+  // sai depois dos dois. A cópia nunca lança; se o banco falhar por motivo passageiro o 503 sai do mesmo jeito, mesmo que a cópia tenha dado certo.
+  const [gravacao] = await Promise.allSettled([gravarMensagens(cfg, msgs, 'whatsapp'), temMensagem(payload) ? encaminhar(req, bruto) : null]);
+  if (gravacao.status === 'rejected') throw gravacao.reason;   // 503 se alguma falhou por motivo passageiro (a Meta reenvia)
+  const r = gravacao.value;
   return responder(res, 200, { ok: true, mensagens: r.mensagens, gravadas: r.gravadas, falhas: r.falhas });
 }
 
@@ -247,6 +331,8 @@ module.exports = handler;
 module.exports.config = { api: { bodyParser: false } };
 module.exports.extrairMensagens = extrairMensagens;
 module.exports.LIMITE_BYTES = LIMITE_BYTES;
+module.exports.CONFIG = CONFIG;
+module.exports.TEMPO_BANCO_MS = TEMPO_BANCO_MS;
 // para public/api/whatsapp-bird.js (só exportados; o comportamento destas funções é o daqui)
 module.exports.cfgBanco = cfgBanco;
 module.exports.gravar = gravar;

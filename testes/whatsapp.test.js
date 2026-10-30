@@ -8,7 +8,7 @@ const { BASE, ANON, chamar } = require('./_apoio.js');
 
 const sorteio = (p) => p + crypto.randomBytes(16).toString('hex');
 const NUMERO = '5500000000001', NOME = 'Pessoa Teste', TEXTO = 'Bertioga: 3 ramais hoje (teste)';
-const VARS = ['TAF_SUPABASE_URL', 'TAF_SUPABASE_KEY', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_APP_SECRET', 'WHATSAPP_SEGREDO_BANCO'];
+const VARS = ['TAF_SUPABASE_URL', 'TAF_SUPABASE_KEY', 'WHATSAPP_VERIFY_TOKEN', 'WHATSAPP_APP_SECRET', 'WHATSAPP_SEGREDO_BANCO', 'HERMES_WEBHOOK_URL'];
 
 // lote como a Meta manda: 1 texto e 1 áudio
 function lote() {
@@ -67,6 +67,7 @@ describe('/api/whatsapp (Meta Cloud API, Supabase simulado)', () => {
     globalThis.fetch = banco.fetch;
     envOriginal = Object.fromEntries(VARS.map((k) => [k, process.env[k]]));
     Object.assign(process.env, { TAF_SUPABASE_URL: BASE, TAF_SUPABASE_KEY: ANON, WHATSAPP_VERIFY_TOKEN: segredos.verify, WHATSAPP_APP_SECRET: segredos.app, WHATSAPP_SEGREDO_BANCO: segredos.banco });
+    delete process.env.HERMES_WEBHOOK_URL;   // os testes deste arquivo são da entrada e do banco; a cópia para o Hermes tem o arquivo dela (whatsapp-hermes.test.js)
     saida = [];
     for (const k of ['log', 'error', 'warn', 'info']) { logsOriginais[k] = console[k]; console[k] = (...a) => saida.push(a.map(String).join(' ')); }
   });

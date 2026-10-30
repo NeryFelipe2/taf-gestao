@@ -107,6 +107,29 @@ begin
     perform pg_temp.confere((select texto from ia.fato where id = (r->>'fato_id')::bigint) = left(txt, 8000), '3l texto não foi gravado: [' || txt || ']');
   end loop;
 
+  -- 3m. toque em botão (o /api/whatsapp manda o ID do botão como texto, com bruto.tipo = 'interactive' e botao = true): "ok N" aprova e
+  -- "nao N", sem acento, que é o id do botão de recusar, recusa. O título do botão não vai ao banco.
+  a := pg_temp.nova(); wa := wa + 1;
+  r := public.ia_whatsapp_receber('teste10-segredo', '5500000000001', 'Pessoa Teste', 'ok ' || a, 'wamid.BT' || wa, now(), '{"tipo":"interactive","botao":true,"timestamp":"1761825600"}');
+  ap := pg_temp.apr(a);
+  perform pg_temp.confere(r->>'comando' = 'aprovado' and ap.status = 'aprovado' and ap.decidido_por = 'whatsapp final 0001', '3m1 botão ok N: ' || r::text);
+  perform pg_temp.confere(pg_temp.fato_dados(r)->>'tipo' = 'interactive' and (pg_temp.fato_dados(r)->'bruto'->>'botao')::boolean and pg_temp.fato_dados(r)->>'comando' = 'aprovado',
+                          '3m2 dados do toque em botão: ' || pg_temp.fato_dados(r)::text);
+  a := pg_temp.nova(); wa := wa + 1;
+  r := public.ia_whatsapp_receber('teste10-segredo', '5500000000001', 'Pessoa Teste', 'nao ' || a, 'wamid.BT' || wa, now(), '{"tipo":"interactive","botao":true}');
+  ap := pg_temp.apr(a);
+  perform pg_temp.confere(r->>'comando' = 'recusado' and ap.status = 'recusado' and ap.motivo is null and ap.decidido_por = 'whatsapp final 0001', '3m3 botão nao N: ' || r::text);
+  -- toque em botão de número fora da lista: não decide nada
+  a := pg_temp.nova(); wa := wa + 1;
+  r := public.ia_whatsapp_receber('teste10-segredo', '5500000000099', 'Desconhecido', 'ok ' || a, 'wamid.BT' || wa, now(), '{"tipo":"interactive","botao":true}');
+  perform pg_temp.confere(not (r->>'liberado')::boolean and (pg_temp.apr(a)).status = 'pendente', '3m4 botão de número fora da lista decidiu: ' || r::text);
+  -- o mesmo toque entregue duas vezes (a Meta reenvia): vale uma vez só
+  a := pg_temp.nova();
+  r := public.ia_whatsapp_receber('teste10-segredo', '5500000000001', 'Pessoa Teste', 'nao ' || a, 'wamid.BTREP', now(), '{"tipo":"interactive","botao":true}');
+  update ia.aprovacao set status = 'pendente', decidido_em = null, decidido_por = null, motivo = null where id = a;
+  r := public.ia_whatsapp_receber('teste10-segredo', '5500000000001', 'Pessoa Teste', 'nao ' || a, 'wamid.BTREP', now(), '{"tipo":"interactive","botao":true}');
+  perform pg_temp.confere((r->>'repetido')::boolean and (pg_temp.apr(a)).status = 'pendente', '3m5 o reenvio do toque reaplicou a recusa: ' || r::text);
+
   -- 4. número FORA da lista não aprova nem recusa; o fato fica sem texto e sem comando
   a := pg_temp.nova();
   r := pg_temp.envia('ok ' || a, 'wamid.X1', '5500000000099');

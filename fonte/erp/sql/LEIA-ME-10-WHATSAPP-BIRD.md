@@ -8,8 +8,8 @@ Rascunho, não aplicado. Só ligar com o sim do Felipe. Nada é enviado a ningu�
 
 | Caminho | Endpoint | Quando usar |
 |---|---|---|
-| Bird | `POST /api/whatsapp-bird` | O número está numa conta WhatsApp Business (WABA) que fica na Bird. É o caso da empresa hoje. |
-| Meta direto | `GET` e `POST /api/whatsapp` | Só se um número for ligado direto na Cloud API da Meta, sem a Bird. Fica pronto, parado. |
+| Meta direto | `GET` e `POST /api/whatsapp` | **Canal escolhido**: o número fica ligado direto na Cloud API da Meta, com um único callback, este. É o único com a cópia para o Hermes e com o botão de aprovação (ver `LEIA-ME-11-WHATSAPP-HERMES.md`). |
+| Bird | `POST /api/whatsapp-bird` | **Alternativa inerte**: só se o número ficar numa conta WhatsApp Business (WABA) da Bird. Não encaminha ao Hermes. |
 
 Os dois gravam do mesmo jeito: chamam a mesma função do banco (`ia_whatsapp_receber`), que confere o segredo e a lista de números e grava em `ia.fato`. Um número usa um caminho só.
 
