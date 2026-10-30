@@ -56,6 +56,16 @@ Para ligar (Vercel > Settings > Environment Variables, Production, e novo Deploy
 - `RESUMO_REMETENTE`: por exemplo `Resumo TAF <resumo@seu-dominio>` (domínio conferido na Resend).
 - `TAF_CHAVE_RESUMO`: a chave do robô, gerada na própria tela ("Gerar chave do robô"); aparece uma vez.
 
+## WhatsApp (entrada)
+Porta de entrada do WhatsApp oficial (Meta Cloud API) para o centro de comando: `public/api/whatsapp.js`. **Só recebe e grava; nada é enviado, nenhuma resposta vai ao remetente, nenhuma mídia é baixada.** `GET` responde a verificação do webhook da Meta; `POST` confere a assinatura `X-Hub-Signature-256` (HMAC do corpo bruto) e chama a função do banco `ia_whatsapp_receber` (`fonte/erp/sql/09_whatsapp_entrada.sql`, rascunho até o sim do Felipe) uma vez por mensagem. Mensagem de texto vira uma linha em `ia.fato` (empresa GRUPO, tipo `mensagem`, título "WhatsApp de <nome>"); áudio, imagem e documento entram só com o tipo e o id da mídia. Número fora da lista `whatsapp_allowlist` de `ia.config` fica só como "WhatsApp de número não liberado" com os 4 últimos dígitos, sem texto. Reenvio da Meta não duplica (hash pelo id da mensagem). Função com 10 s (`functions` em `public/vercel.json`).
+
+O código fica inerte (responde 503) até existirem na Vercel (Settings > Environment Variables, Production, e novo Deploy), além de `TAF_SUPABASE_URL` e `TAF_SUPABASE_KEY`:
+- `WHATSAPP_VERIFY_TOKEN`: texto sorteado, o mesmo digitado no painel da Meta ao cadastrar o webhook.
+- `WHATSAPP_APP_SECRET`: o App Secret do app da Meta (assina cada POST; assinatura errada responde 401).
+- `WHATSAPP_SEGREDO_BANCO`: segredo que o banco confere pelo SHA-256 guardado em `ia.config` (chave `whatsapp_segredo_banco`); sem essa linha no banco a porta fica fechada.
+
+Passo a passo e o que fica gravado: `fonte/erp/sql/LEIA-ME-09-WHATSAPP.md`.
+
 ## Testes (sem banco real, sem rede)
 `node --test "testes/*.test.js"` (Node 18 ou mais novo, sem instalar pacote). Usam Supabase e `fetch` simulados e leitura fictícia. Cobrem: GET recusado, sem chave, chave errada, chave na URL, corpo inválido, tamanho, POST válido gravando, o script local e uma trava que falha se dado real voltar a ser rastreado.
 

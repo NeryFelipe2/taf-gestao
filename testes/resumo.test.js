@@ -728,9 +728,10 @@ describe('vercel.json: só os crons do resumo foram acrescentados', () => {
   });
   it('o resto continua igual (cabeçalhos e rotas)', () => {
     assert.deepEqual(Object.keys(v).filter((k) => k !== 'functions'), ['headers', 'rewrites', 'crons']);
-    // funções com tempo próprio: o assistente (item da IA) e o resumo (um e-mail por pedido, até 60 s)
-    assert.deepEqual(Object.keys(v.functions || {}), ['api/assistente.js', 'api/resumo.js']);
+    // funções com tempo próprio: o assistente (item da IA), o resumo (um e-mail por pedido, até 60 s) e a entrada do WhatsApp (10 s)
+    assert.deepEqual(Object.keys(v.functions || {}), ['api/assistente.js', 'api/resumo.js', 'api/whatsapp.js']);
     assert.equal(v.functions['api/resumo.js'].maxDuration, 60);
+    assert.equal(v.functions['api/whatsapp.js'].maxDuration, 10);
     assert.deepEqual(v.rewrites.map((r) => r.source), ['/marko', '/ciclo', '/erp']);
     assert.deepEqual(v.headers[0].headers.map((h) => h.key), ['X-Robots-Tag', 'Cache-Control']);
   });
