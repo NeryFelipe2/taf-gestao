@@ -66,7 +66,7 @@ O código fica inerte (responde 503) até existirem na Vercel (Settings > Enviro
 
 Passo a passo e o que fica gravado: `fonte/erp/sql/LEIA-ME-09-WHATSAPP.md`.
 
-Caminho pela Bird (`public/api/whatsapp-bird.js`, variável `BIRD_WEBHOOK_SECRET`; construído pela documentação da Bird, testado só com assinatura sintética, ainda sem entrega real), reenvio quando o banco falha (503 para o provedor reenviar) e aprovação por comando no celular (`ok 12`, `não 12 motivo`; `fonte/erp/sql/10_whatsapp_aprovacao.sql`, rascunho): `fonte/erp/sql/LEIA-ME-10-WHATSAPP-BIRD.md`.
+Caminho pela Bird (`public/api/whatsapp-bird.js`, variável `BIRD_WEBHOOK_SECRET`; construído pela documentação da Bird, testado só com assinatura sintética, ainda sem entrega real), reenvio quando o banco falha (503 para o provedor reenviar) e aprovação por comando no celular (`ok 12`, `não 12`, `não 12: motivo`; frase comum não vira comando; `fonte/erp/sql/10_whatsapp_aprovacao.sql`, rascunho): `fonte/erp/sql/LEIA-ME-10-WHATSAPP-BIRD.md`.
 
 ## Testes (sem banco real, sem rede)
 `node --test "testes/*.test.js"` (Node 18 ou mais novo, sem instalar pacote). Usam Supabase e `fetch` simulados e leitura fictícia. Cobrem: GET recusado, sem chave, chave errada, chave na URL, corpo inválido, tamanho, POST válido gravando, o script local e uma trava que falha se dado real voltar a ser rastreado.

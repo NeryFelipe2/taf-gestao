@@ -55,26 +55,50 @@ begin
     perform pg_temp.confere(r->>'comando' = 'aprovado' and (pg_temp.apr(a)).status = 'aprovado', '2 forma de aprovar não pegou: [' || format(fmt, a) || '] ' || r::text);
   end loop;
 
-  -- 3. recusa com motivo, e as formas de recusar (com e sem acento, maiúscula, #); sem motivo o campo fica nulo
+  -- 3. recusa: o número SOZINHO, ou seguido de um separador (: ; , . - – —) e só então o motivo; sem motivo o campo fica nulo
   a := pg_temp.nova();
-  r := pg_temp.envia('não ' || a || ' falta documento da obra', 'wamid.R1');
+  r := pg_temp.envia('não ' || a || ': falta documento', 'wamid.R1');
   ap := pg_temp.apr(a);
   perform pg_temp.confere(r->>'comando' = 'recusado' and (r->>'aprovacao_id')::bigint = a, '3a retorno: ' || r::text);
-  perform pg_temp.confere(ap.status = 'recusado' and ap.motivo = 'falta documento da obra' and ap.decidido_em is not null and ap.decidido_por = 'whatsapp final 0001', '3b recusa ficou assim: ' || to_jsonb(ap)::text);
+  perform pg_temp.confere(ap.status = 'recusado' and ap.motivo = 'falta documento' and ap.decidido_em is not null and ap.decidido_por = 'whatsapp final 0001', '3b recusa ficou assim: ' || to_jsonb(ap)::text);
   perform pg_temp.confere(pg_temp.fato_dados(r)->>'comando' = 'recusado', '3c fato sem o comando');
   a := pg_temp.nova(); r := pg_temp.envia('NÃO ' || a, 'wamid.R2'); ap := pg_temp.apr(a);
   perform pg_temp.confere(r->>'comando' = 'recusado' and ap.status = 'recusado' and ap.motivo is null, '3d NÃO maiúsculo com acento: ' || to_jsonb(ap)::text);
-  a := pg_temp.nova(); r := pg_temp.envia('nao #' || a || '   sem ASO.  ', 'wamid.R3'); ap := pg_temp.apr(a);
-  perform pg_temp.confere(r->>'comando' = 'recusado' and ap.motivo = 'sem ASO.', '3e nao sem acento, # e espaços: [' || coalesce(ap.motivo, 'nulo') || ']');
-  foreach fmt in array array['Recuso %s', 'recusado %s motivo qualquer', 'CANCELA %s', 'Não %s', 'cancela #%s por chuva'] loop
+  a := pg_temp.nova(); r := pg_temp.envia('nao #' || a, 'wamid.R3'); ap := pg_temp.apr(a);
+  perform pg_temp.confere(r->>'comando' = 'recusado' and ap.status = 'recusado' and ap.motivo is null, '3e nao sem acento e com #: ' || to_jsonb(ap)::text);
+  a := pg_temp.nova(); r := pg_temp.envia('não ' || a, 'wamid.R3b'); ap := pg_temp.apr(a);
+  perform pg_temp.confere(r->>'comando' = 'recusado' and ap.status = 'recusado' and ap.motivo is null, '3e2 não sozinho com o número: ' || to_jsonb(ap)::text);
+  -- cada palavra e cada separador (o que vem depois do "|" é o motivo esperado; vazio = nulo)
+  foreach fmt in array array['Recuso %s|', 'CANCELA %s|', 'Não %s|', 'recusado %s: motivo qualquer|motivo qualquer', 'cancela #%s, por chuva|por chuva',
+                             'não %s; falta ASO|falta ASO', 'não %s. fora do escopo|fora do escopo', 'não %s - sem verba|sem verba',
+                             'não %s – sem verba|sem verba', 'não %s — sem verba|sem verba', 'não %s:sem espaço|sem espaço',
+                             'NÃO #%s :  dois espaços  |dois espaços', 'recuso %s.|', 'recusado %s:|'] loop
     a := pg_temp.nova(); wa := wa + 1;
-    r := pg_temp.envia(format(fmt, a), 'wamid.G' || wa);
-    perform pg_temp.confere(r->>'comando' = 'recusado' and (pg_temp.apr(a)).status = 'recusado', '3f forma de recusar não pegou: [' || format(fmt, a) || '] ' || r::text);
+    r := pg_temp.envia(format(split_part(fmt, '|', 1), a), 'wamid.G' || wa);
+    perform pg_temp.confere(r->>'comando' = 'recusado' and (pg_temp.apr(a)).status = 'recusado'
+                            and (pg_temp.apr(a)).motivo is not distinct from nullif(split_part(fmt, '|', 2), ''),
+                            '3f forma de recusar não pegou ou motivo errado: [' || format(split_part(fmt, '|', 1), a) || '] motivo [' || coalesce((pg_temp.apr(a)).motivo, 'nulo') || '] ' || r::text);
   end loop;
-  a := pg_temp.nova(); r := pg_temp.envia('não ' || a || ' ' || repeat('x', 600), 'wamid.R4');
+  a := pg_temp.nova(); r := pg_temp.envia('não ' || a || ': ' || repeat('x', 600), 'wamid.R4');
   perform pg_temp.confere(length((pg_temp.apr(a)).motivo) = 500, '3g motivo não foi cortado em 500: ' || coalesce(length((pg_temp.apr(a)).motivo), -1));
-  a := pg_temp.nova(); r := pg_temp.envia(E'não ' || a || E'\nprimeira linha\nsegunda linha', 'wamid.R5');
+  a := pg_temp.nova(); r := pg_temp.envia(E'não ' || a || E': primeira linha\nsegunda linha', 'wamid.R5');
   perform pg_temp.confere((pg_temp.apr(a)).motivo = E'primeira linha\nsegunda linha', '3h motivo com quebra de linha: [' || coalesce((pg_temp.apr(a)).motivo, 'nulo') || ']');
+
+  -- 3i. frase comum que COMEÇA como recusa ou aprovação (palavra + número) mas não é só o comando NÃO vira comando e não altera nada.
+  -- É a regra que a regex frouxa antiga ("não 3 equipes foram à obra" recusava a aprovação 3) não cumpria.
+  a := pg_temp.nova();
+  foreach txt in array array['não ' || a || ' equipes foram à obra', 'não ' || a || ' falta documento', 'ok ' || a || ' equipes', 'Não ' || a || ' de março',
+                             'nao ' || a || ' pessoas faltaram', E'não ' || a || E'\nfalta documento', 'cancela ' || a || ' reunião', 'recuso ' || a || ' !',
+                             'recusado ' || a || ' sem ASO', 'cancela #' || a || ' reunião de quinta', 'NÃO ' || a || ' obrigado', 'não ' || a || ' ' || a,
+                             'sim ' || a || ' equipes', 'pode ' || a || ' ok'] loop
+    wa := wa + 1;
+    r := pg_temp.envia(txt, 'wamid.H' || wa);
+    perform pg_temp.confere(jsonb_typeof(r->'comando') = 'null' and jsonb_typeof(r->'aprovacao_id') = 'null' and (r->>'liberado')::boolean, '3i virou comando: [' || txt || '] ' || r::text);
+    perform pg_temp.confere((pg_temp.apr(a)).status = 'pendente' and (pg_temp.apr(a)).motivo is null and (pg_temp.apr(a)).decidido_em is null and (pg_temp.apr(a)).decidido_por is null,
+                            '3j mudou a aprovação: [' || txt || '] ' || to_jsonb(pg_temp.apr(a))::text);
+    perform pg_temp.confere(not (pg_temp.fato_dados(r) ? 'comando'), '3k fato com comando: [' || txt || ']');
+    perform pg_temp.confere((select texto from ia.fato where id = (r->>'fato_id')::bigint) = left(txt, 8000), '3l texto não foi gravado: [' || txt || ']');
+  end loop;
 
   -- 4. número FORA da lista não aprova nem recusa; o fato fica sem texto e sem comando
   a := pg_temp.nova();
@@ -82,7 +106,7 @@ begin
   perform pg_temp.confere((r->>'liberado')::boolean = false and jsonb_typeof(r->'comando') = 'null' and jsonb_typeof(r->'aprovacao_id') = 'null', '4a retorno fora da lista: ' || r::text);
   perform pg_temp.confere((pg_temp.apr(a)).status = 'pendente' and (pg_temp.apr(a)).decidido_em is null, '4b número fora da lista aprovou');
   perform pg_temp.confere((select texto from ia.fato where id = (r->>'fato_id')::bigint) is null and not (pg_temp.fato_dados(r) ? 'comando'), '4c fato fora da lista com texto ou comando');
-  r := pg_temp.envia('não ' || a || ' vou barrar', 'wamid.X2', '5500000000099');
+  r := pg_temp.envia('não ' || a || ': vou barrar', 'wamid.X2', '5500000000099');
   perform pg_temp.confere((pg_temp.apr(a)).status = 'pendente' and (pg_temp.apr(a)).motivo is null, '4d número fora da lista recusou');
 
   -- 5. aprovação que já não está pendente não muda (aprovada, recusada, enviada, expirada): nao_encontrado
@@ -94,7 +118,7 @@ begin
     perform pg_temp.confere(ap.status = st and ap.decidido_por = 'decisao de antes' and ap.decidido_em = '2026-10-01 08:00-03'::timestamptz, '5b ' || st || ' foi alterada pelo ok: ' || to_jsonb(ap)::text);
     perform pg_temp.confere(pg_temp.fato_dados(r)->>'comando' = 'nao_encontrado', '5c fato sem nao_encontrado');
     wa := wa + 1;
-    r := pg_temp.envia('não ' || a || ' tarde demais', 'wamid.D' || wa);
+    r := pg_temp.envia('não ' || a || ': tarde demais', 'wamid.D' || wa);
     ap := pg_temp.apr(a);
     perform pg_temp.confere(r->>'comando' = 'nao_encontrado' and ap.status = st and ap.decidido_por = 'decisao de antes' and ap.motivo is not distinct from case when st = 'recusado' then 'motivo de antes' else null end,
                             '5d ' || st || ' foi alterada pela recusa: ' || to_jsonb(ap)::text);
@@ -104,7 +128,7 @@ begin
   select count(*), coalesce(max(id), 0) + 1000 into n0, inexistente from ia.aprovacao;
   r := pg_temp.envia('ok ' || inexistente, 'wamid.N1');
   perform pg_temp.confere(r->>'comando' = 'nao_encontrado' and (r->>'aprovacao_id')::bigint = inexistente, '6a retorno: ' || r::text);
-  r := pg_temp.envia('não ' || inexistente || ' motivo', 'wamid.N2');
+  r := pg_temp.envia('não ' || inexistente || ': motivo', 'wamid.N2');
   perform pg_temp.confere(r->>'comando' = 'nao_encontrado', '6b recusa de número que não existe: ' || r::text);
   perform pg_temp.confere((select count(*) from ia.aprovacao) = n0, '6c criou ou apagou aprovação');
   r := pg_temp.envia('ok 123456789', 'wamid.N3');   -- 9 dígitos: ainda é comando

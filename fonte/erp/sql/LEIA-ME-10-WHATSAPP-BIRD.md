@@ -64,21 +64,23 @@ Limites desta versão, para não ter surpresa:
 
 Para aplicar: `10_whatsapp_aprovacao.sql` troca a função do 09 por uma com os comandos, com a mesma assinatura (não muda quem chama). O arquivo inteiro pode ser aplicado no banco real: o primeiro bloco só cria tabela que não existe, e as de verdade já existem. Fora do horário de uso: `psql -1 -v ON_ERROR_STOP=1 -f 10_whatsapp_aprovacao.sql`. Para desfazer, rodar de novo a função do 09.
 
-Comandos (mensagem de **texto**, de um número da lista, e só a frase, sem mais nada):
+Comandos (mensagem de **texto**, de um número da lista, e só o comando, sem mais nada na frase):
 
 | Para | Escrever | Exemplos |
 |---|---|---|
 | Aprovar | `ok`, `sim`, `aprovo`, `aprovado` ou `pode` + o número | `ok 12`, `Sim #12.`, `pode 12!` |
-| Recusar | `não`, `nao`, `recuso`, `recusado` ou `cancela` + o número + o motivo | `não 12 falta documento`, `recuso 12`, `NÃO 12` |
+| Recusar | `não`, `nao`, `recuso`, `recusado` ou `cancela` + o número. Para dar o motivo: um separador e o motivo | `não 12`, `NÃO 12`, `não 12: falta o documento` |
 
 - Maiúscula e minúscula valem igual. O `#` antes do número é opcional.
+- Separador do motivo na recusa: dois pontos, ponto e vírgula, vírgula, ponto, hífen ou travessão (`:` `;` `,` `.` `-` `–` `—`). O motivo vai até 500 caracteres. Sem o separador, não é comando.
 - Só muda uma aprovação que existe e está `pendente`. Qualquer outra (inexistente, já aprovada, recusada, enviada, expirada) não é alterada, e a mensagem fica marcada `nao_encontrado`.
 - Aprovar grava `status = 'aprovado'`, `decidido_em` e `decidido_por = 'whatsapp final <4 últimos dígitos>'`. Recusar faz o mesmo com `'recusado'` e guarda o motivo (até 500 caracteres; sem motivo, fica vazio).
 - Número fora da lista nunca aprova nem recusa.
 - A mesma mensagem entregue duas vezes (reenvio da Meta ou da Bird) nunca vale duas vezes.
 - A mensagem continua gravada em `ia.fato` (texto, para auditoria), e `dados` ganha `comando` (`aprovado`, `recusado` ou `nao_encontrado`) e `aprovacao_id`.
 - **O sistema não responde no WhatsApp.** Para saber se pegou, olhar `ia.aprovacao` (status) ou `ia.fato` (`dados->>'comando'`).
-- Cuidado: uma frase comum que começa assim vale como comando. Exemplo: "não 3 equipes foram à obra", de um número da lista, recusa a aprovação 3 se ela estiver pendente.
+- **Frase comum não vira comando.** O comando é só a palavra e o número; na recusa, o motivo só entra depois de um separador. Por isso `não 3 equipes foram à obra`, `não 12 falta documento` (sem separador) e `ok 3 equipes` não fazem nada: a mensagem só fica gravada em `ia.fato`.
+- Limite que sobra: depois de um separador vale qualquer texto. Então `não 3,5 metros`, `não 3.5 toneladas`, `não 12:30 da tarde` ou `não 12-15 pessoas` ainda valem como recusa da aprovação 3 ou 12, se ela estiver pendente. Se isso incomodar, dá para não aceitar dígito logo depois do separador (mudança de uma linha no 10).
 
 ## 6. Testar
 
