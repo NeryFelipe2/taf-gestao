@@ -10,9 +10,10 @@
 --
 -- O que o 10 acrescenta (só para número LIBERADO e só para mensagem NOVA; reenvio da Meta ou da Bird do mesmo id nunca reaplica comando):
 --   aprovar  ^\s*(ok|sim|aprovo|aprovado|pode)\s+#?(\d{1,9})\s*[.!]?\s*$             (sem diferenciar maiúscula)
---   recusar  ^\s*(n[aãÃ]o|recuso|recusado|cancela)\s+#?(\d{1,9})\s*(?:[:;,.\-–—]\s*(.*))?$   (sem diferenciar maiúscula)
+--   recusar  ^\s*(n[aãÃ]o|recuso|recusado|cancela)\s+#?(\d{1,9})\s*(?:[:;,.\-–—](?!\d)\s*(.*))?$   (sem diferenciar maiúscula)
 --            o número vem SOZINHO ou seguido de um separador (dois pontos, ponto e vírgula, vírgula, ponto, hífen, travessão curto
---            ou longo) e só então o motivo, que vai até 500 caracteres. Sem o separador não é comando.
+--            ou longo) e só então o motivo, que vai até 500 caracteres. Sem o separador não é comando. O separador não pode ser
+--            seguido de dígito colado (?!\d): assim "3,5", "3.5", "12:30" e "12-15" são número escrito, não separador.
 --   Aprovar/recusar mexe em ia.aprovacao SÓ se o número pedido existir E estiver 'pendente': status 'aprovado' ou 'recusado',
 --   decidido_em = now(), decidido_por = 'whatsapp final <4 últimos dígitos>' (motivo só na recusa; vazio fica nulo).
 --   Número que não existe, ou aprovação que já não está 'pendente' (aprovada, recusada, enviada, expirada): não altera nada e o
@@ -22,8 +23,9 @@
 --   O retorno ganha "comando" e "aprovacao_id" (nulos quando não houve comando, e também no reenvio de mensagem já gravada).
 -- Frase comum NÃO vira comando. O texto inteiro tem de ser só a palavra e o número ("ok 12", "não 12") ou, na recusa, o número, um
 -- separador e o motivo ("não 12: falta o documento"). "não 3 equipes foram à obra", "não 12 falta documento" (sem separador) e
--- "ok 3 equipes" NÃO viram comando e não mexem em nada. Limite que sobra: depois de um separador vale qualquer texto, então uma
--- frase como "não 3,5 metros" ou "não 12:30 da tarde" ainda vale como recusa da aprovação 3 ou 12 se ela estiver pendente.
+-- "ok 3 equipes" NÃO viram comando e não mexem em nada. Número com dígito colado depois ("não 3,5 metros", "não 3.5 toneladas",
+-- "não 12:30 da tarde", "não 12-15 pessoas") também não. Limite que sobra: número, separador e texto É a recusa com motivo, então uma
+-- frase que por acaso tenha esse formato ("não 3, são 4 equipes") ainda recusa a aprovação 3 se ela estiver pendente.
 -- Nada é enviado a ninguém, e o sistema não responde no WhatsApp: para saber se pegou, ver ia.aprovacao (status) ou ia.fato (dados).
 --
 -- Depende do 09 (esquema ia, ia.config, ia.fato), de ia.aprovacao e da extensão pgcrypto no esquema extensions. O primeiro bloco
@@ -148,8 +150,9 @@ begin
       v_cmd := case when v_aid is null then 'nao_encontrado' else 'aprovado' end;
     else
       -- "n[aãÃ]o" e não só (não|nao) com a opção de maiúscula: assim "NÃO" pega em qualquer configuração de idioma do banco
-      -- o motivo (grupo 3) é opcional e fica dentro do grupo não capturante com o separador; sem separador não casa
-      v_m := regexp_match(v_texto, '^\s*(n[aãÃ]o|recuso|recusado|cancela)\s+#?(\d{1,9})\s*(?:[:;,.\-–—]\s*(.*))?$', 'i');
+      -- o motivo (grupo 3) é opcional e fica dentro do grupo não capturante com o separador; sem separador não casa, e o
+      -- separador com dígito logo depois (3,5 / 12:30 / 12-15) também não: (?!\d)
+      v_m := regexp_match(v_texto, '^\s*(n[aãÃ]o|recuso|recusado|cancela)\s+#?(\d{1,9})\s*(?:[:;,.\-–—](?!\d)\s*(.*))?$', 'i');
       if v_m is not null then
         v_n := v_m[2]::bigint;
         v_motivo := nullif(left(regexp_replace(v_m[3], '^\s+|\s+$', '', 'g'), 500), '');

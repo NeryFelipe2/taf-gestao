@@ -68,11 +68,13 @@ begin
   perform pg_temp.confere(r->>'comando' = 'recusado' and ap.status = 'recusado' and ap.motivo is null, '3e nao sem acento e com #: ' || to_jsonb(ap)::text);
   a := pg_temp.nova(); r := pg_temp.envia('não ' || a, 'wamid.R3b'); ap := pg_temp.apr(a);
   perform pg_temp.confere(r->>'comando' = 'recusado' and ap.status = 'recusado' and ap.motivo is null, '3e2 não sozinho com o número: ' || to_jsonb(ap)::text);
-  -- cada palavra e cada separador (o que vem depois do "|" é o motivo esperado; vazio = nulo)
+  -- cada palavra e cada separador (o que vem depois do "|" é o motivo esperado; vazio = nulo). O separador seguido de ESPAÇO e depois
+  -- dígito continua valendo (": 3 equipes", "- 15 pessoas"): a trava (?!\d) é só para o dígito COLADO no separador.
   foreach fmt in array array['Recuso %s|', 'CANCELA %s|', 'Não %s|', 'recusado %s: motivo qualquer|motivo qualquer', 'cancela #%s, por chuva|por chuva',
                              'não %s; falta ASO|falta ASO', 'não %s. fora do escopo|fora do escopo', 'não %s - sem verba|sem verba',
                              'não %s – sem verba|sem verba', 'não %s — sem verba|sem verba', 'não %s:sem espaço|sem espaço',
-                             'NÃO #%s :  dois espaços  |dois espaços', 'recuso %s.|', 'recusado %s:|'] loop
+                             'NÃO #%s :  dois espaços  |dois espaços', 'recuso %s.|', 'recusado %s:|', 'não %s.|', 'não %s - motivo|motivo',
+                             'não %s: 3 equipes faltaram|3 equipes faltaram', 'não %s - 15 pessoas|15 pessoas'] loop
     a := pg_temp.nova(); wa := wa + 1;
     r := pg_temp.envia(format(split_part(fmt, '|', 1), a), 'wamid.G' || wa);
     perform pg_temp.confere(r->>'comando' = 'recusado' and (pg_temp.apr(a)).status = 'recusado'
@@ -85,12 +87,17 @@ begin
   perform pg_temp.confere((pg_temp.apr(a)).motivo = E'primeira linha\nsegunda linha', '3h motivo com quebra de linha: [' || coalesce((pg_temp.apr(a)).motivo, 'nulo') || ']');
 
   -- 3i. frase comum que COMEÇA como recusa ou aprovação (palavra + número) mas não é só o comando NÃO vira comando e não altera nada.
-  -- É a regra que a regex frouxa antiga ("não 3 equipes foram à obra" recusava a aprovação 3) não cumpria.
+  -- É a regra que a regex frouxa antiga ("não 3 equipes foram à obra" recusava a aprovação 3) não cumpria. Aqui também entram os
+  -- números escritos com dígito colado no separador ("não 3,5 metros", "não 3.5 toneladas", "não 12:30 da tarde", "não 12-15 pessoas"):
+  -- a trava (?!\d) da regex impede que a vírgula, o ponto, os dois pontos ou o hífen do número virem o separador do motivo.
   a := pg_temp.nova();
   foreach txt in array array['não ' || a || ' equipes foram à obra', 'não ' || a || ' falta documento', 'ok ' || a || ' equipes', 'Não ' || a || ' de março',
                              'nao ' || a || ' pessoas faltaram', E'não ' || a || E'\nfalta documento', 'cancela ' || a || ' reunião', 'recuso ' || a || ' !',
                              'recusado ' || a || ' sem ASO', 'cancela #' || a || ' reunião de quinta', 'NÃO ' || a || ' obrigado', 'não ' || a || ' ' || a,
-                             'sim ' || a || ' equipes', 'pode ' || a || ' ok'] loop
+                             'sim ' || a || ' equipes', 'pode ' || a || ' ok',
+                             'não ' || a || ',5 metros', 'não ' || a || '.5 toneladas', 'não ' || a || ':30 da tarde', 'não ' || a || '-15 pessoas',
+                             'recuso ' || a || ',5 metros', 'cancela ' || a || ':30 reunião', 'NÃO ' || a || '–15 pessoas', 'não ' || a || '—15 pessoas',
+                             'nao #' || a || ';5 itens', 'recusado ' || a || '.25', 'não ' || a || ' ,5 metros'] loop
     wa := wa + 1;
     r := pg_temp.envia(txt, 'wamid.H' || wa);
     perform pg_temp.confere(jsonb_typeof(r->'comando') = 'null' and jsonb_typeof(r->'aprovacao_id') = 'null' and (r->>'liberado')::boolean, '3i virou comando: [' || txt || '] ' || r::text);
