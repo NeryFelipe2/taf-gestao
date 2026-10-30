@@ -246,7 +246,7 @@ describe('/api/whatsapp-bird (webhook da Bird, assinatura sintética, Supabase s
     });
 
     it('corpo grande demais: 413 antes de qualquer conta', async () => {
-      const grande = JSON.stringify({ type: 'whatsapp.received', x: 'a'.repeat(300 * 1024) });   // o limite é 256 KB; um evento da Bird tem poucos KB
+      const grande = JSON.stringify({ type: 'whatsapp.received', x: 'a'.repeat(3 * 1024 * 1024) });   // o limite é o do /api/whatsapp (3 MB, lote grande da Meta com mídia)
       const r = await chamar(handler, post(grande));
       assert.equal(r.statusCode, 413);
       banco.nada();
