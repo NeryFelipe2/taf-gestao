@@ -427,8 +427,7 @@ describe('/api/whatsapp: botão de aprovação e cópia para o Hermes (Supabase 
       const r = await chamar(handler, post(entrega([msgTexto('wamid.F1', TEXTO)])));
       assert.equal(r.statusCode, 503);
       assert.deepEqual(r.json(), { ok: false, erro: 'o banco não gravou agora; o provedor reenvia e a gravação não duplica', mensagens: 1, gravadas: 0, falhas: 1 });
-      assert.equal(mundo.hermes.chamadas.length, 1, 'o Hermes recebe a cópia mesmo com o banco fora');
-      assert.ok(saida.some((l) => /encaminhado ao Hermes/.test(l)), 'a cópia deu certo');
+      assert.equal(mundo.hermes.chamadas.length, 0, 'banco fora: o Hermes não recebe a cópia; a Meta reenvia o lote inteiro');
       // banco fora e Hermes fora ao mesmo tempo: a resposta é a mesma 503
       mundo.hermes.modo = 'fora';
       const r2 = await chamar(handler, post(entrega([msgTexto('wamid.F1', TEXTO)])));
@@ -442,20 +441,26 @@ describe('/api/whatsapp: botão de aprovação e cópia para o Hermes (Supabase 
       assert.equal(mundo.hermes.chamadas.length, 1);
     });
 
-    it('banco e Hermes correm juntos, e a resposta só sai depois dos dois', async () => {
+    it('o banco grava primeiro e só depois a cópia vai ao Hermes; a resposta sai depois dos dois', async () => {
       mundo.hermes.atrasoMs = 60;
-      // o banco só responde depois que o Hermes já foi chamado; se fosse um depois do outro, ficaria 1 s esperando à toa
       mundo.banco.espera = async () => {
-        await Promise.race([mundo.hermes.chegou, new Promise((r) => setTimeout(r, 1000))]);
+        await new Promise((r) => setTimeout(r, 40));
         mundo.banco.viuHermes = mundo.hermes.chamadas.length > 0;
       };
-      const t0 = Date.now();
-      const r = await chamar(handler, post(entrega([msgTexto('wamid.PAR', TEXTO)])));
+      const r = await chamar(handler, post(entrega([msgTexto('wamid.SEQ', TEXTO)])));
       assert.equal(r.statusCode, 200);
-      assert.equal(mundo.banco.viuHermes, true, 'o Hermes não foi chamado enquanto o banco respondia');
-      assert.ok(Date.now() - t0 < 900, 'esperou o limite de segurança do teste');
+      assert.equal(mundo.banco.viuHermes, false, 'o Hermes foi chamado antes de o banco gravar');
+      assert.equal(mundo.hermes.chamadas.length, 1);
       assert.equal(mundo.hermes.terminou, true, 'a resposta à Meta saiu antes de a cópia terminar');
       assert.equal(mundo.banco.terminou, true);
+    });
+
+    it('lote com mais de 50 mensagens: 503, nada gravado nem encaminhado', async () => {
+      const muitas = Array.from({ length: 51 }, (_, i) => msgTexto('wamid.M' + i, TEXTO));
+      const r = await chamar(handler, post(entrega(muitas)));
+      assert.equal(r.statusCode, 503);
+      assert.equal(mundo.hermes.chamadas.length, 0);
+      assert.equal(mundo.banco.chamadas.length, 0);
     });
 
     it('o pior caso de tempo cabe nos 10 s da função, até se banco e Hermes fossem um depois do outro', () => {

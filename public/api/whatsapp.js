@@ -31,7 +31,7 @@
 
 const crypto = require('crypto');
 
-const LIMITE_BYTES = 256 * 1024;   // um lote da Meta tem poucos KB
+const LIMITE_BYTES = 3 * 1024 * 1024;   // a Meta documenta payload de até 3 MB; abaixo disso uma rajada legítima e assinada seria recusada com 413
 const TEMPO_BANCO_MS = 4000;       // por mensagem; a função tem 10 s (maxDuration em vercel.json)
 const CONFIG = { tempoHermesMs: 3000 };   // a cópia para o Hermes sai junto com o banco: o pior caso é o maior dos dois, não a soma
 const MAX_ID_BOTAO = 256;          // máximo do id de botão na documentação da Meta (o da linha de lista é 200)
@@ -263,8 +263,10 @@ function contarMensagens(payload) {
 // Comando de aprovação: a MESMA gramática da função do banco (fonte/erp/sql/10_whatsapp_aprovacao.sql). Quem trata "ok 12" e "não 12: motivo"
 // é o banco; o Hermes não precisa ver (e responderia como conversa a um toque de botão que ele nunca mandou). Se a gramática do banco mudar,
 // mudar aqui também: o único efeito de um descompasso é o Hermes ver (ou não) um comando, nunca um comando deixar de ser aplicado.
-const CMD_APROVAR = /^\s*(ok|sim|aprovo|aprovado|pode)\s+#?\d{1,9}\s*[.!]?\s*$/i;
-const CMD_RECUSAR = /^\s*(n[aãÃ]o|recuso|recusado|cancela)\s+#?\d{1,9}\s*(?:[:;,.\-–—](?!\d)\s*[\s\S]*)?$/i;
+// espaço = só ASCII ([ \t\n\r\f\v]): o \s do JS inclui NBSP e BOM, o do Postgres não, e a diferença faria o comando não ser copiado ao Hermes nem aplicado pelo banco
+const ESP = '[ \\t\\n\\r\\f\\v]';
+const CMD_APROVAR = new RegExp('^' + ESP + '*(ok|sim|aprovo|aprovado|pode)' + ESP + '+#?\\d{1,9}' + ESP + '*[.!]?' + ESP + '*$', 'i');
+const CMD_RECUSAR = new RegExp('^' + ESP + '*(n[aãÃ]o|recuso|recusado|cancela)' + ESP + '+#?\\d{1,9}' + ESP + '*(?:[:;,.\\-–—](?!\\d)' + ESP + '*[\\s\\S]*)?$', 'i');
 const ehComandoDeAprovacao = (t) => typeof t === 'string' && (CMD_APROVAR.test(t) || CMD_RECUSAR.test(t));
 
 // A entrega só traz comandos de aprovação (toque em botão ou texto digitado)? Só vale se TODA mensagem da entrega foi entendida e é comando:
@@ -317,10 +319,12 @@ async function receber(req, res) {
   // Banco e cópia para o Hermes correm juntos (o pior caso é o maior dos dois tempos, bem abaixo dos 10 s da função) e a resposta só
   // sai depois dos dois. A cópia nunca lança; se o banco falhar por motivo passageiro o 503 sai do mesmo jeito, mesmo que a cópia tenha dado certo.
   const total = contarMensagens(payload);
+  // acima do teto as excedentes não seriam gravadas e a Meta não reenviaria (200): melhor 503 e log, a Meta repete
+  if (total > MAX_MENSAGENS) { console.error('whatsapp: entrega com ' + total + ' mensagens, acima do teto de ' + MAX_MENSAGENS + ', pedindo reenvio'); throw new ErroHttp(503, 'lote acima do teto; reenvie'); }
   const copiar = total > 0 && !soComandosDeAprovacao(msgs, total);
-  const [gravacao] = await Promise.allSettled([gravarMensagens(cfg, msgs, 'whatsapp'), copiar ? encaminhar(req, bruto) : null]);
-  if (gravacao.status === 'rejected') throw gravacao.reason;   // 503 se alguma falhou por motivo passageiro (a Meta reenvia)
-  const r = gravacao.value;
+  // Grava primeiro; só se o banco aceitou (ou recusou por validação) a entrega segue ao Hermes. Assim um 503 do banco, que a Meta reenvia, não faz o Hermes ver a mesma mensagem várias vezes.
+  const r = await gravarMensagens(cfg, msgs, 'whatsapp');   // lança 503 se alguma falhou por motivo passageiro
+  if (copiar) await encaminhar(req, bruto);   // nunca lança; falha só vira linha de log
   return responder(res, 200, { ok: true, mensagens: r.mensagens, gravadas: r.gravadas, falhas: r.falhas });
 }
 
