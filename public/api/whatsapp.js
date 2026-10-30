@@ -25,6 +25,7 @@
 // CÓPIA PARA O HERMES (só aqui, a Bird não encaminha): com HERMES_WEBHOOK_URL válida, depois de conferir a assinatura da Meta, a mesma
 // entrega vai por POST para essa URL, com os MESMOS bytes do corpo e o X-Hub-Signature-256 original (o Hermes confere com o mesmo App
 // Secret). Só entrega que traz mensagem (aviso de status não). Sai junto com a gravação no banco; a resposta à Meta espera os dois.
+// Não vai a entrega que só traz comando de aprovação ("ok 12", "nao 12: motivo", digitado ou por botão): o banco já trata e o Hermes responderia como conversa.
 // A falha da cópia (rede, tempo de 3 s, status fora de 2xx) vira uma linha de log sem URL, sem corpo e sem número, e NUNCA muda a
 // resposta à Meta: o status vem só do banco. Sem nova tentativa e sem seguir redirecionamento.
 
@@ -247,15 +248,29 @@ function urlHermes() {
   return u.href;
 }
 
-// A entrega traz pelo menos uma mensagem (entry[].changes[].value.messages[])? Aviso de status (entregue, lido) não traz.
-function temMensagem(payload) {
+// Quantas mensagens a entrega traz (entry[].changes[].value.messages[])? Aviso de status (entregue, lido) traz zero.
+function contarMensagens(payload) {
+  let n = 0;
   for (const e of Array.isArray(payload.entry) ? payload.entry : []) {
     if (!objSimples(e)) continue;
     for (const c of Array.isArray(e.changes) ? e.changes : []) {
-      if (objSimples(c) && (!c.field || c.field === 'messages') && objSimples(c.value) && Array.isArray(c.value.messages) && c.value.messages.length) return true;
+      if (objSimples(c) && (!c.field || c.field === 'messages') && objSimples(c.value) && Array.isArray(c.value.messages)) n += c.value.messages.length;
     }
   }
-  return false;
+  return n;
+}
+
+// Comando de aprovação: a MESMA gramática da função do banco (fonte/erp/sql/10_whatsapp_aprovacao.sql). Quem trata "ok 12" e "não 12: motivo"
+// é o banco; o Hermes não precisa ver (e responderia como conversa a um toque de botão que ele nunca mandou). Se a gramática do banco mudar,
+// mudar aqui também: o único efeito de um descompasso é o Hermes ver (ou não) um comando, nunca um comando deixar de ser aplicado.
+const CMD_APROVAR = /^\s*(ok|sim|aprovo|aprovado|pode)\s+#?\d{1,9}\s*[.!]?\s*$/i;
+const CMD_RECUSAR = /^\s*(n[aãÃ]o|recuso|recusado|cancela)\s+#?\d{1,9}\s*(?:[:;,.\-–—](?!\d)\s*[\s\S]*)?$/i;
+const ehComandoDeAprovacao = (t) => typeof t === 'string' && (CMD_APROVAR.test(t) || CMD_RECUSAR.test(t));
+
+// A entrega só traz comandos de aprovação (toque em botão ou texto digitado)? Só vale se TODA mensagem da entrega foi entendida e é comando:
+// na dúvida (mensagem que não deu para ler, mistura com conversa) a cópia vai.
+function soComandosDeAprovacao(msgs, total) {
+  return total > 0 && msgs.length === total && msgs.every((m) => ehComandoDeAprovacao(m.texto));
 }
 
 // Um POST para o Hermes com os MESMOS bytes do corpo e o X-Hub-Signature-256 como a Meta mandou. Nunca lança e nunca tenta de novo;
@@ -301,7 +316,9 @@ async function receber(req, res) {
   const msgs = extrairMensagens(payload);
   // Banco e cópia para o Hermes correm juntos (o pior caso é o maior dos dois tempos, bem abaixo dos 10 s da função) e a resposta só
   // sai depois dos dois. A cópia nunca lança; se o banco falhar por motivo passageiro o 503 sai do mesmo jeito, mesmo que a cópia tenha dado certo.
-  const [gravacao] = await Promise.allSettled([gravarMensagens(cfg, msgs, 'whatsapp'), temMensagem(payload) ? encaminhar(req, bruto) : null]);
+  const total = contarMensagens(payload);
+  const copiar = total > 0 && !soComandosDeAprovacao(msgs, total);
+  const [gravacao] = await Promise.allSettled([gravarMensagens(cfg, msgs, 'whatsapp'), copiar ? encaminhar(req, bruto) : null]);
   if (gravacao.status === 'rejected') throw gravacao.reason;   // 503 se alguma falhou por motivo passageiro (a Meta reenvia)
   const r = gravacao.value;
   return responder(res, 200, { ok: true, mensagens: r.mensagens, gravadas: r.gravadas, falhas: r.falhas });
@@ -332,6 +349,7 @@ module.exports.config = { api: { bodyParser: false } };
 module.exports.extrairMensagens = extrairMensagens;
 module.exports.LIMITE_BYTES = LIMITE_BYTES;
 module.exports.CONFIG = CONFIG;
+module.exports.ehComandoDeAprovacao = ehComandoDeAprovacao;
 module.exports.TEMPO_BANCO_MS = TEMPO_BANCO_MS;
 // para public/api/whatsapp-bird.js (só exportados; o comportamento destas funções é o daqui)
 module.exports.cfgBanco = cfgBanco;

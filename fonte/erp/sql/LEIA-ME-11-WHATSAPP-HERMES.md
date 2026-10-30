@@ -54,7 +54,7 @@ O remetente do banco manda a aprovação com botões. Estes são os formatos que
 - Quem manda tem de pôr os ids exatamente `ok N` e `nao N` (N = número da aprovação). Em **modelo**, o payload tem de ser definido no envio (`parameters: [{ "type": "payload", "payload": "ok 12" }]`). Sem isso a Meta devolve um valor genérico (a documentação mostra o próprio rótulo, e a antiga mostra `No-Button-Payload`), que não é comando.
 - Limite de tamanho (Meta): id de botão 256 caracteres, id de linha de lista 200. O texto é cortado em 256. O tamanho máximo do payload de modelo não foi confirmado.
 
-**Cuidado com o Hermes e os botões.** A documentação do Hermes diz que o toque em botão antigo ("stale") cai como texto comum. Não diz o que ele faz com toque em botão que ele nunca mandou, como o de aprovação; é provável que seja o mesmo, e confirmar. Como a cópia leva toda entrega com mensagem, ele também recebe esses toques e as mensagens `ok 12` digitadas, e pode responder a elas como conversa. Não filtrei, porque a assinatura só vale para o corpo inteiro. Se atrapalhar, dá para não encaminhar a entrega cujas mensagens sejam só comandos de aprovação.
+**Comando de aprovação não vai ao Hermes.** A documentação do Hermes diz que o toque em botão antigo ("stale") cai como texto comum e não diz o que ele faz com toque em botão que ele nunca mandou. Para ele não responder como conversa a um "ok 12", o `/api/whatsapp` **não copia** a entrega em que TODA mensagem é comando de aprovação (toque em botão, lista ou modelo com id `ok N`/`nao N`, ou o mesmo texto digitado), na mesma gramática da função do banco (`10_whatsapp_aprovacao.sql`; um teste compara as duas expressões). Quem trata o comando é o banco. Na dúvida a cópia sai: entrega que mistura comando e conversa, ou com mensagem que o banco não leu, vai inteira (a assinatura só vale para o corpo inteiro). O pior efeito de um descompasso é o Hermes ver, ou não, um comando; nunca um comando deixar de ser aplicado. No SOUL.md do Hermes vale a regra de ignorar em silêncio mensagem que seja só `ok N` ou `nao N`.
 
 ## 5. Se o Hermes cair
 
@@ -68,7 +68,7 @@ O remetente do banco manda a aprovação com botões. Estes são os formatos que
 ## 6. Limites
 
 - Só o `/api/whatsapp` encaminha. A Bird **não** encaminha.
-- Só entrega que traz mensagem. Aviso de status (entregue, lido) não é encaminhado.
+- Só entrega que traz mensagem, e que não seja só comando de aprovação (ver acima). Aviso de status (entregue, lido) não é encaminhado.
 - Um POST por entrega, com tempo limite de 3 s, sem nova tentativa e sem seguir redirecionamento. Vão só `Content-Type` e `X-Hub-Signature-256`; nenhuma chave do banco.
 - O endpoint continua respondendo 503, sem encaminhar, se faltarem as variáveis do banco ou do App Secret (inerte até configurar).
 - Mídia: nada é baixado aqui. Pela documentação do Hermes, ele baixa imagem, áudio e documento com o token dele.

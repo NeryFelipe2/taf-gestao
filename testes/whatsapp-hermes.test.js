@@ -285,13 +285,50 @@ describe('/api/whatsapp: botão de aprovação e cópia para o Hermes (Supabase 
       assert.ok(!JSON.stringify(opts.headers).includes(ANON), 'a chave do banco foi para o Hermes');
     });
 
-    it('toque em botão, em lista e em botão de modelo também são encaminhados (e gravados como texto)', async () => {
+    it('toque em botão, em lista e em botão de modelo que são comando de aprovação: gravados como texto, mas NÃO encaminhados (o banco trata; o Hermes responderia como conversa)', async () => {
       await chamar(handler, post(entrega([msgBotao('wamid.HB', 'ok 12', 'Aprovar')])));
       await chamar(handler, post(entrega([msgLista('wamid.HL', 'nao 12', 'Recusar', 'd')])));
       await chamar(handler, post(entrega([msgBotaoModelo('wamid.HM', { payload: 'ok 13', text: 'Aprovar' })])));
-      assert.equal(mundo.hermes.chamadas.length, 3);
+      assert.equal(mundo.hermes.chamadas.length, 0, 'toque de aprovação foi encaminhado');
       assert.deepEqual(mundo.rpc().map((a) => a.p_texto), ['ok 12', 'nao 12', 'ok 13']);
+    });
+
+    it('toque em botão, lista ou modelo que NÃO é comando de aprovação continua indo ao Hermes, inteiro, como a Meta mandou', async () => {
+      await chamar(handler, post(entrega([msgBotao('wamid.HB2', 'ver 12', 'Ver detalhes')])));
+      await chamar(handler, post(entrega([msgLista('wamid.HL2', 'obra 343', 'Obra 343', 'CAESB')])));
+      await chamar(handler, post(entrega([msgBotaoModelo('wamid.HM2', { payload: 'detalhar 5', text: 'Detalhar' })])));
+      assert.equal(mundo.hermes.chamadas.length, 3);
       assert.ok(mundo.hermes.chamadas[0].corpo.toString('utf8').includes('"button_reply"'), 'o Hermes recebe o toque inteiro, como a Meta mandou');
+    });
+
+    it('comando digitado (ok 12, sim #7, NÃO 12: falta o documento) não é encaminhado; frase comum que só parece comando é', async () => {
+      const comandos = ['ok 12', 'OK 12.', 'sim #7', 'aprovo 3!', 'pode 41', 'não 12', 'NÃO 12: falta o documento', 'recuso 5 - sem nota', 'cancela 9'];
+      const frases = ['ok 3 equipes', 'não 3,5 metros', 'não 12:30 da tarde', 'não 12 falta documento', 'ok', 'pode ser amanhã', 'sim 12 3'];
+      let i = 0;
+      for (const t of comandos) await chamar(handler, post(entrega([msgTexto('wamid.C' + (i++), t)])));
+      assert.equal(mundo.hermes.chamadas.length, 0, 'comando de aprovação foi encaminhado');
+      assert.equal(mundo.banco.chamadas.length, comandos.length, 'o banco precisa receber todos');
+      for (const t of frases) await chamar(handler, post(entrega([msgTexto('wamid.F' + (i++), t)])));
+      assert.equal(mundo.hermes.chamadas.length, frases.length, 'frase comum precisa ir ao Hermes');
+    });
+
+    it('entrega com comando e conversa juntos, ou com mensagem que o banco não leu, vai ao Hermes (na dúvida a cópia sai)', async () => {
+      await chamar(handler, post(entrega([msgBotao('wamid.X1', 'ok 12', 'Aprovar'), msgTexto('wamid.X2', 'bom dia')])));
+      assert.equal(mundo.hermes.chamadas.length, 1);
+      const semId = { from: NUMERO, timestamp: '1', type: 'text', text: { body: 'qualquer coisa' } };
+      await chamar(handler, post(entrega([msgBotao('wamid.X3', 'ok 13', 'Aprovar'), semId])));
+      assert.equal(mundo.hermes.chamadas.length, 2);
+    });
+
+    it('a gramática de comando daqui é a da função do banco (10_whatsapp_aprovacao.sql): mesma resposta para uma bateria de frases', () => {
+      const sql = fs.readFileSync(path.join(__dirname, '..', 'fonte', 'erp', 'sql', '10_whatsapp_aprovacao.sql'), 'utf8');
+      const regs = [...sql.matchAll(/regexp_match\(v_texto, '((?:[^']|'')*)', 'i'\)/g)].map((m) => m[1].replace(/''/g, "'"));
+      assert.equal(regs.length, 2, 'esperava as duas expressões (aprovar e recusar) no SQL');
+      const doBanco = regs.map((r) => new RegExp(r.replace('(.*)', '([\\s\\S]*)'), 'i'));   // no Postgres o ponto também pega quebra de linha
+      const frases = ['ok 12', 'OK 12.', 'sim #7', 'aprovo 3!', 'pode 41', 'aprovado 123456789', 'ok 1234567890', ' ok 7 ', '\tNao 8', 'não 12', 'NÃO 12: falta o documento',
+        'não 10: motivo\nsegunda linha', 'recuso 5 - sem nota', 'recusado #2;', 'cancela 9', 'ok 3 equipes', 'não 3,5 metros', 'não 3.5 toneladas', 'não 12:30 da tarde',
+        'não 12-15 pessoas', 'não 12 falta documento', 'ok', 'pode ser amanhã', 'sim 12 3', 'bom dia', '', 'ok 12 ok 13', 'aprova 12', 'não, 12'];
+      for (const t of frases) assert.equal(handler.ehComandoDeAprovacao(t), doBanco.some((re) => re.test(t)), 'descompasso com o banco em: ' + JSON.stringify(t));
     });
 
     it('entrega com várias mensagens: uma cópia só', async () => {
