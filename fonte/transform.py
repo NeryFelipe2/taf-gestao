@@ -50,7 +50,7 @@ async function sync(){
   if(falha){toast('Sem conexão com o banco. A edição ficou só neste navegador; tento de novo em instantes.');setTimeout(syncAg,15000)}else if(ok)toast('Salvo para todos');
 }
 async function puxar(){
-  if(syncBusy||syncT)return;var a=document.activeElement;if(a&&/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName)&&a.closest('#p-tarefas'))return;
+  if(syncBusy||syncT)return;var a=document.activeElement;if(a&&/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName)&&a.closest('#p-tarefas,#p-tarobra'))return;if(a&&a.isContentEditable)return;
   try{var rows=await TAF.rpc('taf_edicoes',{p_chave:TAF.chave}),m={},q={};rows.forEach(function(r){m[r.id]=r.dados;q[r.id]={quem:r.quem,em:r.em}});
     if(JSON.stringify(m)!==JSON.stringify(REM)&&JSON.stringify(docsDeED())===JSON.stringify(REM)){REM=m;window.__REM=m;REMQ=q;window.__REMQ=q;ED=edDeDocs(m);TKW='Atualizado com edições de outra pessoa';render()}}catch(e){}
 }
@@ -83,6 +83,8 @@ sub('/*WCRCSS*/',css+"""
 #gate .err{color:var(--s-ne);font-size:13px;min-height:1em}
 """)
 sub('/*EXTRACT*/',ex)
+sub('/*TAROBRA_CSS*/',open('tarobra.css',encoding='utf-8').read())
+sub('/*TAROBRA_JS*/',open('tarobra.js',encoding='utf-8').read())
 # gate + loader
 loader=open('loader.html',encoding='utf-8').read()
 sub('<div id="tip" hidden></div>',loader+'\n<div id="tip" hidden></div>')
