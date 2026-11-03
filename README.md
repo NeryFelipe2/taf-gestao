@@ -6,7 +6,8 @@ Aba Tarefas = restrições R01-R110 da rev6. Quem edita, todos veem (salva a cad
 **Este repositório é PÚBLICO.** Dado real (a leitura da rev6: contrato, medido, recebido, nomes), chave e senha nunca entram nele. A leitura vai do computador direto para o banco (ver "Atualizar os números").
 
 ## Como funciona
-- Entra com uma **chave de acesso** (guardada no navegador). Sem a chave, nada dos números aparece.
+- **Desde 03/11/2026 o site principal abre sem chave** (pedido do Felipe, até a empresa crescer): planilha de gestão, Tarefas e Tarefas por Obra leem e gravam por `taf_ler_aberto`, `taf_edicoes_aberto` e `taf_tarefa_salvar_aberto` (`supabase/12_site_aberto.sql`, com o bloco para reverter). Continuam com chave: trocar a planilha de todos (`taf_snap_salvar`), o ERP (tem CPF, ASO, atestado, banco de horas, salário, conta bancária, celular) e o planejador (cronograma, /ciclo, /marko: permissão por papel). Apagar as três funções abertas faz o site voltar a pedir a chave sozinho.
+- Com a chave (botão "Entrar com a chave" no Painel) o aparelho vê também o prazo do cronograma.
 - Os números vêm da rev6: o banco guarda a última leitura. Para atualizar: botão **Atualizar com a rev6** e escolher o .xlsx (salva para todos).
 - Edições das tarefas ficam por cima da rev6, no banco (`taf_tarefa_edicao`, com histórico em `taf_tarefa_hist`). Não mexem no arquivo da rev6: quem aplica na planilha é a gestão, com as abas MUDANÇAS e NOVAS do botão **Baixar planilha**.
 - **Baixar planilha** (cabeçalho e barra de edição da aba Tarefas) gera `TAF - TAREFAS DO SITE - <data>.xlsx` no navegador, com 3 abas: TAREFAS (lista inteira com as edições), MUDANÇAS (rev6) (campo, valor da rev6, valor de agora, linha e coluna da 05C) e NOVAS (05C) (tarefas criadas no site, na ordem das colunas da 05C). Antes de Restaurar original e de Importar JSON o site baixa essa planilha como cópia de segurança.

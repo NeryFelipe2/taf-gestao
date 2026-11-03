@@ -382,6 +382,7 @@ function cicloLer(o,forcar){
     function(e){delete OBR.pend[o];OBR.erro[o]=String((e&&e.message)||e);throw e});
   OBR.pend[o]=p;return p}
 function obrasCarregar(){
+  if(!TAF.chave){OBR.lista=OB.map(function(o){return {obra:o,cronograma:false,erp:ERP_LEGADO.indexOf(o)>=0}});OBR.fonte='sem chave';return Promise.resolve()}   /* site aberto: cronograma e ERP continuam com chave */
   return TAF.rpc('taf_ciclo_obras',{p_chave:TAF.chave}).then(function(l){OBR.lista=l||[];OBR.fonte='banco'},function(){
     var cand=OB.slice();[QS.get('obra'),OBRA_FORCE].forEach(function(o){if(/^\d{3}$/.test(o||'')&&cand.indexOf(o)<0)cand.push(o)});
     return Promise.all(cand.map(function(o){return cicloLer(o).then(function(L){var ob=L.obra||{};
@@ -482,6 +483,7 @@ function prazoObra(o){
 function rObrasPrazo(){
   var el=$('obras-prazo');if(!el)return;
   if(OBR.lista==null){el.innerHTML='<div class="card"><h3>As obras estão no prazo?</h3><p class="hint">Lendo as obras do banco…</p></div>';return}
+  if(!TAF.chave){el.innerHTML='<div class="card"><h3>As obras estão no prazo?</h3><p class="hint">O prazo vem do cronograma do planejador, que continua com chave. <button type="button" class="btn" onclick="TAF.pedirChave()">Entrar com a chave</button></p></div>';return}
   var obs=S.obras.length?S.obras:obrasTodas();
   obs.forEach(function(o){if(temCrono(o)&&!OBR.ler[o]&&!OBR.pend[o]&&!OBR.erro[o])cicloLer(o).then(cicloDepois,cicloDepois)});
   var COR={'Atrasada':'--s-ne','Atenção':'--s-cf','No prazo':'--s-ex','Sem cronograma':'--s-si','Falha ao ler':'--s-ne','Carregando':'--s-si'};

@@ -21,16 +21,18 @@ window.TAF={chave:ls.g('taf-chave')||'',
   sair:function(){ls.d('taf-chave');location.reload()}};
 function gate(msg,err){$('gate').hidden=false;$('g-msg').textContent=msg||'Digite a chave de acesso.';$('g-err').textContent=err||'';$('g-nome').value=ls.g('taf-quem')||''}
 async function entrar(){
-  try{var r=await TAF.rpc('taf_ler',{p_chave:TAF.chave});
+  /* 03/11/2026: site aberto sem chave (taf_ler_aberto, supabase/12_site_aberto.sql). Se a função aberta não existir no banco, volta a pedir a chave. */
+  try{var r;try{r=await TAF.rpc('taf_ler_aberto',{})}catch(e0){if(!TAF.chave){gate();return}r=await TAF.rpc('taf_ler',{p_chave:TAF.chave})}
     if(!r||!r.snap){$('gate').hidden=false;$('g-msg').textContent='Chave certa. O banco ainda não tem a planilha: escolha a planilha de gestão.';$('g-chave').hidden=true;$('g-nome').hidden=true;$('g-ok').hidden=true;$('g-revl').hidden=false;return}
     $('gate').hidden=true;D=r.snap;W=(r.wa&&r.wa.acoes)?r.wa:{acoes:[]};FONTE=(r.fonte||'planilha de gestão')+', salva em '+new Date(r.snap_em).toLocaleDateString('pt-BR');
-    var m={},q={};(r.edicoes||[]).forEach(function(x){m[x.id]=x.dados;q[x.id]={quem:x.quem,em:x.em}});window.__REM=m;window.__REMQ=q;if(new URLSearchParams(location.search).get('volta')==='centro'){location.replace('/centro.html');return}window.__iniciar()}
+    var m={},q={};(r.edicoes||[]).forEach(function(x){m[x.id]=x.dados;q[x.id]={quem:x.quem,em:x.em}});window.__REM=m;window.__REMQ=q;if(new URLSearchParams(location.search).get('volta')==='centro'){location.replace('/centro.html');return}window.__iniciado=true;window.__iniciar()}
   catch(e){if(/CHAVE/.test(e.message)){ls.d('taf-chave');TAF.chave='';gate('Digite a chave de acesso.','Chave inválida.')}else gate('Sem conexão com o banco.','Erro: '+e.message)}}
 $('g-ok').onclick=function(){var c=$('g-chave').value.trim(),n=$('g-nome').value.trim();if(!c){$('g-err').textContent='Digite a chave.';return}
-  TAF.chave=c;ls.s('taf-chave',c);if(n)ls.s('taf-quem',n);entrar()};
+  TAF.chave=c;ls.s('taf-chave',c);if(n)ls.s('taf-quem',n);if(window.__iniciado)location.reload();else entrar()};
 $('g-chave').addEventListener('keydown',function(e){if(e.key==='Enter')$('g-ok').click()});
 $('g-rev').onchange=function(e){var f=e.target.files[0];if(!f)return;var rd=new FileReader();rd.onload=function(){try{var wb=XLSX.read(new Uint8Array(rd.result),{type:'array'});if(!wb.Sheets['01A. GESTÃO DA SEMANA']||!wb.Sheets['05C. RESTRIÇÕES'])throw new Error('Esse arquivo não tem as abas da planilha de gestão.');
   TAF.rpc('taf_snap_salvar',{p_chave:TAF.chave,p_snap:extractRev6(wb),p_fonte:f.name,p_quem:TAF.quem()}).then(function(){location.reload()},function(er){$('g-err').textContent='Não salvou: '+er.message})}catch(er){$('g-err').textContent=er.message}};rd.readAsArrayBuffer(f)};
-if(TAF.chave)entrar();else gate();
+TAF.pedirChave=function(){gate('Chave de acesso: abre o prazo do cronograma, o ERP e o planejador neste aparelho.')};
+entrar();
 })();
 </script>

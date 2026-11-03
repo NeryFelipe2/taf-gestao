@@ -45,13 +45,13 @@ async function sync(){
   var dif=Object.keys(ids).filter(function(k){return JSON.stringify(cur[k]||null)!==JSON.stringify(REM[k]||null)});
   if(!dif.length)return;syncBusy=true;var ok=0,falha=false;
   for(var i=0;i<dif.length;i++){var k=dif[i];
-    try{await TAF.rpc('taf_tarefa_salvar',{p_chave:TAF.chave,p_id:k,p_dados:cur[k]||null,p_quem:TAF.quem()});if(cur[k]){REM[k]=cl(cur[k]);REMQ[k]={quem:TAF.quem(),em:new Date().toISOString()}}else{delete REM[k];delete REMQ[k]}ok++}catch(e){falha=true;if(e.status===401||/CHAVE/.test(e.message)){TAF.sair();return}}}
+    try{await TAF.rpc('taf_tarefa_salvar_aberto',{p_id:k,p_dados:cur[k]||null,p_quem:TAF.quem()});if(cur[k]){REM[k]=cl(cur[k]);REMQ[k]={quem:TAF.quem(),em:new Date().toISOString()}}else{delete REM[k];delete REMQ[k]}ok++}catch(e){falha=true;if(e.status===401||/CHAVE/.test(e.message)){TAF.sair();return}}}
   syncBusy=false;
   if(falha){toast('Sem conexão com o banco. A edição ficou só neste navegador; tento de novo em instantes.');setTimeout(syncAg,15000)}else if(ok)toast('Salvo para todos');
 }
 async function puxar(){
   if(syncBusy||syncT)return;var a=document.activeElement;if(a&&/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName)&&a.closest('#p-tarefas,#p-tarobra'))return;if(a&&a.isContentEditable)return;
-  try{var rows=await TAF.rpc('taf_edicoes',{p_chave:TAF.chave}),m={},q={};rows.forEach(function(r){m[r.id]=r.dados;q[r.id]={quem:r.quem,em:r.em}});
+  try{var rows=await TAF.rpc('taf_edicoes_aberto',{}),m={},q={};rows.forEach(function(r){m[r.id]=r.dados;q[r.id]={quem:r.quem,em:r.em}});
     if(JSON.stringify(m)!==JSON.stringify(REM)&&JSON.stringify(docsDeED())===JSON.stringify(REM)){REM=m;window.__REM=m;REMQ=q;window.__REMQ=q;ED=edDeDocs(m);TKW='Atualizado com edições de outra pessoa';render()}}catch(e){}
 }
 function pollIni(){setInterval(puxar,30000);document.addEventListener('visibilitychange',function(){if(!document.hidden)puxar()})}""")

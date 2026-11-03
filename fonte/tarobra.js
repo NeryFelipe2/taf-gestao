@@ -43,7 +43,7 @@ function cxObras(all){var l=obrasTodas().slice();all.forEach(function(r){if(l.in
 function cxDonos(all){var m={};CX_TIME.forEach(function(p){m[p]=1});all.forEach(function(r){if(r.dono)m[r.dono]=1});return [['','sem dono']].concat(Object.keys(m).sort().map(function(d){return [d,d]}))}
 function cxLink(spec){var b=location.origin+location.pathname;return b+'#tarobra'+(spec&&spec!=='all'?'/'+(spec.charAt(0)==='o'?'obra-'+spec.slice(2):cxSlug(spec.slice(2))):'')}
 function cxHashSet(){if(S.tab!=='tarobra')return;var h='#tarobra'+(CX.fp?'/'+cxSlug(CX.fp):CX.fo?'/obra-'+CX.fo:'');try{if(location.hash!==h)history.replaceState(null,'',location.pathname+location.search+h)}catch(e){}}
-function cxHashLe(pes){var m=/^#tarobra\/(.+)$/.exec(location.hash||'');CXHASH=null;if(!m)return;var v=decodeURIComponent(m[1]);
+function cxHashLe(pes){var m=/^#tarobra\/(.+)$/.exec(location.hash||'');CXHASH=null;if(!m){if(location.hash==='#tarobra'){CX.fp='';CX.fo=''}return}var v=decodeURIComponent(m[1]);
   if(/^obra-/.test(v)){CX.vis='o';CX.fo=v.slice(5);CX.fp='';return}
   var s=cxSlug(v),a=pes.filter(function(p){return cxSlug(p)===s})[0]||pes.filter(function(p){return cxSlug(p).indexOf(s)===0||cxK(p)===s})[0];if(a){CX.vis='p';CX.fp=a;CX.fo=''}}
 function rTarobra(){var side=$('cx-side');if(!side)return '';

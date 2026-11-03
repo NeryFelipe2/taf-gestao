@@ -3,8 +3,9 @@ window.TAF_DADOS=(async function(){
 var URL_='https://vblfdikfobsirwpdnybw.supabase.co/rest/v1/rpc/',KEY='sb_publishable_pXs7_21V-PWatZ0iqZJ_ew_1Rm3JogW';
 var ch=null;try{ch=localStorage.getItem('taf-chave')}catch(e){}
 var nunca=new Promise(function(){});
-if(!ch){location.replace('/?volta=centro');return nunca}
-var r=await fetch(URL_+'taf_ler',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_chave:ch})});
+/* 03/11/2026: site aberto (taf_ler_aberto); sem a função aberta no banco, volta à chave */
+var r=await fetch(URL_+'taf_ler_aberto',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:'{}'});
+if(!r.ok&&r.status===404){if(!ch){location.replace('/?volta=centro');return nunca}r=await fetch(URL_+'taf_ler',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:JSON.stringify({p_chave:ch})})}
 var t=await r.text(),j;try{j=JSON.parse(t)}catch(e){j=t}
 if(!r.ok){if(/CHAVE/.test((j&&j.message)||t)){try{localStorage.removeItem('taf-chave')}catch(e){}location.replace('/?volta=centro');return nunca}throw new Error((j&&j.message)||t)}
 if(!j||!j.snap){location.replace('/');return nunca}
