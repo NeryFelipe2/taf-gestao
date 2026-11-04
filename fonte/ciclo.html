@@ -373,7 +373,7 @@ function gate(msg, rede) {
 function iniciar() {
   var c = CC.ls.get('taf-ciclo-chave'), o = 'ciclo';
   if (!c && CC.ls.get('taf-ciclo-sem-site') !== '1') { c = CC.ls.get('taf-chave'); o = 'site'; }
-  if (!c) { gate(''); return; }
+  if (!c) { c = 'aberto'; o = 'aberto'; }   // 04/11: sem chave abre direto (supabase/13_ciclo_aberto.sql)
   entrar(c, o);
 }
 function entrar(chave, origem) {

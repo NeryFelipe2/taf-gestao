@@ -378,12 +378,12 @@ function quemLs(){try{return localStorage.getItem('taf-quem')||null}catch(e){ret
 function cicloLer(o,forcar){
   if(!forcar&&OBR.ler[o])return Promise.resolve(OBR.ler[o]);
   if(OBR.pend[o])return OBR.pend[o];
-  var p=TAF.rpc('taf_ciclo_ler',{p_chave:TAF.chave,p_obra:o,p_seg:null,p_quem:quemLs()}).then(function(L){delete OBR.pend[o];delete OBR.erro[o];OBR.ler[o]=L;return L},
+  var p=TAF.rpc('taf_ciclo_ler',{p_chave:TAF.chave||'aberto',p_obra:o,p_seg:null,p_quem:quemLs()}).then(function(L){delete OBR.pend[o];delete OBR.erro[o];OBR.ler[o]=L;return L},
     function(e){delete OBR.pend[o];OBR.erro[o]=String((e&&e.message)||e);throw e});
   OBR.pend[o]=p;return p}
 function obrasCarregar(){
-  if(!TAF.chave){OBR.lista=OB.map(function(o){return {obra:o,cronograma:false,erp:ERP_LEGADO.indexOf(o)>=0}});OBR.fonte='sem chave';return Promise.resolve()}   /* site aberto: cronograma e ERP continuam com chave */
-  return TAF.rpc('taf_ciclo_obras',{p_chave:TAF.chave}).then(function(l){OBR.lista=l||[];OBR.fonte='banco'},function(){
+  /* 04/11: sem chave o cronograma abre com a chave 'aberto' (supabase/13_ciclo_aberto.sql); o ERP continua com chave */
+  return TAF.rpc('taf_ciclo_obras',{p_chave:TAF.chave||'aberto'}).then(function(l){OBR.lista=l||[];OBR.fonte='banco'},function(){
     var cand=OB.slice();[QS.get('obra'),OBRA_FORCE].forEach(function(o){if(/^\d{3}$/.test(o||'')&&cand.indexOf(o)<0)cand.push(o)});
     return Promise.all(cand.map(function(o){return cicloLer(o).then(function(L){var ob=L.obra||{};
         return {obra:o,nome:ob.nome,cronograma:(L.crono||[]).length>0,n_ativ:(L.crono||[]).length,base_rev:ob.base_rev,base_aprovada_por:ob.base_aprovada_por,base_aprovada_em:ob.base_aprovada_em,erp:ERP_LEGADO.indexOf(o)>=0}},
@@ -483,7 +483,6 @@ function prazoObra(o){
 function rObrasPrazo(){
   var el=$('obras-prazo');if(!el)return;
   if(OBR.lista==null){el.innerHTML='<div class="card"><h3>As obras estão no prazo?</h3><p class="hint">Lendo as obras do banco…</p></div>';return}
-  if(!TAF.chave){el.innerHTML='<div class="card"><h3>As obras estão no prazo?</h3><p class="hint">O prazo vem do cronograma do planejador, que continua com chave. <button type="button" class="btn" onclick="TAF.pedirChave()">Entrar com a chave</button></p></div>';return}
   var obs=S.obras.length?S.obras:obrasTodas();
   obs.forEach(function(o){if(temCrono(o)&&!OBR.ler[o]&&!OBR.pend[o]&&!OBR.erro[o])cicloLer(o).then(cicloDepois,cicloDepois)});
   var COR={'Atrasada':'--s-ne','Atenção':'--s-cf','No prazo':'--s-ex','Sem cronograma':'--s-si','Falha ao ler':'--s-ne','Carregando':'--s-si'};
@@ -1176,7 +1175,7 @@ function telas(){
   var av=box.querySelector(':scope>.aviso'),ibx=box.querySelector(':scope>.impbox');if(ibx)ibx.hidden=true;
   var aviso=function(h){if(!av){av=document.createElement('div');av.className='aviso';box.insertBefore(av,box.firstChild)}av.innerHTML=h;Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=true})};
   if(!ob){aviso('<b>Selecione uma obra</b> para abrir '+esc(d[1])+': '+obrasTodas().map(function(o){return '<button type="button" class="chip" data-so-o="'+esc(o)+'">'+esc(nomeObra(o))+'</button>'}).join(' ')+(d[0]==='crono'?obraNovaCampo('crono'):''));return}
-  if(!TAF.chave){aviso('O '+(mod==='erp'?'ERP':'cronograma')+' da obra '+esc(ob)+' abre com a sua chave (a planilha e as Tarefas abrem direto). <button type="button" class="btn" onclick="TAF.pedirChave()">Entrar com a chave</button>');return}
+  if(!TAF.chave&&mod==='erp'){aviso('O ERP da obra '+esc(ob)+' abre com a sua chave (tem dado pessoal da equipe). <button type="button" class="btn" onclick="TAF.pedirChave()">Entrar com a chave</button>');return}
   if(OBR.lista==null){aviso('Lendo as obras do banco…');return}
   if(mod==='erp'?!temErp(ob):!temCrono(ob)){
     if(mod!=='erp'&&d[0]==='crono'){if(av)av.remove();Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=true});rImportar(box,ob);return}
