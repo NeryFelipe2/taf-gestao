@@ -392,6 +392,7 @@ function entrar(chave, origem) {
     K.chave = ''; CC.init({ chave: '' });
     if (e && e.rede) { gate('Sem conexão com o banco (' + m + '). Confira o sinal e tente de novo.', true); return; }
     if (/SEM ACESSO/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Esta chave não tem acesso à obra ' + OBRA + '.'); return; }
+    if (/CHAVE|SEM ACESSO/.test(m) && chave !== 'aberto') { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); entrar('aberto', 'aberto'); return; }   // 04/11: chave velha não trava: abre direto
     if (/CHAVE/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Chave inválida.'); return; }
     gate('Não consegui abrir: ' + m, true);
   });

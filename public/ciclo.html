@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
-<meta name="taf-versao" content="d2ace4da4c">
+<meta name="taf-versao" content="a37f9e31df">
 <title>Obra 342 · Ciclo</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <style>
@@ -266,7 +266,7 @@ html.emb body{background:transparent;background-image:none}
   <div class="card" id="m-lista"></div>
   <div id="m-mais"></div>
 </section>
-<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">d2ace4da4c</span></footer>
+<footer class="rod">Obra 342 · ciclo semanal · versão <span id="f-versao">a37f9e31df</span></footer>
 </div>
 
 <script>/* ciclo-core.js · núcleo comum do /marko (engenheiro) e do /ciclo (gestor), obra 342.
@@ -2689,6 +2689,7 @@ function entrar(chave, origem) {
     K.chave = ''; CC.init({ chave: '' });
     if (e && e.rede) { gate('Sem conexão com o banco (' + m + '). Confira o sinal e tente de novo.', true); return; }
     if (/SEM ACESSO/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Esta chave não tem acesso à obra ' + OBRA + '.'); return; }
+    if (/CHAVE|SEM ACESSO/.test(m) && chave !== 'aberto') { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); entrar('aberto', 'aberto'); return; }   // 04/11: chave velha não trava: abre direto
     if (/CHAVE/.test(m)) { if (origem === 'ciclo') CC.ls.del('taf-ciclo-chave'); gate('Chave inválida.'); return; }
     gate('Não consegui abrir: ' + m, true);
   });

@@ -4277,6 +4277,7 @@ function resolverObra(digitada){   // obra sempre explícita: só segue sozinha 
   },function(e){
     var m=(e&&e.message)||String(e||'');
     if(/Could not find the function|PGRST202|404/.test(m)){CC.OBRA='342';entrar(digitada);return}   // banco ainda sem a função nova (04): mantém o comportamento antigo desta página
+    if(/CHAVE/.test(m)&&chave!=='aberto'){if(ORIG==='marko')ls.d(CK);chave='aberto';resolverObra(digitada);return}   /* 04/11: chave velha não trava: abre direto */
     if(/CHAVE/.test(m)){if(ORIG==='marko')ls.d(CK);chave='';gate('Chave inválida.');return}
     gate('Não consegui ver suas obras: '+m,true);
   });
@@ -4286,13 +4287,14 @@ function entrar(digitada){
   if(CC.OBRA!=='342'){document.title=document.title.replace('342',CC.OBRA);Array.prototype.forEach.call(document.querySelectorAll('h1,h2'),function(e){e.innerHTML=e.innerHTML.replace('Obra 342','Obra '+CC.OBRA)})}
   CC.init({chave:chave,quem:ls.g('taf-quem')||'',obra:CC.OBRA,onFila:function(){agendarPintar()},onRecusa:onRecusa,onOk:onOk,
     onChave:function(m){gate(/SEM ACESSO/.test(m||'')?'Esta chave não tem mais acesso à obra '+CC.OBRA+'. Entre com outra chave: o que estava para enviar continua guardado.':'Chave inválida. Entre de novo: o que estava para enviar continua guardado.')}});
-  var p1=rpc('taf_pessoa_ler',{p_chave:chave}).then(function(x){P=x;return null},function(e){return e});
+  var p1=rpc('taf_pessoa_ler',{p_chave:chave}).then(function(x){P=x;return null},function(e){if(chave==='aberto'){P={pessoa:'',tarefas:[],crono:[],pedido:[]};return null}return e});   /* 04/11: sem chave a parte pessoal fica vazia */
   var p2=CC.ler().then(function(L){return L},function(e){return e});
   Promise.all([p1,p2]).then(function(r){
     var e1=r[0],L=r[1]&&r[1].ator?r[1]:null,e2=L?null:r[1];
     if(!L&&(e1||(e2&&e2.rede))){
       var m=(e1&&e1.message)||'',m2=CC.erro(e2)||'';
       if(e2&&e2.rede){gate('Sem sinal: confira a conexão e tente de novo. A chave continua guardada.',true);return}
+      if((/CHAVE/.test(m)||/CHAVE/.test(m2)||/SEM ACESSO/.test(m2))&&chave!=='aberto'){if(ORIG==='marko')ls.d(CK);chave='aberto';entrar(digitada);return}   /* 04/11: chave velha não trava */
       if(/CHAVE/.test(m)||/CHAVE/.test(m2)){if(ORIG==='marko')ls.d(CK);chave='';CC.init({chave:''});gate('Chave inválida.')}
       else if(/SEM ACESSO/.test(m2)){if(ORIG==='marko')ls.d(CK);chave='';CC.init({chave:''});gate('Esta chave não tem acesso à obra '+CC.OBRA+'.')}
       else gate('Não consegui abrir: '+(m2||m),true);

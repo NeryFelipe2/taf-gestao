@@ -40,14 +40,14 @@ async function chObraData(cod){if(window.TAF_OBRAS&&window.TAF_OBRAS[cod])return
   return chPB[cod]}
 
 /* ---------- entrada com a chave ---------- */
-function chTela(msg){login().classList.add('open');const k=chLs(CHK)||chLs('taf-marko-chave')||'';
-  $('#lbox').innerHTML=`<h3>ERP TAF</h3><div class="sub">Entre com a mesma chave do site TAF. A chave fica guardada só neste aparelho.</div>
+function chTela(msg){login().classList.add('open');const k='';
+  $('#lbox').innerHTML=`<h3>ERP TAF</h3><div class="sub">Diga seu nome para entrar. A chave não é mais necessária: deixe em branco.</div>
    <label>Chave</label><input id="ch-k" type="password" autocomplete="current-password" value="${esc(k)}">
    <label>Seu nome</label><input id="ch-q" type="text" autocomplete="name" value="${esc(chLs(CHQ)||'')}" placeholder="aparece em tudo que você lançar">
    <div id="l-msg" class="sub" style="margin-top:10px;${msg?'color:var(--bad)':''}">${esc(msg||'')}</div>
    <div class="acts"><a class="btn" href="/">Voltar ao site</a><button class="btn dark" data-act="l-entrar">Entrar</button></div>`;
   setTimeout(()=>{const i=$(k?'#ch-q':'#ch-k');if(i)i.focus()},50)}
-async function chLoginForm(){const k=($('#ch-k').value||'').trim(),q=($('#ch-q').value||'').trim();if(!k)return lmsg('Informe a chave.');
+async function chLoginForm(){const k=($('#ch-k').value||'').trim()||'aberto',q=($('#ch-q').value||'').trim();
   lmsg('Aguarde…',false);try{await chEntrar(k,q,true)}catch(e){lmsg(chMsg(e))}}
 document.addEventListener('keydown',e=>{if(MODO_CH&&e.key==='Enter'&&e.target&&(e.target.id==='ch-k'||e.target.id==='ch-q'))chLoginForm()});
 async function chEntrar(k,q,doForm){
@@ -75,7 +75,8 @@ function chChaveInicial(){const de=new URLSearchParams(location.search).get('de'
 async function chBoot(){const [k,qq]=chChaveInicial();
   if(!k){chTela();$('#view').innerHTML='';return}
   try{await chEntrar(k,qq,false)}
-  catch(e){if(semRede(e)||e.status>=500){telaAviso('Sem conexão','Não consegui falar com o banco. Tente de novo quando tiver sinal.','<button class="btn dark" onclick="location.reload()">Tentar de novo</button>');return}
+  catch(e){if(k!=='aberto'&&!(semRede(e)||e.status>=500)){chLs(CHK,null);try{await chEntrar('aberto',qq,false);return}catch(e2){e=e2}}   /* 04/11: chave velha guardada não trava mais: abre direto */
+    if(semRede(e)||e.status>=500){telaAviso('Sem conexão','Não consegui falar com o banco. Tente de novo quando tiver sinal.','<button class="btn dark" onclick="location.reload()">Tentar de novo</button>');return}
     $('#view').innerHTML='';chTela(chMsg(e))}}
 function chSair(){chLs(CHK,null);chLs(CHS,'1');location.reload()}
 
