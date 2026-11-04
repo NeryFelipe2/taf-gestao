@@ -1175,7 +1175,6 @@ function telas(){
   var av=box.querySelector(':scope>.aviso'),ibx=box.querySelector(':scope>.impbox');if(ibx)ibx.hidden=true;
   var aviso=function(h){if(!av){av=document.createElement('div');av.className='aviso';box.insertBefore(av,box.firstChild)}av.innerHTML=h;Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=true})};
   if(!ob){aviso('<b>Selecione uma obra</b> para abrir '+esc(d[1])+': '+obrasTodas().map(function(o){return '<button type="button" class="chip" data-so-o="'+esc(o)+'">'+esc(nomeObra(o))+'</button>'}).join(' ')+(d[0]==='crono'?obraNovaCampo('crono'):''));return}
-  if(!TAF.chave&&mod==='erp'){aviso('O ERP da obra '+esc(ob)+' abre com a sua chave (tem dado pessoal da equipe). <button type="button" class="btn" onclick="TAF.pedirChave()">Entrar com a chave</button>');return}
   if(OBR.lista==null){aviso('Lendo as obras do banco…');return}
   if(mod==='erp'?!temErp(ob):!temCrono(ob)){
     if(mod!=='erp'&&d[0]==='crono'){if(av)av.remove();Array.prototype.forEach.call(box.querySelectorAll('iframe'),function(x){x.hidden=true});rImportar(box,ob);return}

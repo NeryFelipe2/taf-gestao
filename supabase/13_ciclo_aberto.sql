@@ -80,3 +80,8 @@ end $function$;
 
 -- reverter: rodar de novo as versões de fonte/ciclo/sql (04_obras_e_importacao.sql e a de _taf_ciclo_ator) e
 -- drop function public._taf_ciclo_aberto(text);
+
+-- 04/11 19:30 Felipe escolheu "Abrir o cronograma e o ERP": aplicado também
+-- _taf_erp_ator: a chave 'aberto' vale como a chave geral (nome declarado, papel da tela, todas as obras);
+-- taf_ciclo_obras('aberto') lista as obras do ciclo e do ERP, com erp = true.
+-- reverter o ERP: rodar de novo _taf_erp_ator de fonte/erp/sql (sem o bloco _taf_ciclo_aberto).

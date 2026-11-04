@@ -634,7 +634,7 @@ async function chEntrar(k,q,doForm){
 $('#role').addEventListener('change',e=>{if(!MODO_CH||CH.fixo)return;chLs(CHP,e.target.value);if(SB.perfil)SB.perfil.papel=e.target.value});
 /* a chave vem de onde a pessoa chegou: link do /marko (?de=marko) ou do /ciclo (?de=ciclo) usa a chave daquela tela; senão a última do ERP, a do Ciclo, a do Marko, a do site */
 function chChaveInicial(){const de=new URLSearchParams(location.search).get('de'),semSite=chLs(CHS)==='1',site=semSite?null:chLs('taf-chave'),cc=chLs('taf-ciclo-chave')||(chLs('taf-ciclo-sem-site')==='1'?null:site),mk=chLs('taf-marko-chave')||site;
-  const ordem=de==='marko'?[mk,cc]:de==='ciclo'?[cc,mk]:[];const k=ordem.find(Boolean)||chLs(CHK)||(semSite?'':cc||mk||site)||'';
+  const ordem=de==='marko'?[mk,cc]:de==='ciclo'?[cc,mk]:[];const k=ordem.find(Boolean)||chLs(CHK)||(semSite?'':cc||mk||site)||'aberto';   /* 04/11: sem chave abre direto (supabase/13_ciclo_aberto.sql) */
   return [k,chLs(CHQ)||chLs('taf-quem')||'']}
 async function chBoot(){const [k,qq]=chChaveInicial();
   if(!k){chTela();$('#view').innerHTML='';return}
