@@ -40,6 +40,10 @@
     {
       "source": "/erp",
       "destination": "/erp.html"
+    },
+    {
+      "source": "/obra343",
+      "destination": "/obra343.html"
     }
   ],
   "crons": [
