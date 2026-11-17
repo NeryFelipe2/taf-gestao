@@ -44,6 +44,10 @@
     {
       "source": "/obra343",
       "destination": "/obra343.html"
+    },
+    {
+      "source": "/obra342",
+      "destination": "/obra342.html"
     }
   ],
   "crons": [
